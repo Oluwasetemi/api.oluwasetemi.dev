@@ -36,9 +36,8 @@ describe("tasks routes", () => {
 
   it("post /tasks validates the body when creating", async () => {
     const response = await client.tasks.$post({
-      // @ts-expect-error
       json: {
-        done: false,
+        status: "XXX",
       },
     });
     expect(response.status).toBe(422);
@@ -49,47 +48,60 @@ describe("tasks routes", () => {
     }
   });
 
-  const id = 1;
+  let id = crypto.randomUUID();
   const name = "Learn vitest";
 
   it("post /tasks creates a task", async () => {
     const response = await client.tasks.$post({
       json: {
         name,
-        done: false,
+        status: "TODO",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+
+      id = json.id as `${string}-${string}-${string}-${string}-${string}`;
+      expect(json.name).toBe(name);
+      expect(json.status).toBe("TODO");
+    }
+  });
+
+  it("get /tasks lists all tasks", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        page: 1,
+        limit: 10,
       },
     });
     expect(response.status).toBe(200);
     if (response.status === 200) {
       const json = await response.json();
-      expect(json.name).toBe(name);
-      expect(json.done).toBe(false);
+      console.log(json);
+      expectTypeOf(json.data).toBeArray();
+      expect(json.data.length).toBe(1);
     }
   });
 
-  it("get /tasks lists all tasks", async () => {
-    const response = await client.tasks.$get();
-    expect(response.status).toBe(200);
-    if (response.status === 200) {
-      const json = await response.json();
-      expectTypeOf(json).toBeArray();
-      expect(json.length).toBe(1);
-    }
-  });
+  // TODO: test the pagination
 
   it("get /tasks/{id} validates the id param", async () => {
     const response = await client.tasks[":id"].$get({
       param: {
         // @ts-expect-error
-        id: "wat",
+        id: 999,
       },
     });
+
     expect(response.status).toBe(422);
+
     if (response.status === 422) {
       const json = await response.json();
       expect(json.error.issues[0].path[0]).toBe("id");
       expect(json.error.issues[0].message).toBe(
-        ZOD_ERROR_MESSAGES.EXPECTED_NUMBER,
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
       );
     }
   });
@@ -97,7 +109,7 @@ describe("tasks routes", () => {
   it("get /tasks/{id} returns 404 when task not found", async () => {
     const response = await client.tasks[":id"].$get({
       param: {
-        id: 999,
+        id: crypto.randomUUID(),
       },
     });
     expect(response.status).toBe(404);
@@ -110,21 +122,23 @@ describe("tasks routes", () => {
   it("get /tasks/{id} gets a single task", async () => {
     const response = await client.tasks[":id"].$get({
       param: {
-        id,
+        id: id.toString(),
       },
     });
     expect(response.status).toBe(200);
     if (response.status === 200) {
       const json = await response.json();
       expect(json.name).toBe(name);
-      expect(json.done).toBe(false);
+      expect(json.status).toBe("TODO");
     }
   });
+
+  // TODO: test the children routes
 
   it("patch /tasks/{id} validates the body when updating", async () => {
     const response = await client.tasks[":id"].$patch({
       param: {
-        id,
+        id: id.toString(),
       },
       json: {
         name: "",
@@ -142,7 +156,7 @@ describe("tasks routes", () => {
     const response = await client.tasks[":id"].$patch({
       param: {
         // @ts-expect-error
-        id: "wat",
+        id: 999,
       },
       json: {},
     });
@@ -151,7 +165,7 @@ describe("tasks routes", () => {
       const json = await response.json();
       expect(json.error.issues[0].path[0]).toBe("id");
       expect(json.error.issues[0].message).toBe(
-        ZOD_ERROR_MESSAGES.EXPECTED_NUMBER,
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
       );
     }
   });
@@ -159,7 +173,7 @@ describe("tasks routes", () => {
   it("patch /tasks/{id} validates empty body", async () => {
     const response = await client.tasks[":id"].$patch({
       param: {
-        id,
+        id: id.toString(),
       },
       json: {},
     });
@@ -174,16 +188,16 @@ describe("tasks routes", () => {
   it("patch /tasks/{id} updates a single property of a task", async () => {
     const response = await client.tasks[":id"].$patch({
       param: {
-        id,
+        id: id.toString(),
       },
       json: {
-        done: true,
+        status: "DONE",
       },
     });
     expect(response.status).toBe(200);
     if (response.status === 200) {
       const json = await response.json();
-      expect(json.done).toBe(true);
+      expect(json.status).toBe("DONE");
     }
   });
 
@@ -191,7 +205,7 @@ describe("tasks routes", () => {
     const response = await client.tasks[":id"].$delete({
       param: {
         // @ts-expect-error
-        id: "wat",
+        id: 999,
       },
     });
     expect(response.status).toBe(422);
@@ -199,7 +213,7 @@ describe("tasks routes", () => {
       const json = await response.json();
       expect(json.error.issues[0].path[0]).toBe("id");
       expect(json.error.issues[0].message).toBe(
-        ZOD_ERROR_MESSAGES.EXPECTED_NUMBER,
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
       );
     }
   });
@@ -207,7 +221,7 @@ describe("tasks routes", () => {
   it("delete /tasks/{id} removes a task", async () => {
     const response = await client.tasks[":id"].$delete({
       param: {
-        id,
+        id: id,
       },
     });
     expect(response.status).toBe(204);
