@@ -5,6 +5,7 @@ export const ZOD_ERROR_MESSAGES = {
   REQUIRED: "Required",
   EXPECTED_NUMBER: "Expected number, received nan",
   NO_UPDATES: "No updates provided",
+  INVALID_UUID: "Invalid uuid",
 };
 
 export const ZOD_ERROR_CODES = {

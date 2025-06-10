@@ -1,12 +1,13 @@
-import { eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { tasks } from "@/db/schema";
+import { tasks, selectTasksSchema } from "@/db/schema";
 import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
+import type { z } from "zod";
 
 import type {
   CreateRoute,
@@ -14,13 +15,100 @@ import type {
   ListRoute,
   PatchRoute,
   RemoveRoute,
+  ListChildrenRoute,
 } from "./tasks.routes";
 
-// TODO: TS: fix this 
-// @ts-ignore
+type Task = z.infer<typeof selectTasksSchema>;
+
 export const list: AppRouteHandler<ListRoute> = async (c) => {
-  const tasks = await db.query.tasks.findMany();
-  return c.json(tasks);
+  const { page, limit } = c.req.valid("query");
+  const offset = (page - 1) * limit;
+
+  const [tasksList, totalResult] = await Promise.all([
+    db.query.tasks.findMany({
+      limit,
+      offset,
+      orderBy: [desc(tasks.createdAt)],
+    }),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Task[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: tasksList as Task[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
+};
+
+// TODO: list all the children of a task
+export const listChildren: AppRouteHandler<ListChildrenRoute> = async (c) => {
+  const { id } = c.req.valid("param");
+
+  const { page, limit } = c.req.valid("query");
+  const offset = (page - 1) * limit;
+
+  const [tasksList, totalResult] = await Promise.all([
+  db.query.tasks.findMany({
+    where(fields, operators) {
+      return operators.eq(fields.parentId, id);
+    },
+    limit,
+    offset,
+  }),
+  db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.parentId, id)).get(),
+]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Task[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: tasksList as Task[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
@@ -32,6 +120,16 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 // @ts-ignore
 export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
   const { id } = c.req.valid("param");
+
+  if (!id) {
+    return c.json(
+      {
+        message: HttpStatusPhrases.UNPROCESSABLE_ENTITY,
+      },
+      HttpStatusCodes.UNPROCESSABLE_ENTITY,
+    );
+  }
+
   const task = await db.query.tasks.findFirst({
     where(fields, operators) {
       return operators.eq(fields.id, id);

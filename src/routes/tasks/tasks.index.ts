@@ -5,6 +5,7 @@ import * as routes from "./tasks.routes";
 
 const router = createRouter()
   .openapi(routes.list, handlers.list)
+  .openapi(routes.listChildren, handlers.listChildren)
   .openapi(routes.create, handlers.create)
   .openapi(routes.getOne, handlers.getOne)
   .openapi(routes.patch, handlers.patch)
