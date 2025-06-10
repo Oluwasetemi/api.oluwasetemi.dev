@@ -2,11 +2,10 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-
 // Define enums
 export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
 export const StatusEnum = z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]);
-const dateSchema = z.string().optional().nullable().transform((val) => val ? new Date(val) : null);
+const dateSchema = z.string().optional().nullable().transform(val => val ? new Date(val) : null);
 
 export const tasks = sqliteTable("tasks", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()), // Make this the primary key
@@ -31,19 +30,20 @@ export const tasks = sqliteTable("tasks", {
 
 export const selectTasksSchema = createSelectSchema(tasks);
 
-
 export const insertTasksSchema = createInsertSchema(tasks, {
-  name: (schema) => schema.name.min(1).max(500),
-  description: (schema) => schema.description.max(1000),
-  priority: (schema) => schema.priority.refine((val) => PriorityEnum.safeParse(val).success),
-  status: (schema) => schema.status.refine((val) => StatusEnum.safeParse(val).success),
+  name: schema => schema.name.min(1).max(500),
+  description: schema => schema.description.max(1000),
+  priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
+  status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
   archived: z.coerce.boolean().optional(),
-  children: (schema) => schema.children.refine((val) => {
-    if (!val || val === "") return true;
+  children: schema => schema.children.refine((val) => {
+    if (!val || val === "")
+      return true;
     try {
       const parsed = JSON.parse(val);
       return Array.isArray(parsed) && parsed.every(id => typeof id === "string");
-    } catch {
+    }
+    catch {
       return false;
     }
   }, { message: "Children must be a valid JSON array of strings" }),

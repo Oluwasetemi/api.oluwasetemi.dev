@@ -1,21 +1,25 @@
+import type { z } from "zod";
+
 import { desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
+import { createErrorSchema } from "stoker/openapi/schemas";
+import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 
+import type { selectTasksSchema } from "@/db/schema";
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { tasks, selectTasksSchema } from "@/db/schema";
-import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
-import type { z } from "zod";
+import { tasks } from "@/db/schema";
+import { notFoundSchema, ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
 
 import type {
   CreateRoute,
   GetOneRoute,
+  ListChildrenRoute,
   ListRoute,
   PatchRoute,
   RemoveRoute,
-  ListChildrenRoute,
 } from "./tasks.routes";
 
 type Task = z.infer<typeof selectTasksSchema>;
@@ -71,15 +75,15 @@ export const listChildren: AppRouteHandler<ListChildrenRoute> = async (c) => {
   const offset = (page - 1) * limit;
 
   const [tasksList, totalResult] = await Promise.all([
-  db.query.tasks.findMany({
-    where(fields, operators) {
-      return operators.eq(fields.parentId, id);
-    },
-    limit,
-    offset,
-  }),
-  db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.parentId, id)).get(),
-]);
+    db.query.tasks.findMany({
+      where(fields, operators) {
+        return operators.eq(fields.parentId, id);
+      },
+      limit,
+      offset,
+    }),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.parentId, id)).get(),
+  ]);
 
   if (!totalResult) {
     return c.json({
@@ -117,19 +121,19 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
   return c.json(inserted, HttpStatusCodes.OK);
 };
 
-// @ts-ignore
 export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
-  const { id } = c.req.valid("param");
-
-  if (!id) {
+  const result = IdUUIDParamsSchema.safeParse(c.req.param());
+  if (!result.success) {
     return c.json(
-      {
-        message: HttpStatusPhrases.UNPROCESSABLE_ENTITY,
-      },
+      createErrorSchema(IdUUIDParamsSchema).parse({
+        success: false,
+        error: result.error,
+      }),
       HttpStatusCodes.UNPROCESSABLE_ENTITY,
     );
   }
 
+  const { id } = result.data;
   const task = await db.query.tasks.findFirst({
     where(fields, operators) {
       return operators.eq(fields.id, id);
@@ -138,14 +142,14 @@ export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
 
   if (!task) {
     return c.json(
-      {
+      notFoundSchema.parse({
         message: HttpStatusPhrases.NOT_FOUND,
-      },
+      }),
       HttpStatusCodes.NOT_FOUND,
     );
   }
 
-  return c.json(task, HttpStatusCodes.OK);
+  return c.json(task as Task, HttpStatusCodes.OK);
 };
 
 export const patch: AppRouteHandler<PatchRoute> = async (c) => {
@@ -175,7 +179,8 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     .update(tasks)
     .set(updates)
     .where(eq(tasks.id, id))
-    .returning().get();
+    .returning()
+    .get();
 
   if (!task) {
     return c.json(
@@ -188,7 +193,6 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
 
   return c.json(task, HttpStatusCodes.OK);
 };
-
 
 export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
   const { id } = c.req.valid("param");

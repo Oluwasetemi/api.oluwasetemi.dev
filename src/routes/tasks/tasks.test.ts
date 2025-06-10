@@ -79,7 +79,7 @@ describe("tasks routes", () => {
     expect(response.status).toBe(200);
     if (response.status === 200) {
       const json = await response.json();
-      console.log(json);
+
       expectTypeOf(json.data).toBeArray();
       expect(json.data.length).toBe(1);
     }
@@ -221,7 +221,7 @@ describe("tasks routes", () => {
   it("delete /tasks/{id} removes a task", async () => {
     const response = await client.tasks[":id"].$delete({
       param: {
-        id: id,
+        id,
       },
     });
     expect(response.status).toBe(204);

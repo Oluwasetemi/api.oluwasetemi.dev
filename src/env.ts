@@ -43,7 +43,6 @@ const EnvSchema = z
 
 export type env = z.infer<typeof EnvSchema>;
 
-// eslint-disable-next-line ts/no-redeclare
 const { data: env, error } = EnvSchema.safeParse(process.env);
 
 if (error) {

@@ -1,8 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
-import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 import { createErrorSchema } from "stoker/openapi/schemas";
+import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
+
 import { insertTasksSchema, patchTasksSchema, selectTasksSchema } from "@/db/schema";
 import { notFoundSchema } from "@/lib/constants";
 
