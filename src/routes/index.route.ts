@@ -12,8 +12,8 @@ const router = createRouter().openapi(
     path: "/",
     responses: {
       [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Tasks API"),
-        "Tasks API Index",
+        createMessageObjectSchema("API by OLUWASETEMI"),
+        "API by OLUWASETEMI",
       ),
     },
   }),

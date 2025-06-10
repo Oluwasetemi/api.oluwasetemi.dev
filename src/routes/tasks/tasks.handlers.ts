@@ -25,53 +25,71 @@ import type {
 type Task = z.infer<typeof selectTasksSchema>;
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
-  const { page, limit } = c.req.valid("query");
-  const offset = (page - 1) * limit;
+  const { all, page, limit } = c.req.valid("query");
 
-  const [tasksList, totalResult] = await Promise.all([
-    db.query.tasks.findMany({
-      limit,
-      offset,
-      orderBy: [desc(tasks.createdAt)],
-    }),
-    db.select({ count: sql<number>`count(*)` }).from(tasks).get(),
-  ]);
+  if (all) {
+    const tasksList = await db.query.tasks.findMany();
+    return c.json(tasksList as Task[], HttpStatusCodes.OK);
+  }
+  else {
+    const offset = (page - 1) * limit;
 
-  if (!totalResult) {
+    const [tasksList, totalResult] = await Promise.all([
+      db.query.tasks.findMany({
+        limit,
+        offset,
+        orderBy: [desc(tasks.createdAt)],
+      }),
+      db.select({ count: sql<number>`count(*)` }).from(tasks).get(),
+    ]);
+
+    if (!totalResult) {
+      return c.json({
+        data: [] as Task[],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      }, HttpStatusCodes.OK);
+    }
+
+    const totalCount = totalResult?.count ?? 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
     return c.json({
-      data: [] as Task[],
+      data: tasksList as Task[],
       meta: {
-        total: 0,
+        total: totalCount,
         page,
         limit,
-        totalPages: 0,
-        hasNextPage: false,
-        hasPreviousPage: false,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
       },
     }, HttpStatusCodes.OK);
   }
-
-  const totalCount = totalResult?.count ?? 0;
-  const totalPages = Math.ceil(totalCount / limit);
-
-  return c.json({
-    data: tasksList as Task[],
-    meta: {
-      total: totalCount,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    },
-  }, HttpStatusCodes.OK);
 };
 
 // TODO: list all the children of a task
 export const listChildren: AppRouteHandler<ListChildrenRoute> = async (c) => {
   const { id } = c.req.valid("param");
 
-  const { page, limit } = c.req.valid("query");
+  const { page, limit, all } = c.req.valid("query");
+
+  if (all) {
+    const tasksList = await db.query.tasks.findMany({
+      where(fields, operators) {
+        return operators.eq(fields.parentId, id);
+      },
+    });
+
+    return c.json(tasksList as Task[], HttpStatusCodes.OK);
+  }
+
   const offset = (page - 1) * limit;
 
   const [tasksList, totalResult] = await Promise.all([

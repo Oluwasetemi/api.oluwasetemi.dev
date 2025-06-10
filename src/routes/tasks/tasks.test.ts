@@ -74,14 +74,15 @@ describe("tasks routes", () => {
       query: {
         page: 1,
         limit: 10,
+        all: true,
       },
     });
     expect(response.status).toBe(200);
     if (response.status === 200) {
       const json = await response.json();
 
-      expectTypeOf(json.data).toBeArray();
-      expect(json.data.length).toBe(1);
+      expect(Array.isArray(json)).toBe(true);
+      expect(Array.isArray(json) && json.length).toBe(1);
     }
   });
 

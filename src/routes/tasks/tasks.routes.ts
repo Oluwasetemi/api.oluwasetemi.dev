@@ -15,6 +15,7 @@ export const list = createRoute({
   tags,
   request: {
     query: z.object({
+      all: z.coerce.boolean().optional().default(false),
       page: z.coerce.number().int().min(1).default(1),
       limit: z.coerce.number().int().min(1).max(100).default(10),
     }),
@@ -31,7 +32,7 @@ export const list = createRoute({
           hasNextPage: z.boolean(),
           hasPreviousPage: z.boolean(),
         }),
-      }),
+      }).or(z.array(selectTasksSchema)),
       "List of tasks",
     ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
@@ -50,6 +51,7 @@ export const listChildren = createRoute({
     query: z.object({
       page: z.coerce.number().int().min(1).default(1),
       limit: z.coerce.number().int().min(1).max(100).default(10),
+      all: z.coerce.boolean().optional().default(false),
     }),
   },
   responses: {
@@ -64,7 +66,7 @@ export const listChildren = createRoute({
           hasNextPage: z.boolean(),
           hasPreviousPage: z.boolean(),
         }),
-      }),
+      }).or(z.array(selectTasksSchema)),
       "List of children tasks",
     ),
   },
