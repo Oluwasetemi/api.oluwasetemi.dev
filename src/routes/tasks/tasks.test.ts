@@ -8,7 +8,6 @@ import {
   beforeAll,
   describe,
   expect,
-  expectTypeOf,
   it,
 } from "vitest";
 import { ZodIssueCode } from "zod";
@@ -37,6 +36,7 @@ describe("tasks routes", () => {
   it("post /tasks validates the body when creating", async () => {
     const response = await client.tasks.$post({
       json: {
+        // @ts-expect-error
         status: "XXX",
       },
     });
@@ -83,6 +83,124 @@ describe("tasks routes", () => {
 
       expect(Array.isArray(json)).toBe(true);
       expect(Array.isArray(json) && json.length).toBe(1);
+    }
+  });
+
+  it("get /tasks filters by status", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        status: "TODO",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.status === "TODO")).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks filters by priority", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        priority: "MEDIUM",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.priority === "MEDIUM")).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks searches by name and description", async () => {
+    // First create a task with a unique name
+    const uniqueName = `Test Search ${crypto.randomUUID()}`;
+    await client.tasks.$post({
+      json: {
+        name: uniqueName,
+        description: "This is a test search task",
+        status: "TODO",
+      },
+    });
+
+    const response = await client.tasks.$get({
+      query: {
+        search: uniqueName,
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.some(task => task.name === uniqueName)).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks sorts by createdAt in ascending order", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        sort: "ASC",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => a - b));
+      }
+    }
+  });
+
+  it("get /tasks sorts by createdAt in descending order by default", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      }
+    }
+  });
+
+  it("get /tasks combines filters, search, and sorting", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        status: "TODO",
+        priority: "MEDIUM",
+        search: "test",
+        sort: "ASC",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.status === "TODO" && task.priority === "MEDIUM")).toBe(true);
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => a - b));
+      }
     }
   });
 

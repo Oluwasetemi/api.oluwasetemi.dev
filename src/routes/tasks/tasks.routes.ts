@@ -21,6 +21,7 @@ export const list = createRoute({
       status: StatusEnum.optional(),
       priority: PriorityEnum.optional(),
       search: z.string().optional(),
+      sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
     }),
   },
   responses: {

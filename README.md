@@ -1,7 +1,7 @@
 # OLUWASETEMI API
 
 Think of this as a personal api repository.
- 
+
 - [OLUWASETEMI API](#api.oluwasetemi.dev)
   - [Included](#included)
   - [Setup](#setup)
@@ -9,7 +9,6 @@ Think of this as a personal api repository.
   - [Endpoints](#endpoints)
   - [Pagination](#pagination)
   - [References](#references)
-
 
 ## Included
 
@@ -84,20 +83,18 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ## Endpoints
 
-| Path               | Description              |
-| ------------------ | ------------------------ |
-| GET /doc           | Open API Specification   |
-| GET /reference     | Scalar API Documentation |
-| GET /tasks         | List all tasks           |
-| POST /tasks        | Create a task            |
-| GET /tasks/{id}    | Get one task by id       |
-| GET /tasks/{id}/Children    | Get one task by id      |
-| PATCH /tasks/{id}  | Patch one task by id     |
-| DELETE /tasks/{id} | Delete one task by id    |
+| Path                     | Description              |
+| ------------------------ | ------------------------ |
+| GET /doc                 | Open API Specification   |
+| GET /reference           | Scalar API Documentation |
+| GET /tasks               | List all tasks           |
+| POST /tasks              | Create a task            |
+| GET /tasks/{id}          | Get one task by id       |
+| GET /tasks/{id}/Children | Get one task by id       |
+| PATCH /tasks/{id}        | Patch one task by id     |
+| DELETE /tasks/{id}       | Delete one task by id    |
 
 ## Pagination
-
-
 
 ## References
 
