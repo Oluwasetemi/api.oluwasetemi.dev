@@ -22,6 +22,13 @@
       "when": 1749449243302,
       "tag": "0002_abandoned_radioactive_man",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1749886163220,
+      "tag": "0003_last_bishop",
+      "breakpoints": true
     }
   ]
 }
