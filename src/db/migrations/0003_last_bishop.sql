@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `is_default` integer DEFAULT false;
