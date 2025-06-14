@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { desc, eq, like, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import { createErrorSchema } from "stoker/openapi/schemas";
@@ -25,7 +25,7 @@ import type {
 type Task = z.infer<typeof selectTasksSchema>;
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
-  const { all, page, limit, status, priority, search } = c.req.valid("query");
+  const { all, page, limit, status, priority, search, sort = "DESC" } = c.req.valid("query");
 
   // Build where conditions
   const whereConditions = [];
@@ -40,11 +40,13 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
     );
   }
 
+  const orderBy = sort === "ASC" ? [asc(tasks.createdAt)] : [desc(tasks.createdAt)];
+
   if (all) {
     const tasksList = await db.query.tasks.findMany({
       where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
       limit: 200,
-      orderBy: [desc(tasks.createdAt)],
+      orderBy,
     });
     return c.json(tasksList as Task[], HttpStatusCodes.OK);
   }
@@ -56,7 +58,7 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
         where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
         limit,
         offset,
-        orderBy: [desc(tasks.createdAt)],
+        orderBy,
       }),
       db.select({ count: sql<number>`count(*)` })
         .from(tasks)
