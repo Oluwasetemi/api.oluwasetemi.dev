@@ -17,6 +17,7 @@ export const tasks = sqliteTable("tasks", {
   priority: text({ enum: ["LOW", "MEDIUM", "HIGH"] }).notNull().default("MEDIUM"),
   status: text({ enum: ["TODO", "IN_PROGRESS", "DONE", "CANCELLED"] }).notNull().default("TODO"),
   archived: integer({ mode: "boolean" }).notNull().default(false),
+  isDefault: integer({ mode: "boolean" }).default(false),
   parentId: text("parent_id").references((): SQLiteColumn<any, object, object> => tasks.id),
   children: text().notNull().default("[]"), // Remove the reference, store as JSON
   owner: text(),
