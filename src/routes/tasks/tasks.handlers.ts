@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, like, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import { createErrorSchema } from "stoker/openapi/schemas";
@@ -25,10 +25,27 @@ import type {
 type Task = z.infer<typeof selectTasksSchema>;
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
-  const { all, page, limit } = c.req.valid("query");
+  const { all, page, limit, status, priority, search } = c.req.valid("query");
+
+  // Build where conditions
+  const whereConditions = [];
+  if (status)
+    whereConditions.push(eq(tasks.status, status));
+  if (priority)
+    whereConditions.push(eq(tasks.priority, priority));
+  if (search) {
+    const searchPattern = `%${search}%`;
+    whereConditions.push(
+      sql`(${tasks.name} LIKE ${searchPattern} OR ${tasks.description} LIKE ${searchPattern})`,
+    );
+  }
 
   if (all) {
-    const tasksList = await db.query.tasks.findMany();
+    const tasksList = await db.query.tasks.findMany({
+      where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
+      limit: 200,
+      orderBy: [desc(tasks.createdAt)],
+    });
     return c.json(tasksList as Task[], HttpStatusCodes.OK);
   }
   else {
@@ -36,11 +53,15 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
 
     const [tasksList, totalResult] = await Promise.all([
       db.query.tasks.findMany({
+        where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
         limit,
         offset,
         orderBy: [desc(tasks.createdAt)],
       }),
-      db.select({ count: sql<number>`count(*)` }).from(tasks).get(),
+      db.select({ count: sql<number>`count(*)` })
+        .from(tasks)
+        .where(whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined)
+        .get(),
     ]);
 
     if (!totalResult) {
@@ -214,6 +235,16 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
 
 export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
   const { id } = c.req.valid("param");
+  const task = await db.query.tasks.findFirst({
+    where(fields, operators) {
+      return operators.eq(fields.id, id);
+    },
+  });
+
+  if (task && task.isDefault) {
+    return c.json({ success: true, message: "Default task removed successfully" }, HttpStatusCodes.OK);
+  }
+
   const result = await db.delete(tasks).where(eq(tasks.id, id));
 
   if (result.rowsAffected === 0) {

@@ -1,7 +1,15 @@
 {
-  "name": "hono-openapi-starter",
+  "name": "api.oluwasetemi.dev",
   "type": "module",
   "version": "0.1.1",
+  "private": true,
+  "author": "Oluwasetemi Ojo<me@oluwasetemi.dev>",
+  "license": "MIT",
+  "homepage": "https://api.oluwasetemi.dev/reference",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oluwasetemi/api.oluwasetemi.dev"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node ./dist/src/index.js",
@@ -9,7 +17,11 @@
     "lint": "eslint .",
     "lint:fix": "pnpm run lint --fix",
     "test": "cross-env NODE_ENV=test vitest",
-    "build": "tsc && tsc-alias"
+    "build": "tsc && tsc-alias",
+    "seed": "tsx src/db/seed.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.3",
