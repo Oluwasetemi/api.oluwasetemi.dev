@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, type SQLiteColumn, sqliteTable, type SQLiteTableWithColumns, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export const tasks = sqliteTable("tasks", {
   priority: text({ enum: ["LOW", "MEDIUM", "HIGH"] }).notNull().default("MEDIUM"),
   status: text({ enum: ["TODO", "IN_PROGRESS", "DONE", "CANCELLED"] }).notNull().default("TODO"),
   archived: integer({ mode: "boolean" }).notNull().default(false),
-  parentId: text("parent_id").references(() => tasks.id),
+  parentId: text("parent_id").references((): SQLiteColumn<any, object, object> => tasks.id),
   children: text().notNull().default("[]"), // Remove the reference, store as JSON
   owner: text(),
   tags: text(),
