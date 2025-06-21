@@ -19,6 +19,7 @@ Think of this as a personal api repository.
 - Type-safe schemas and environment variables with [zod](https://zod.dev/)
 - Single source of truth database schemas with [drizzle](https://orm.drizzle.team/docs/overview) and [drizzle-zod](https://orm.drizzle.team/docs/zod)
 - Testing with [vitest](https://vitest.dev/)
+- GraphQL endpoint powered by [drizzle-graphql](https://github.com/drizzle-team/drizzle-graphql) and [Apollo Server](https://www.apollographql.com/docs/apollo-server/)
 - Sensible editor, formatting, and linting settings with [@antfu/eslint-config](https://github.com/antfu/eslint-config)
 
 ## Setup
@@ -93,6 +94,9 @@ All app routes are grouped together and exported into a single type as `AppType`
 | GET /tasks/{id}/Children | Get one task by id       |
 | PATCH /tasks/{id}        | Patch one task by id     |
 | DELETE /tasks/{id}       | Delete one task by id    |
+| GET /graphql             | GraphQL endpoint         |
+
+The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
 
 ## Pagination
 
