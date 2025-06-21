@@ -82,7 +82,9 @@ describe("tasks routes", () => {
       const json = await response.json();
 
       expect(Array.isArray(json)).toBe(true);
-      expect(Array.isArray(json) && json.length).toBe(1);
+      if (Array.isArray(json)) {
+        expect(json).toHaveLength(1);
+      }
     }
   });
 
