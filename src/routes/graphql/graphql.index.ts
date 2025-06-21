@@ -1,5 +1,4 @@
 import { ApolloServer } from "@apollo/server";
-import { startServerAndCreateHonoHandler } from "@as-integrations/hono";
 import { createSchema } from "drizzle-graphql";
 
 import { createRouter } from "@/lib/create-app";
@@ -13,13 +12,46 @@ const server = new ApolloServer({
   resolvers,
 });
 
+let started = false;
+async function ensureStarted() {
+  if (!started) {
+    await server.start();
+    started = true;
+  }
+}
+
 const router = createRouter();
 
-router.all(
-  "/graphql",
-  startServerAndCreateHonoHandler(server, {
+router.all("/graphql", async (c) => {
+  await ensureStarted();
+  const req = c.req;
+  const body = req.method === "GET" ? undefined : await req.json();
+
+  const response = await server.executeHTTPGraphQLRequest({
+    httpGraphQLRequest: {
+      method: req.method,
+      headers: Object.fromEntries(req.raw.headers.entries()),
+      search: new URL(req.url).search,
+      body,
+    },
     context: async () => ({ db }),
-  }),
-);
+  });
+
+  for (const [key, value] of response.headers) {
+    c.header(key, value);
+  }
+
+  let payload = "";
+  if (response.body.kind === "complete") {
+    payload = response.body.string;
+  }
+  else {
+    for await (const chunk of response.body.asyncIterator) {
+      payload += chunk;
+    }
+  }
+
+  return c.newResponse(payload, response.status ?? 200);
+});
 
 export default router;

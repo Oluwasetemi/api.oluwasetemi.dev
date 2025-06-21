@@ -39,7 +39,6 @@
     "stoker": "1.4.2",
     "zod": "^3.25.51",
     "@apollo/server": "^4.10.0",
-    "@as-integrations/hono": "^0.2.0",
     "graphql": "^16.8.1",
     "drizzle-graphql": "^0.4.0"
   },
