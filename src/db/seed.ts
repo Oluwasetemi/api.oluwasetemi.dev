@@ -8,8 +8,8 @@ import { tasks } from "./schema";
 const defaultTasks = Array.from({ length: 500 }, (_, i) => ({
   name: `Default Task ${i + 1}`,
   description: `This is a default task ${i + 1}`,
-  priority: "MEDIUM" as const satisfies z.infer<typeof PriorityEnum>,
-  status: "TODO" as const satisfies z.infer<typeof StatusEnum>,
+  priority: "MEDIUM" as const,
+  status: "TODO" as const,
   isDefault: true,
 }));
 

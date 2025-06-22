@@ -1,5 +1,9 @@
 // apollo-server-hono-integration.ts
-import type { ApolloServer, ContextFunction, HTTPGraphQLRequest } from "@apollo/server";
+import type {
+  ApolloServer,
+  ContextFunction,
+  HTTPGraphQLRequest,
+} from "@apollo/server";
 import type { Context } from "hono";
 
 export type HonoContextFunctionArgument = {
@@ -32,12 +36,19 @@ export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
       let body: any;
 
       // Handle request body
-      if (req.method !== "GET" && req.header("content-type")?.includes("application/json")) {
+      if (
+        req.method !== "GET"
+        && req.header("content-type")?.includes("application/json")
+      ) {
         try {
           body = await req.json();
         }
         catch (e) {
-          return c.json({ errors: [{ message: "Invalid JSON in request body" }] }, 400);
+          console.log(e);
+          return c.json(
+            { errors: [{ message: "Invalid JSON in request body" }] },
+            400,
+          );
         }
       }
 
@@ -58,7 +69,7 @@ export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
       // Create context
       const contextValue = options?.context
         ? await options.context({ req, c })
-        : {} as TContext;
+        : ({} as TContext);
 
       const response = await server.executeHTTPGraphQLRequest({
         httpGraphQLRequest,
@@ -85,10 +96,7 @@ export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
     }
     catch (error) {
       console.error("GraphQL execution error:", error);
-      return c.json(
-        { errors: [{ message: "Internal server error" }] },
-        500,
-      );
+      return c.json({ errors: [{ message: "Internal server error" }] }, 500);
     }
   };
 }

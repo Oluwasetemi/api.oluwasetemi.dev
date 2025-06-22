@@ -1,4 +1,3 @@
-import { testClient } from "hono/testing";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
