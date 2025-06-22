@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { z } from "zod/v4";
 
 import { asc, desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
@@ -190,7 +190,7 @@ export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
     );
   }
 
-  return c.json(task as Task, HttpStatusCodes.OK);
+  return c.json(task, HttpStatusCodes.OK);
 };
 
 export const patch: AppRouteHandler<PatchRoute> = async (c) => {
