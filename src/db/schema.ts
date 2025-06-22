@@ -1,4 +1,6 @@
-import { integer, type SQLiteColumn, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -36,7 +38,7 @@ export const insertTasksSchema = createInsertSchema(tasks, {
   description: schema => schema.description.max(1000),
   priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
   status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
-  archived: z.coerce.boolean().optional(),
+  archived: schema => schema.archived.optional(),
   children: schema => schema.children.refine((val) => {
     if (!val || val === "")
       return true;
