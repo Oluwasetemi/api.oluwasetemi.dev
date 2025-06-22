@@ -3,6 +3,7 @@ import { ApolloServer } from "@apollo/server";
 import { buildSchema } from "drizzle-graphql";
 
 import db from "@/db";
+import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
 import { createRouter } from "@/lib/create-app";
 
@@ -11,7 +12,7 @@ const { schema } = buildSchema(db);
 const server = new ApolloServer({
   schema,
   // Optional: Add plugins for better development experience
-  introspection: process.env.NODE_ENV === "development",
+  introspection: env.NODE_ENV === "development" || env.NODE_ENV === "test",
   plugins: [
     // Add any Apollo Server plugins you need
   ],
@@ -20,12 +21,13 @@ const server = new ApolloServer({
 const router = createRouter();
 
 const graphqlHandler = startServerAndCreateHonoHandler(server, {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   context: async ({ req, c }) => {
     try {
       return {
         db,
         // Add more context properties
-        user: req.header("authorization") ? await getUserFromToken(req.header("authorization")) : null,
+        // user: req.header("authorization") ? await getUserFromToken(req.header("authorization")) : null,
         // You can access the full Hono context if needed
         honoContext: c,
       };
@@ -40,7 +42,7 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
 router.all("/graphql", graphqlHandler);
 
 // Optional: Serve GraphQL Playground in development
-if (process.env.NODE_ENV === "development") {
+if (env.NODE_ENV === "development") {
   router.get("/playground", async (c) => {
     const playgroundHTML = `
       <!DOCTYPE html>
@@ -67,18 +69,18 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-async function getUserFromToken(authHeader: string) {
-  // Implement your auth logic
-  try {
-    // Example: JWT verification
-    // const token = authHeader.replace('Bearer ', '');
-    // return await verifyJWT(token);
-    return null;
-  }
-  catch (error) {
-    console.error("Error verifying auth token:", error);
-    return null;
-  }
-}
+// async function getUserFromToken(authHeader: string) {
+//   // Implement your auth logic
+//   try {
+//     // Example: JWT verification
+//     // const token = authHeader.replace('Bearer ', '');
+//     // return await verifyJWT(token);
+//     return null;
+//   }
+//   catch (error) {
+//     console.error("Error verifying auth token:", error);
+//     return null;
+//   }
+// }
 
 export default router;
