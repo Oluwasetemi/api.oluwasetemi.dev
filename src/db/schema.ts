@@ -39,8 +39,7 @@ export const insertTasksSchema = createInsertSchema(tasks, {
   description: schema => schema.description.max(1000),
   priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
   status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
-  archived: schema => schema.archived.optional().default(false),
-  isDefault: schema => schema.isDefault.optional().default(false),
+  archived: schema => schema.archived.optional(),
   children: schema => schema.children.refine((val) => {
     if (!val || val === "")
       return true;

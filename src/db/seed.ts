@@ -14,11 +14,11 @@ const defaultTasks = Array.from({ length: 500 }, (_, i) => ({
 }));
 
 export async function seed() {
-  console.log("🌱 Seeding database...");
+  console.warn("🌱 Seeding database...");
 
   try {
     await db.insert(tasks).values(defaultTasks);
-    console.log("✅ Seeding completed successfully");
+    console.warn("✅ Seeding completed successfully");
   }
   catch (error) {
     console.error("❌ Error seeding database:", error);
