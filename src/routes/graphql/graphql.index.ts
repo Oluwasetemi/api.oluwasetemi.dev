@@ -12,7 +12,7 @@ const { schema } = buildSchema(db);
 const server = new ApolloServer({
   schema,
   // Optional: Add plugins for better development experience
-  introspection: env.NODE_ENV === "development" || env.NODE_ENV === "test",
+  introspection: true,
   plugins: [
     // Add any Apollo Server plugins you need
   ],
