@@ -1,11 +1,10 @@
-import { integer, type SQLiteColumn, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, type SQLiteColumn, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Define enums
 export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
 export const StatusEnum = z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]);
-const dateSchema = z.string().optional().nullable().transform(val => val ? new Date(val) : null);
 
 export const tasks = sqliteTable("tasks", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()), // Make this the primary key
@@ -27,7 +26,9 @@ export const tasks = sqliteTable("tasks", {
   updatedAt: integer({ mode: "timestamp" })
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
-});
+}, table => [
+  index("idx_tasks_parent_id").on(table.parentId),
+]);
 
 export const selectTasksSchema = createSelectSchema(tasks);
 
@@ -36,7 +37,8 @@ export const insertTasksSchema = createInsertSchema(tasks, {
   description: schema => schema.description.max(1000),
   priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
   status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
-  archived: z.coerce.boolean().optional(),
+  archived: schema => schema.archived.optional().default(false),
+  isDefault: schema => schema.isDefault.optional().default(false),
   children: schema => schema.children.refine((val) => {
     if (!val || val === "")
       return true;
@@ -48,9 +50,9 @@ export const insertTasksSchema = createInsertSchema(tasks, {
       return false;
     }
   }, { message: "Children must be a valid JSON array of strings" }),
-  start: dateSchema,
-  end: dateSchema,
-  completedAt: dateSchema,
+  start: schema => schema.start.optional().nullable().transform(val => val ? new Date(val) : null),
+  end: schema => schema.end.optional().nullable().transform(val => val ? new Date(val) : null),
+  completedAt: schema => schema.completedAt.optional().nullable().transform(val => val ? new Date(val) : null),
 })
   .required({
     name: true,
