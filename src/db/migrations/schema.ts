@@ -9,7 +9,7 @@ export const tasks = sqliteTable("tasks", {
   duration: integer(),
   priority: text().default("MEDIUM"),
   status: text().default("TODO").notNull(),
-  archived: integer().default(false).notNull(),
+  archived: integer().default(0).notNull(),
   parentId: text("parent_id"),
   children: text(),
   owner: text().notNull(),

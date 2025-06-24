@@ -1,6 +1,7 @@
 // apollo-server-hono-integration.ts
 import type {
   ApolloServer,
+  BaseContext,
   ContextFunction,
   HTTPGraphQLRequest,
 } from "@apollo/server";
@@ -11,11 +12,11 @@ export type HonoContextFunctionArgument = {
   c: Context;
 };
 
-export type HonoIntegrationOptions<TContext = Record<string, any>> = {
+export type HonoIntegrationOptions<TContext extends BaseContext = BaseContext> = {
   context?: ContextFunction<[HonoContextFunctionArgument], TContext>;
 };
 
-export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
+export function startServerAndCreateHonoHandler<TContext extends BaseContext = BaseContext>(
   server: ApolloServer<TContext>,
   options?: HonoIntegrationOptions<TContext>,
 ) {
@@ -52,16 +53,16 @@ export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
         }
       }
 
-      // Create proper Headers object (this fixes the error)
-      const headers = new Headers();
+      // Create HeaderMap compatible object
+      const headerMap = new Map<string, string>();
       req.raw.headers.forEach((value, key) => {
-        headers.set(key, value);
+        headerMap.set(key, value);
       });
 
       // Create HTTPGraphQLRequest
       const httpGraphQLRequest: HTTPGraphQLRequest = {
         method: req.method as "GET" | "POST",
-        headers,
+        headers: headerMap as any, // Cast to satisfy Apollo Server's HeaderMap type
         search: new URL(req.url).search,
         body,
       };
@@ -92,7 +93,7 @@ export function startServerAndCreateHonoHandler<TContext = Record<string, any>>(
         }
       }
 
-      return c.newResponse(payload, response.status ?? 200);
+      return c.newResponse(payload, (response.status ?? 200) as any);
     }
     catch (error) {
       console.error("GraphQL execution error:", error);
