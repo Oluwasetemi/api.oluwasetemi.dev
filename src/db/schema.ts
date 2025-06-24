@@ -2,7 +2,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 // Define enums
 export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
