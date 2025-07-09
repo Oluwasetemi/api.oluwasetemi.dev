@@ -1,22 +1,70 @@
 // src/routes/graphql/graphql.index.ts
 import { ApolloServer } from "@apollo/server";
+import { makeExecutableSchema, mergeSchemas } from "@graphql-tools/schema";
 import { buildSchema } from "drizzle-graphql";
 
 import db from "@/db";
 import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
 import { createRouter } from "@/lib/create-app";
+import { getCounts } from "@/services/analytics.service";
 
-const { schema } = buildSchema(db);
+// 1. Build the auto-generated schema
+const { schema: drizzleSchema } = buildSchema(db);
 
-const server = new ApolloServer({
-  schema,
-  // Optional: Add plugins for better development experience
-  introspection: true,
-  plugins: [
-    // Add any Apollo Server plugins you need
-  ],
+// 2. Define your custom typeDefs and resolvers
+const typeDefs = `
+  type Query {
+    hello: String!
+    countRequests(
+      from: String
+      to: String
+      path: String
+      method: String
+      groupBy: String
+    ): CountsResult!
+  }
+  type Mutation {
+    sayHello(input: String!): String!
+  }
+  type CountsResult {
+    total: Int!
+    data: [GroupedCount!]!
+    groupedBy: String
+  }
+  type GroupedCount {
+    key: String!
+    count: Int!
+  }
+`;
+
+const resolvers = {
+  Query: {
+    hello: () => "Hello, world!",
+    countRequests: async (
+      _: any,
+      args: { from?: string; to?: string; path?: string; method?: string; groupBy?: string },
+    ) => {
+      return await getCounts(args);
+    },
+  },
+  Mutation: {
+    sayHello: async (_: any, { input }: { input: string }) => {
+      return `Hello, ${input}!`;
+    },
+  },
+};
+
+// 3. Create a custom schema
+const customSchema = makeExecutableSchema({ typeDefs, resolvers });
+
+// 4. Merge schemas
+const schema = mergeSchemas({
+  schemas: [drizzleSchema, customSchema],
 });
+
+// 5. Use this schema in ApolloServer
+const server = new ApolloServer({ schema });
 
 const router = createRouter();
 
