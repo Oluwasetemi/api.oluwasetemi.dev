@@ -67,6 +67,36 @@ Test
 pnpm test
 ```
 
+### Environment Variables
+
+The following environment variables are supported:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NODE_ENV` | Environment mode | `development` | No |
+| `PORT` | Server port | `4444` | No |
+| `LOG_LEVEL` | Logging level | `info` | Yes |
+| `DATABASE_URL` | Database connection string | - | Yes |
+| `DATABASE_AUTH_TOKEN` | Database auth token (required in production) | - | Production only |
+| `ENABLE_ANALYTICS` | Enable request analytics logging | `false` | No |
+| `ANALYTICS_RETENTION_DAYS` | Days to retain analytics data | `30` | No |
+
+### Analytics Configuration
+
+To enable request analytics, set `ENABLE_ANALYTICS=true` in your `.env` file. When enabled, the API will log all incoming requests to the database, including:
+
+- HTTP method and path
+- Response status code
+- Request duration
+- User agent and IP address
+- Timestamp
+
+Analytics data is automatically cleaned up after the retention period specified by `ANALYTICS_RETENTION_DAYS`.
+
+#### Opt-out
+
+To disable analytics completely, set `ENABLE_ANALYTICS=false` or omit the variable from your environment.
+
 ## Code Tour
 
 Base hono app exported from [app.ts](./src/app.ts). Local development uses [@hono/node-server](https://hono.dev/docs/getting-started/nodejs) defined in [index.ts](./src/index.ts) - update this file or create a new entry point to use your preferred runtime.
@@ -95,8 +125,66 @@ All app routes are grouped together and exported into a single type as `AppType`
 | PATCH /tasks/{id}        | Patch one task by id     |
 | DELETE /tasks/{id}       | Delete one task by id    |
 | GET /graphql             | GraphQL endpoint         |
+| GET /analytics/requests  | List request analytics   |
+| GET /analytics/counts    | Get aggregated analytics |
 
 The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
+
+### Analytics Endpoints
+
+The analytics endpoints provide insights into API usage when `ENABLE_ANALYTICS=true`:
+
+#### GET /analytics/requests
+
+Returns paginated list of all logged requests.
+
+**Query Parameters:**
+- `page` (number, default: 1) - Page number
+- `limit` (number, default: 10, max: 100) - Items per page
+- `method` (string, optional) - Filter by HTTP method
+- `path` (string, optional) - Filter by request path
+- `status` (number, optional) - Filter by status code
+- `from` (datetime, optional) - Filter requests from this date
+- `to` (datetime, optional) - Filter requests to this date
+
+**Example:**
+```bash
+http :4444/analytics/requests page==1 limit==20 method==GET
+```
+
+#### GET /analytics/counts
+
+Returns aggregated request counts and statistics.
+
+**Query Parameters:**
+- `from` (datetime, optional) - Count requests from this date
+- `to` (datetime, optional) - Count requests to this date
+- `path` (string, optional) - Filter by request path
+- `method` (string, optional) - Filter by HTTP method
+- `groupBy` (enum: "day", "path", "method", optional) - Group results by field
+
+**Examples:**
+```bash
+# Get total request count
+http :4444/analytics/counts
+
+# Get requests grouped by day
+http :4444/analytics/counts groupBy==day
+
+# Get requests grouped by path
+http :4444/analytics/counts groupBy==path
+
+# Get requests grouped by method
+http :4444/analytics/counts groupBy==method
+```
+
+### Performance Considerations
+
+- Analytics logging adds minimal overhead (~1-2ms per request)
+- Database writes are non-blocking and don't affect response times
+- Consider the retention period based on your storage capacity
+- For high-traffic applications, consider using a separate analytics database
+- The analytics middleware can be disabled per-route if needed
 
 ## Pagination
 

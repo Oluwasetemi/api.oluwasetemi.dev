@@ -1,9 +1,8 @@
-import { execSync } from "node:child_process";
-import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import env from "@/env";
 import { createTestApp } from "@/lib/create-app";
+import { setupTestDatabase, cleanupTestDatabase } from "@/lib/test-setup";
 
 import router from "./graphql.index";
 
@@ -14,12 +13,14 @@ if (env.NODE_ENV !== "test") {
 const app = createTestApp(router);
 
 describe("graphql route", () => {
+  let testDbPath: string;
+
   beforeAll(async () => {
-    execSync("pnpm drizzle-kit push");
+    testDbPath = await setupTestDatabase();
   });
 
   afterAll(async () => {
-    fs.rmSync("test.db", { force: true });
+    await cleanupTestDatabase(testDbPath);
   });
 
   it("handles a simple query", async () => {

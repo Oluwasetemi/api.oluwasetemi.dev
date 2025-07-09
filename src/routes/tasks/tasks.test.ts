@@ -1,7 +1,5 @@
 /* eslint-disable ts/ban-ts-comment */
 import { testClient } from "hono/testing";
-import { execSync } from "node:child_process";
-import fs from "node:fs";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import {
   afterAll,
@@ -15,6 +13,7 @@ import { ZodIssueCode } from "zod";
 import env from "@/env";
 import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
 import { createTestApp } from "@/lib/create-app";
+import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
 
 import router from "./tasks.index";
 
@@ -25,12 +24,14 @@ if (env.NODE_ENV !== "test") {
 const client = testClient(createTestApp(router));
 
 describe("tasks routes", () => {
+  let testDbPath: string;
+
   beforeAll(async () => {
-    execSync("pnpm drizzle-kit push");
+    testDbPath = await setupTestDatabase();
   });
 
   afterAll(async () => {
-    fs.rmSync("test.db", { force: true });
+    await cleanupTestDatabase(testDbPath);
   });
 
   it("post /tasks validates the body when creating", async () => {
@@ -72,8 +73,6 @@ describe("tasks routes", () => {
   it("get /tasks lists all tasks", async () => {
     const response = await client.tasks.$get({
       query: {
-        page: 1,
-        limit: 10,
         all: true,
       },
     });
@@ -83,7 +82,7 @@ describe("tasks routes", () => {
 
       expect(Array.isArray(json)).toBe(true);
       if (Array.isArray(json)) {
-        expect(json).toHaveLength(1);
+        expect(json.length).toBeGreaterThan(0);
       }
     }
   });

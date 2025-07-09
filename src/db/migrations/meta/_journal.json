@@ -5,26 +5,19 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1749445926563,
-      "tag": "0000_absent_saracen",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
       "when": 1749446655719,
       "tag": "0001_square_riptide",
       "breakpoints": true
     },
     {
-      "idx": 2,
+      "idx": 1,
       "version": "6",
       "when": 1749449243302,
       "tag": "0002_abandoned_radioactive_man",
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 2,
       "version": "6",
       "when": 1749886163220,
       "tag": "0003_last_bishop",
