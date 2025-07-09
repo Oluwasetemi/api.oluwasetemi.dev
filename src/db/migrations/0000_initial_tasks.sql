@@ -1,0 +1,20 @@
+CREATE TABLE `tasks` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`start` integer,
+	`end` integer,
+	`duration` integer,
+	`priority` text DEFAULT 'MEDIUM' NOT NULL,
+	`status` text DEFAULT 'TODO' NOT NULL,
+	`archived` integer DEFAULT false NOT NULL,
+	`parent_id` text,
+	`children` text DEFAULT '[]' NOT NULL,
+	`owner` text,
+	`tags` text,
+	`due_date` integer,
+	`completed_at` integer,
+	`created_at` integer,
+	`updated_at` integer,
+	FOREIGN KEY (`parent_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE no action
+);
