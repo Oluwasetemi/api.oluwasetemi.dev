@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
+    "@graphql-tools/schema": "^10.0.23",
     "@hono/node-server": "^1.14.4",
     "@hono/zod-openapi": "^0.19.8",
     "@libsql/client": "^0.15.9",
@@ -37,6 +38,7 @@
     "graphql": "^16.11.0",
     "hono": "^4.8.2",
     "hono-pino": "^0.8.0",
+    "node-cron": "^4.2.0",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "stoker": "1.4.2",
@@ -45,6 +47,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.15.0",
     "@types/node": "^22.15.32",
+    "@types/node-cron": "^3.0.11",
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.31.1",
     "eslint": "^9.29.0",

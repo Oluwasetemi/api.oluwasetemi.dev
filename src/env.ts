@@ -28,6 +28,8 @@ const EnvSchema = z
     ]),
     DATABASE_URL: z.string().url(),
     DATABASE_AUTH_TOKEN: z.string().optional(),
+    ENABLE_ANALYTICS: z.coerce.boolean().default(false),
+    ANALYTICS_RETENTION_DAYS: z.coerce.number().default(30),
   })
   .superRefine((input, ctx) => {
     if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
