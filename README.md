@@ -71,15 +71,15 @@ pnpm test
 
 The following environment variables are supported:
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `NODE_ENV` | Environment mode | `development` | No |
-| `PORT` | Server port | `4444` | No |
-| `LOG_LEVEL` | Logging level | `info` | Yes |
-| `DATABASE_URL` | Database connection string | - | Yes |
-| `DATABASE_AUTH_TOKEN` | Database auth token (required in production) | - | Production only |
-| `ENABLE_ANALYTICS` | Enable request analytics logging | `false` | No |
-| `ANALYTICS_RETENTION_DAYS` | Days to retain analytics data | `30` | No |
+| Variable                   | Description                                  | Default       | Required        |
+| -------------------------- | -------------------------------------------- | ------------- | --------------- |
+| `NODE_ENV`                 | Environment mode                             | `development` | No              |
+| `PORT`                     | Server port                                  | `4444`        | No              |
+| `LOG_LEVEL`                | Logging level                                | `info`        | Yes             |
+| `DATABASE_URL`             | Database connection string                   | -             | Yes             |
+| `DATABASE_AUTH_TOKEN`      | Database auth token (required in production) | -             | Production only |
+| `ENABLE_ANALYTICS`         | Enable request analytics logging             | `false`       | No              |
+| `ANALYTICS_RETENTION_DAYS` | Days to retain analytics data                | `30`          | No              |
 
 ### Analytics Configuration
 
@@ -139,6 +139,7 @@ The analytics endpoints provide insights into API usage when `ENABLE_ANALYTICS=t
 Returns paginated list of all logged requests.
 
 **Query Parameters:**
+
 - `page` (number, default: 1) - Page number
 - `limit` (number, default: 10, max: 100) - Items per page
 - `method` (string, optional) - Filter by HTTP method
@@ -148,6 +149,7 @@ Returns paginated list of all logged requests.
 - `to` (datetime, optional) - Filter requests to this date
 
 **Example:**
+
 ```bash
 http :4444/analytics/requests page==1 limit==20 method==GET
 ```
@@ -157,6 +159,7 @@ http :4444/analytics/requests page==1 limit==20 method==GET
 Returns aggregated request counts and statistics.
 
 **Query Parameters:**
+
 - `from` (datetime, optional) - Count requests from this date
 - `to` (datetime, optional) - Count requests to this date
 - `path` (string, optional) - Filter by request path
@@ -164,6 +167,7 @@ Returns aggregated request counts and statistics.
 - `groupBy` (enum: "day", "path", "method", optional) - Group results by field
 
 **Examples:**
+
 ```bash
 # Get total request count
 http :4444/analytics/counts
@@ -187,6 +191,24 @@ http :4444/analytics/counts groupBy==method
 - The analytics middleware can be disabled per-route if needed
 
 ## Pagination
+
+The `tasks` endpoint is paginated by default and you can opt out of the pagination by enabling `all=true` flag. The pagination structure looks like the following:
+
+```js
+const requestsResponseSchema = z.object({
+  data: z.array(selectRequestsSchema),
+  meta: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+  }),
+});
+```
+
+The key is a `data` - contains the original data and `meta` - contains the data about the pagination.
 
 ## References
 
