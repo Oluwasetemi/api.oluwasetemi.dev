@@ -1,0 +1,4161 @@
+================================================
+FILE: README.md
+================================================
+# OLUWASETEMI API
+
+Think of this as a personal api repository.
+
+- [OLUWASETEMI API](#api.oluwasetemi.dev)
+  - [Included](#included)
+  - [Setup](#setup)
+  - [Code Tour](#code-tour)
+  - [Endpoints](#endpoints)
+  - [Pagination](#pagination)
+  - [References](#references)
+
+## Included
+
+- Structured logging with [pino](https://getpino.io/) / [hono-pino](https://www.npmjs.com/package/hono-pino)
+- Documented / type-safe routes with [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
+- Interactive API documentation with [scalar](https://scalar.com/#api-docs) / [@scalar/hono-api-reference](https://github.com/scalar/scalar/tree/main/packages/hono-api-reference)
+- Convenience methods / helpers to reduce boilerplate with [stoker](https://www.npmjs.com/package/stoker)
+- Type-safe schemas and environment variables with [zod](https://zod.dev/)
+- Single source of truth database schemas with [drizzle](https://orm.drizzle.team/docs/overview) and [drizzle-zod](https://orm.drizzle.team/docs/zod)
+- Testing with [vitest](https://vitest.dev/)
+- GraphQL endpoint powered by [drizzle-graphql](https://github.com/drizzle-team/drizzle-graphql) and [Apollo Server](https://www.apollographql.com/docs/apollo-server/)
+- Sensible editor, formatting, and linting settings with [@antfu/eslint-config](https://github.com/antfu/eslint-config)
+
+## Setup
+
+Clone this template without the git history
+
+```sh
+npx degit Oluwasetemi/hono-open-api-starter my-api
+cd my-api
+```
+
+Create `.env` file
+
+```sh
+cp .env.example .env
+```
+
+Install dependencies
+
+```sh
+pnpm install
+```
+
+Create sqlite db / push schema
+
+```sh
+pnpm drizzle-kit push
+```
+
+Run
+
+```sh
+pnpm dev
+```
+
+Lint
+
+```sh
+pnpm lint
+```
+
+Test
+
+```sh
+pnpm test
+```
+
+### Environment Variables
+
+The following environment variables are supported:
+
+| Variable                   | Description                                  | Default       | Required        |
+| -------------------------- | -------------------------------------------- | ------------- | --------------- |
+| `NODE_ENV`                 | Environment mode                             | `development` | No              |
+| `PORT`                     | Server port                                  | `4444`        | No              |
+| `LOG_LEVEL`                | Logging level                                | `info`        | Yes             |
+| `DATABASE_URL`             | Database connection string                   | -             | Yes             |
+| `DATABASE_AUTH_TOKEN`      | Database auth token (required in production) | -             | Production only |
+| `ENABLE_ANALYTICS`         | Enable request analytics logging             | `false`       | No              |
+| `ANALYTICS_RETENTION_DAYS` | Days to retain analytics data                | `30`          | No              |
+
+### Analytics Configuration
+
+To enable request analytics, set `ENABLE_ANALYTICS=true` in your `.env` file. When enabled, the API will log all incoming requests to the database, including:
+
+- HTTP method and path
+- Response status code
+- Request duration
+- User agent and IP address
+- Timestamp
+
+Analytics data is automatically cleaned up after the retention period specified by `ANALYTICS_RETENTION_DAYS`.
+
+#### Opt-out
+
+To disable analytics completely, set `ENABLE_ANALYTICS=false` or omit the variable from your environment.
+
+## Code Tour
+
+Base hono app exported from [app.ts](./src/app.ts). Local development uses [@hono/node-server](https://hono.dev/docs/getting-started/nodejs) defined in [index.ts](./src/index.ts) - update this file or create a new entry point to use your preferred runtime.
+
+Typesafe env defined in [env.ts](./src/env.ts) - add any other required environment variables here. The application will not start if any required environment variables are missing.
+
+See [src/routes/tasks](./src/routes/tasks/) for an example of an Open API group. Copy this folder / use it as an example for your route groups.
+
+- Router created in [tasks.index.ts](./src/routes/tasks/tasks.index.ts)
+- Route definitions are defined in [tasks.routes.ts](./src/routes/tasks/tasks.routes.ts)
+- Hono request handlers (controllers) defined in [tasks.handlers.ts](./src/routes/tasks/tasks.handlers.ts)
+- Group unit tests defined in [tasks.test.ts](./src/routes/tasks/tasks.test.ts)
+
+All app routes are grouped together and exported into a single type as `AppType` in [app.ts](./src/app.ts) for use in [RPC / hono/client](https://hono.dev/docs/guides/rpc). This is extremely useful.
+
+## Endpoints
+
+| Path                     | Description              |
+| ------------------------ | ------------------------ |
+| GET /doc                 | Open API Specification   |
+| GET /reference           | Scalar API Documentation |
+| GET /tasks               | List all tasks           |
+| POST /tasks              | Create a task            |
+| GET /tasks/{id}          | Get one task by id       |
+| GET /tasks/{id}/Children | Get one task by id       |
+| PATCH /tasks/{id}        | Patch one task by id     |
+| DELETE /tasks/{id}       | Delete one task by id    |
+| GET /graphql             | GraphQL endpoint         |
+| GET /analytics/requests  | List request analytics   |
+| GET /analytics/counts    | Get aggregated analytics |
+
+The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
+
+### Analytics Endpoints
+
+The analytics endpoints provide insights into API usage when `ENABLE_ANALYTICS=true`:
+
+#### GET /analytics/requests
+
+Returns paginated list of all logged requests.
+
+**Query Parameters:**
+
+- `page` (number, default: 1) - Page number
+- `limit` (number, default: 10, max: 100) - Items per page
+- `method` (string, optional) - Filter by HTTP method
+- `path` (string, optional) - Filter by request path
+- `status` (number, optional) - Filter by status code
+- `from` (datetime, optional) - Filter requests from this date
+- `to` (datetime, optional) - Filter requests to this date
+
+**Example:**
+
+```bash
+http :4444/analytics/requests page==1 limit==20 method==GET
+```
+
+#### GET /analytics/counts
+
+Returns aggregated request counts and statistics.
+
+**Query Parameters:**
+
+- `from` (datetime, optional) - Count requests from this date
+- `to` (datetime, optional) - Count requests to this date
+- `path` (string, optional) - Filter by request path
+- `method` (string, optional) - Filter by HTTP method
+- `groupBy` (enum: "day", "path", "method", optional) - Group results by field
+
+**Examples:**
+
+```bash
+# Get total request count
+http :4444/analytics/counts
+
+# Get requests grouped by day
+http :4444/analytics/counts groupBy==day
+
+# Get requests grouped by path
+http :4444/analytics/counts groupBy==path
+
+# Get requests grouped by method
+http :4444/analytics/counts groupBy==method
+```
+
+### Performance Considerations
+
+- Analytics logging adds minimal overhead (~1-2ms per request)
+- Database writes are non-blocking and don't affect response times
+- Consider the retention period based on your storage capacity
+- For high-traffic applications, consider using a separate analytics database
+- The analytics middleware can be disabled per-route if needed
+
+## Pagination
+
+The `tasks` endpoint is paginated by default and you can opt out of the pagination by enabling `all=true` flag. The pagination structure looks like the following:
+
+```js
+const requestsResponseSchema = z.object({
+  data: z.array(selectRequestsSchema),
+  meta: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+  }),
+});
+```
+
+The key is a `data` - contains the original data and `meta` - contains the data about the pagination.
+
+## References
+
+- [What is Open API?](https://swagger.io/docs/specification/v3_0/about/)
+- [Hono](https://hono.dev/)
+  - [Zod OpenAPI Example](https://hono.dev/examples/zod-openapi)
+  - [Testing](https://hono.dev/docs/guides/testing)
+  - [Testing Helper](https://hono.dev/docs/helpers/testing)
+- [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
+- [Scalar Documentation](https://github.com/scalar/scalar/tree/main/?tab=readme-ov-file#documentation)
+  - [Themes / Layout](https://github.com/scalar/scalar/blob/main/documentation/themes.md)
+  - [Configuration](https://github.com/scalar/scalar/blob/main/documentation/configuration.md)
+
+
+
+================================================
+FILE: drizzle.config.ts
+================================================
+import { defineConfig } from "drizzle-kit";
+
+import env from "@/env";
+
+export default defineConfig({
+  schema: "./src/db/schema.ts",
+  out: "./src/db/migrations",
+  dialect: "turso",
+  // driver: "turso",
+  casing: "snake_case",
+  dbCredentials: {
+    url: env.DATABASE_URL,
+    // authToken: env.DATABASE_AUTH_TOKEN,
+  },
+});
+
+
+
+================================================
+FILE: eslint.config.js
+================================================
+import antfu from "@antfu/eslint-config";
+
+export default antfu(
+  {
+    type: "app",
+    typescript: true,
+    formatters: true,
+    stylistic: {
+      indent: 2,
+      semi: true,
+      quotes: "double",
+    },
+    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**"],
+  },
+  {
+    rules: {
+      "ts/no-redeclare": "off",
+      "ts/consistent-type-definitions": ["error", "type"],
+      "no-console": ["warn"],
+      "antfu/no-top-level-await": ["off"],
+      "node/prefer-global/process": ["off"],
+      "node/no-process-env": ["error"],
+      "perfectionist/sort-imports": [
+        "error",
+        {
+          tsconfigRootDir: ".",
+        },
+      ],
+      "unicorn/filename-case": [
+        "error",
+        {
+          case: "kebabCase",
+          ignore: ["README.md"],
+        },
+      ],
+    },
+  },
+);
+
+
+
+================================================
+FILE: package.json
+================================================
+{
+  "name": "api.oluwasetemi.dev",
+  "type": "module",
+  "version": "0.1.2",
+  "private": true,
+  "author": "Oluwasetemi Ojo<me@oluwasetemi.dev>",
+  "license": "MIT",
+  "homepage": "https://api.oluwasetemi.dev/reference",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oluwasetemi/api.oluwasetemi.dev"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node ./dist/src/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "pnpm run lint --fix",
+    "test": "cross-env NODE_ENV=test vitest",
+    "build": "tsc && tsc-alias",
+    "seed": "tsx src/db/seed.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@apollo/server": "^4.12.2",
+    "@graphql-tools/schema": "^10.0.23",
+    "@hono/node-server": "^1.14.4",
+    "@hono/zod-openapi": "^0.19.8",
+    "@libsql/client": "^0.15.9",
+    "@scalar/hono-api-reference": "^0.9.6",
+    "dotenv": "^16.5.0",
+    "dotenv-expand": "^12.0.2",
+    "drizzle-graphql": "^0.8.5",
+    "drizzle-orm": "^0.44.2",
+    "drizzle-zod": "^0.5.1",
+    "graphql": "^16.11.0",
+    "hono": "^4.8.2",
+    "hono-pino": "^0.8.0",
+    "node-cron": "^4.2.0",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "stoker": "1.4.2",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.15.0",
+    "@types/node": "^22.15.32",
+    "@types/node-cron": "^3.0.11",
+    "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.31.1",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "^1.0.1",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
+
+
+
+================================================
+FILE: tsconfig.json
+================================================
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+    "baseUrl": "./",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"],
+    "strict": true,
+    "outDir": "./dist",
+    "skipLibCheck": true
+  },
+  "tsc-alias": {
+    "resolveFullPaths": true
+  }
+}
+
+
+
+================================================
+FILE: vitest.config.ts
+================================================
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  test: {
+    // Run tests sequentially to avoid database conflicts
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    // Clean up test files after each test
+    teardownTimeout: 10000,
+  },
+});
+
+
+
+================================================
+FILE: .env.example
+================================================
+NODE_ENV=development
+PORT=4444
+LOG_LEVEL=debug
+
+# Analytics settings
+ENABLE_ANALYTICS=false
+ANALYTICS_RETENTION_DAYS=30
+
+
+
+================================================
+FILE: .env.test
+================================================
+NODE_ENV=test
+PORT=9999
+LOG_LEVEL=silent
+DATABASE_URL=file:test.db
+
+# Analytics settings
+ENABLE_ANALYTICS=false
+ANALYTICS_RETENTION_DAYS=30
+
+
+
+================================================
+FILE: src/app.ts
+================================================
+import configureOpenAPI from "@/lib/configure-open-api";
+import createApp from "@/lib/create-app";
+import analytics from "@/routes/analytics/analytics.index";
+import graphql from "@/routes/graphql/graphql.index";
+import index from "@/routes/index.route";
+import tasks from "@/routes/tasks/tasks.index";
+
+const app = createApp();
+
+configureOpenAPI(app);
+
+const routes = [index, tasks, graphql, analytics] as const;
+
+routes.forEach((route) => {
+  app.route("/", route);
+});
+
+export type AppType = (typeof routes)[number];
+
+export default app;
+
+
+
+================================================
+FILE: src/env.ts
+================================================
+/* eslint-disable node/no-process-env */
+import { config } from "dotenv";
+import { expand } from "dotenv-expand";
+import path from "node:path";
+import { z } from "zod";
+
+expand(
+  config({
+    path: path.resolve(
+      process.cwd(),
+      process.env.NODE_ENV === "test" ? ".env.test" : ".env",
+    ),
+  }),
+);
+
+const EnvSchema = z
+  .object({
+    NODE_ENV: z.string().default("development"),
+    PORT: z.coerce.number().default(4444),
+    LOG_LEVEL: z.enum([
+      "fatal",
+      "error",
+      "warn",
+      "info",
+      "debug",
+      "trace",
+      "silent",
+    ]),
+    DATABASE_URL: z.string().url(),
+    DATABASE_AUTH_TOKEN: z.string().optional(),
+    ENABLE_ANALYTICS: z.coerce.boolean().default(false),
+    ANALYTICS_RETENTION_DAYS: z.coerce.number().default(30),
+  })
+  .superRefine((input, ctx) => {
+    if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_type,
+        expected: "string",
+        received: "undefined",
+        path: ["DATABASE_AUTH_TOKEN"],
+        message: "Must be set when NODE_ENV is 'production'",
+      });
+    }
+  });
+
+export type env = z.infer<typeof EnvSchema>;
+
+const { data: env, error } = EnvSchema.safeParse(process.env);
+
+if (error) {
+  console.error("❌ Invalid env:");
+  console.error(JSON.stringify(error.flatten().fieldErrors, null, 2));
+  process.exit(1);
+}
+
+export default env!;
+
+
+
+================================================
+FILE: src/index.ts
+================================================
+import { serve } from "@hono/node-server";
+
+import app from "@/app";
+import env from "@/env";
+import { setupAnalyticsCleanup } from "@/services/cleanup.service";
+
+serve(
+  {
+    fetch: app.fetch,
+    port: env.PORT || 4444,
+  },
+  (info) => {
+    // eslint-disable-next-line no-console
+    console.log(`Server is running on http://localhost:${info.port}`);
+    
+    // Initialize analytics cleanup service
+    setupAnalyticsCleanup();
+  },
+);
+
+
+
+================================================
+FILE: src/db/index.ts
+================================================
+import { drizzle } from "drizzle-orm/libsql";
+
+import env from "@/env";
+
+import * as schema from "./schema";
+
+const db = drizzle({
+  connection: {
+    url: env.DATABASE_URL,
+    authToken: env.DATABASE_AUTH_TOKEN,
+  },
+  casing: "snake_case",
+  schema,
+});
+
+export default db;
+
+
+
+================================================
+FILE: src/db/schema.ts
+================================================
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Define enums
+export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
+export const StatusEnum = z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]);
+
+export const tasks = sqliteTable("tasks", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()), // Make this the primary key
+  name: text().notNull(),
+  description: text(),
+  start: integer({ mode: "timestamp" }),
+  end: integer({ mode: "timestamp" }),
+  duration: integer({ mode: "number" }),
+  priority: text({ enum: ["LOW", "MEDIUM", "HIGH"] }).notNull().default("MEDIUM"),
+  status: text({ enum: ["TODO", "IN_PROGRESS", "DONE", "CANCELLED"] }).notNull().default("TODO"),
+  archived: integer({ mode: "boolean" }).notNull().default(false),
+  isDefault: integer({ mode: "boolean" }).default(false),
+  parentId: text("parent_id").references((): SQLiteColumn<any, object, object> => tasks.id),
+  children: text().notNull().default("[]"), // Remove the reference, store as JSON
+  owner: text(),
+  tags: text(),
+  completedAt: integer({ mode: "timestamp" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_tasks_parent_id").on(table.parentId),
+]);
+
+export const selectTasksSchema = createSelectSchema(tasks);
+
+export const insertTasksSchema = createInsertSchema(tasks, {
+  name: schema => schema.name.min(1).max(500),
+  description: schema => schema.description.max(1000),
+  priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
+  status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
+  archived: schema => schema.archived.optional(),
+  children: schema => schema.children.refine((val) => {
+    if (!val || val === "")
+      return true;
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) && parsed.every(id => typeof id === "string");
+    }
+    catch {
+      return false;
+    }
+  }, { message: "Children must be a valid JSON array of strings" }),
+  start: schema => schema.start.optional().nullable().transform(val => val ? new Date(val) : null),
+  end: schema => schema.end.optional().nullable().transform(val => val ? new Date(val) : null),
+  completedAt: schema => schema.completedAt.optional().nullable().transform(val => val ? new Date(val) : null),
+})
+  .required({
+    name: true,
+    status: true,
+  })
+  .omit({
+    id: true, // Don't allow manual ID setting
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const patchTasksSchema = insertTasksSchema.partial();
+
+// Requests table for analytics
+export const requests = sqliteTable("requests", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  method: text().notNull(),
+  path: text().notNull(),
+  status: integer().notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  // Optional fields for richer analytics
+  ip: text(),
+  userAgent: text("user_agent"),
+  referer: text(),
+}, table => [
+  index("idx_requests_created_at").on(table.createdAt),
+  index("idx_requests_method").on(table.method),
+  index("idx_requests_status").on(table.status),
+  index("idx_requests_path").on(table.path),
+]);
+
+export const selectRequestsSchema = createSelectSchema(requests);
+
+export const insertRequestsSchema = createInsertSchema(requests, {
+  method: schema => schema.method.min(1).max(10),
+  path: schema => schema.path.min(1).max(2048),
+  status: schema => schema.status.min(100).max(599),
+  durationMs: schema => schema.durationMs.min(0),
+  ip: schema => schema.ip.optional().nullable(),
+  userAgent: schema => schema.userAgent.optional().nullable(),
+  referer: schema => schema.referer.optional().nullable(),
+})
+  .omit({
+    id: true,
+    createdAt: true,
+  });
+
+export const patchRequestsSchema = insertRequestsSchema.partial();
+
+
+
+================================================
+FILE: src/db/seed.ts
+================================================
+import type { z } from "zod";
+
+import type { PriorityEnum, StatusEnum } from "./schema";
+
+import db from "./index";
+import { tasks } from "./schema";
+
+const defaultTasks = Array.from({ length: 500 }, (_, i) => ({
+  name: `Default Task ${i + 1}`,
+  description: `This is a default task ${i + 1}`,
+  priority: "MEDIUM" as const,
+  status: "TODO" as const,
+  isDefault: true,
+}));
+
+export async function seed() {
+  console.warn("🌱 Seeding database...");
+
+  try {
+    await db.insert(tasks).values(defaultTasks);
+    console.warn("✅ Seeding completed successfully");
+  }
+  catch (error) {
+    console.error("❌ Error seeding database:", error);
+    throw error;
+  }
+}
+
+seed();
+
+
+
+================================================
+FILE: src/db/migrations/0000_initial_tasks.sql
+================================================
+CREATE TABLE `tasks` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`start` integer,
+	`end` integer,
+	`duration` integer,
+	`priority` text DEFAULT 'MEDIUM' NOT NULL,
+	`status` text DEFAULT 'TODO' NOT NULL,
+	`archived` integer DEFAULT false NOT NULL,
+	`parent_id` text,
+	`children` text DEFAULT '[]' NOT NULL,
+	`owner` text,
+	`tags` text,
+	`due_date` integer,
+	`completed_at` integer,
+	`created_at` integer,
+	`updated_at` integer,
+	FOREIGN KEY (`parent_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE no action
+);
+
+
+
+================================================
+FILE: src/db/migrations/0001_square_riptide.sql
+================================================
+PRAGMA foreign_keys=OFF;--> statement-breakpoint
+CREATE TABLE `__new_tasks` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`start` integer,
+	`end` integer,
+	`duration` integer,
+	`priority` text DEFAULT 'MEDIUM' NOT NULL,
+	`status` text DEFAULT 'TODO' NOT NULL,
+	`archived` integer DEFAULT false NOT NULL,
+	`parent_id` text,
+	`children` text DEFAULT '[]' NOT NULL,
+	`owner` text,
+	`tags` text,
+	`due_date` integer,
+	`completed_at` integer,
+	`created_at` integer,
+	`updated_at` integer,
+	FOREIGN KEY (`parent_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+INSERT INTO `__new_tasks`("id", "name", "description", "start", "end", "duration", "priority", "status", "archived", "parent_id", "children", "owner", "tags", "due_date", "completed_at", "created_at", "updated_at") SELECT "id", "name", "description", "start", "end", "duration", "priority", "status", "archived", "parent_id", "children", "owner", "tags", "due_date", "completed_at", "created_at", "updated_at" FROM `tasks`;--> statement-breakpoint
+DROP TABLE `tasks`;--> statement-breakpoint
+ALTER TABLE `__new_tasks` RENAME TO `tasks`;--> statement-breakpoint
+PRAGMA foreign_keys=ON;
+
+
+================================================
+FILE: src/db/migrations/0002_abandoned_radioactive_man.sql
+================================================
+ALTER TABLE `tasks` DROP COLUMN `due_date`;
+
+
+================================================
+FILE: src/db/migrations/0003_last_bishop.sql
+================================================
+CREATE TABLE `requests` (
+	`id` text PRIMARY KEY NOT NULL,
+	`method` text NOT NULL,
+	`path` text NOT NULL,
+	`status` integer NOT NULL,
+	`duration_ms` integer NOT NULL,
+	`created_at` integer,
+	`ip` text,
+	`user_agent` text,
+	`referer` text
+);
+--> statement-breakpoint
+CREATE INDEX `idx_requests_created_at` ON `requests` (`created_at`);--> statement-breakpoint
+CREATE INDEX `idx_requests_method` ON `requests` (`method`);--> statement-breakpoint
+CREATE INDEX `idx_requests_status` ON `requests` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_requests_path` ON `requests` (`path`);--> statement-breakpoint
+CREATE INDEX `idx_tasks_parent_id` ON `tasks` (`parent_id`);--> statement-breakpoint
+ALTER TABLE `tasks` ADD `is_default` integer DEFAULT false;
+
+
+
+================================================
+FILE: src/db/migrations/relations.ts
+================================================
+import { relations } from "drizzle-orm/relations";
+
+import { tasks } from "./schema";
+
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  task_children: one(tasks, {
+    fields: [tasks.children],
+    references: [tasks.id],
+    relationName: "tasks_children_tasks_id",
+  }),
+  tasks_children: many(tasks, {
+    relationName: "tasks_children_tasks_id",
+  }),
+  task_parentId: one(tasks, {
+    fields: [tasks.parentId],
+    references: [tasks.id],
+    relationName: "tasks_parentId_tasks_id",
+  }),
+  tasks_parentId: many(tasks, {
+    relationName: "tasks_parentId_tasks_id",
+  }),
+}));
+
+
+
+================================================
+FILE: src/db/migrations/schema.ts
+================================================
+import { foreignKey, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const tasks = sqliteTable("tasks", {
+  id: text().notNull(),
+  name: text().notNull(),
+  description: text(),
+  start: integer(),
+  end: integer(),
+  duration: integer(),
+  priority: text().default("MEDIUM"),
+  status: text().default("TODO").notNull(),
+  archived: integer().default(0).notNull(),
+  parentId: text("parent_id"),
+  children: text(),
+  owner: text().notNull(),
+  createdAt: integer("created_at"),
+  updatedAt: integer("updated_at"),
+}, table => [
+  uniqueIndex("tasks_id_unique").on(table.id),
+  foreignKey(() => ({
+    columns: [table.children],
+    foreignColumns: [table.id],
+    name: "tasks_children_tasks_id_fk",
+  })),
+  foreignKey(() => ({
+    columns: [table.parentId],
+    foreignColumns: [table.id],
+    name: "tasks_parent_id_tasks_id_fk",
+  })),
+]);
+
+
+
+================================================
+FILE: src/db/migrations/meta/0000_snapshot.json
+================================================
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "0000_initial_tasks",
+  "prevId": "",
+  "tables": {
+    "tasks": {
+      "name": "tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "start": {
+          "name": "start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "end": {
+          "name": "end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'MEDIUM'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'TODO'"
+        },
+        "archived": {
+          "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "false"
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "children": {
+          "name": "children",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tasks_parent_id_tasks_id_fk": {
+          "name": "tasks_parent_id_tasks_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+
+
+
+================================================
+FILE: src/db/migrations/meta/0001_snapshot.json
+================================================
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "4527d698-370a-40ae-a300-b4bfcab7008a",
+  "prevId": "5ff8449c-d371-4fb1-9d3a-af7c930584f5",
+  "tables": {
+    "tasks": {
+      "name": "tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "start": {
+          "name": "start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "end": {
+          "name": "end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'MEDIUM'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'TODO'"
+        },
+        "archived": {
+          "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "children": {
+          "name": "children",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tasks_parent_id_tasks_id_fk": {
+          "name": "tasks_parent_id_tasks_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+
+
+================================================
+FILE: src/db/migrations/meta/0002_snapshot.json
+================================================
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "e723eeb1-c093-4317-a0f8-a6867e2c1c99",
+  "prevId": "4527d698-370a-40ae-a300-b4bfcab7008a",
+  "tables": {
+    "tasks": {
+      "name": "tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "start": {
+          "name": "start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "end": {
+          "name": "end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'MEDIUM'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'TODO'"
+        },
+        "archived": {
+          "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "children": {
+          "name": "children",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tasks_parent_id_tasks_id_fk": {
+          "name": "tasks_parent_id_tasks_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+
+
+================================================
+FILE: src/db/migrations/meta/_journal.json
+================================================
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1749446600000,
+      "tag": "0000_initial_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1749446655719,
+      "tag": "0001_square_riptide",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1749449243302,
+      "tag": "0002_abandoned_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1749886163220,
+      "tag": "0003_last_bishop",
+      "breakpoints": true
+    }
+  ]
+}
+
+
+
+================================================
+FILE: src/lib/apollo-server-hono-integration.ts
+================================================
+// apollo-server-hono-integration.ts
+import type {
+  ApolloServer,
+  BaseContext,
+  ContextFunction,
+  HTTPGraphQLRequest,
+} from "@apollo/server";
+import type { Context } from "hono";
+
+export type HonoContextFunctionArgument = {
+  req: Context["req"];
+  c: Context;
+};
+
+export type HonoIntegrationOptions<TContext extends BaseContext = BaseContext> = {
+  context?: ContextFunction<[HonoContextFunctionArgument], TContext>;
+};
+
+export function startServerAndCreateHonoHandler<TContext extends BaseContext = BaseContext>(
+  server: ApolloServer<TContext>,
+  options?: HonoIntegrationOptions<TContext>,
+) {
+  let started = false;
+
+  const ensureStarted = async () => {
+    if (!started) {
+      await server.start();
+      started = true;
+    }
+  };
+
+  return async (c: Context) => {
+    try {
+      await ensureStarted();
+
+      const req = c.req;
+      let body: any;
+
+      // Handle request body
+      if (
+        req.method !== "GET"
+        && req.header("content-type")?.includes("application/json")
+      ) {
+        try {
+          body = await req.json();
+        }
+        catch (e) {
+          console.log(e);
+          return c.json(
+            { errors: [{ message: "Invalid JSON in request body" }] },
+            400,
+          );
+        }
+      }
+
+      // Create HeaderMap compatible object
+      const headerMap = new Map<string, string>();
+      req.raw.headers.forEach((value, key) => {
+        headerMap.set(key, value);
+      });
+
+      // Create HTTPGraphQLRequest
+      const httpGraphQLRequest: HTTPGraphQLRequest = {
+        method: req.method as "GET" | "POST",
+        headers: headerMap as any, // Cast to satisfy Apollo Server's HeaderMap type
+        search: new URL(req.url).search,
+        body,
+      };
+
+      // Create context
+      const contextValue = options?.context
+        ? await options.context({ req, c })
+        : ({} as TContext);
+
+      const response = await server.executeHTTPGraphQLRequest({
+        httpGraphQLRequest,
+        context: async () => contextValue,
+      });
+
+      // Set response headers
+      for (const [key, value] of response.headers) {
+        c.header(key, value);
+      }
+
+      // Handle response body
+      let payload = "";
+      if (response.body.kind === "complete") {
+        payload = response.body.string;
+      }
+      else {
+        for await (const chunk of response.body.asyncIterator) {
+          payload += chunk;
+        }
+      }
+
+      return c.newResponse(payload, (response.status ?? 200) as any);
+    }
+    catch (error) {
+      console.error("GraphQL execution error:", error);
+      return c.json({ errors: [{ message: "Internal server error" }] }, 500);
+    }
+  };
+}
+
+
+
+================================================
+FILE: src/lib/configure-open-api.ts
+================================================
+import { Scalar } from "@scalar/hono-api-reference";
+
+import type { AppOpenAPI } from "./types";
+
+import packageJSON from "../../package.json" with { type: "json" };
+
+export default function configureOpenAPI(app: AppOpenAPI) {
+  app.doc("/doc", {
+    openapi: "3.0.0",
+    info: {
+      version: packageJSON.version,
+      title: "Tasks API",
+    },
+  });
+
+  app.get(
+    "/reference",
+    Scalar({
+      url: "/doc",
+      theme: "kepler",
+      layout: "classic",
+      defaultHttpClient: {
+        targetKey: "js",
+        clientKey: "axios",
+      },
+    }),
+  );
+}
+
+
+
+================================================
+FILE: src/lib/constants.ts
+================================================
+import * as HttpStatusPhrases from "stoker/http-status-phrases";
+import { createMessageObjectSchema } from "stoker/openapi/schemas";
+
+export const ZOD_ERROR_MESSAGES = {
+  REQUIRED: "Required",
+  EXPECTED_NUMBER: "Expected number, received nan",
+  NO_UPDATES: "No updates provided",
+  INVALID_UUID: "Invalid uuid",
+};
+
+export const ZOD_ERROR_CODES = {
+  INVALID_UPDATES: "invalid_updates",
+};
+
+export const notFoundSchema = createMessageObjectSchema(
+  HttpStatusPhrases.NOT_FOUND,
+);
+
+
+
+================================================
+FILE: src/lib/create-app.ts
+================================================
+import type { Schema } from "hono";
+
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
+import { requestId } from "hono/request-id";
+import { notFound, onError, serveEmojiFavicon } from "stoker/middlewares";
+import { defaultHook } from "stoker/openapi";
+
+import { pinoLogger } from "@/middlewares/pino-logger";
+import { analyticsLogger } from "@/middlewares/request-analytics";
+
+import type { AppBindings, AppOpenAPI } from "./types";
+
+export function createRouter() {
+  return new OpenAPIHono<AppBindings>({
+    strict: false,
+    defaultHook,
+  });
+}
+
+export default function createApp() {
+  const app = createRouter();
+  app.use(requestId()).use(analyticsLogger()).use(serveEmojiFavicon("📝")).use(pinoLogger()).use(cors());
+
+  app.notFound(notFound);
+  app.onError(onError);
+  return app;
+}
+
+export function createTestApp<S extends Schema>(router: AppOpenAPI<S>) {
+  return createApp().route("/", router);
+}
+
+
+
+================================================
+FILE: src/lib/test-setup.ts
+================================================
+import { drizzle } from "drizzle-orm/libsql";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+import { requests, tasks } from "@/db/schema";
+import * as schema from "@/db/schema";
+import env from "@/env";
+
+export async function setupTestDatabase() {
+  // Generate a unique test database name
+  // const testDbName = `test-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.db`;
+  const testDbName = "test.db";
+  const testDbPath = path.join(process.cwd(), testDbName);
+
+  // Set the database URL for this test
+  env.DATABASE_URL = `file:${testDbPath}`;
+
+  try {
+    // Run migrations
+    execSync("pnpm drizzle-kit push", { stdio: "pipe" });
+
+    // Create a new database connection for this test
+    const testDb = drizzle({
+      connection: {
+        url: `file:${testDbPath}`,
+      },
+      casing: "snake_case",
+      schema,
+    });
+
+    // Clear any existing data
+    await testDb.delete(requests).run();
+    await testDb.delete(tasks).run();
+
+    return testDbPath;
+  }
+  catch (error) {
+    console.error("Failed to setup test database:", error);
+    throw error;
+  }
+}
+
+export async function cleanupTestDatabase(testDbPath?: string) {
+  if (testDbPath && fs.existsSync(testDbPath)) {
+    try {
+      // dropDatabaseTableData(testDbPath);
+      fs.rmSync(testDbPath, { force: true });
+    }
+    catch (error) {
+      console.warn("Failed to cleanup test database:", error);
+    }
+  }
+
+  // Clean up any leftover test database files
+  try {
+    const files = fs.readdirSync(process.cwd());
+    for (const file of files) {
+      if (file.startsWith("test-") && file.endsWith(".db")) {
+        fs.rmSync(path.join(process.cwd(), file), { force: true });
+      }
+    }
+  }
+  catch (error) {
+    console.warn("Failed to cleanup leftover test databases:", error);
+  }
+}
+
+
+
+================================================
+FILE: src/lib/types.ts
+================================================
+import type { OpenAPIHono, RouteConfig, RouteHandler } from "@hono/zod-openapi";
+import type { Schema } from "hono";
+import type { PinoLogger } from "hono-pino";
+
+export type AppBindings = {
+  Variables: {
+    logger: PinoLogger;
+  };
+};
+
+// eslint-disable-next-line ts/no-empty-object-type
+export type AppOpenAPI<S extends Schema = {}> = OpenAPIHono<AppBindings, S>;
+
+export type AppRouteHandler<R extends RouteConfig> = RouteHandler<
+  R,
+  AppBindings
+>;
+
+
+
+================================================
+FILE: src/middlewares/pino-logger.ts
+================================================
+import { pinoLogger as logger } from "hono-pino";
+import pino from "pino";
+import pretty from "pino-pretty";
+
+import env from "@/env";
+
+export function pinoLogger() {
+  return logger({
+    pino: pino(
+      { level: env.LOG_LEVEL || "info" },
+      env.NODE_ENV === "production" ? undefined : pretty(),
+    ),
+    http: {
+      reqId: () => crypto.randomUUID(),
+    },
+  });
+}
+
+
+
+================================================
+FILE: src/middlewares/request-analytics.ts
+================================================
+import type { Context, Next } from "hono";
+
+import type { AppBindings } from "@/lib/types";
+
+import env from "@/env";
+import { logRequest } from "@/services/analytics.service";
+
+/**
+ * Middleware to track and log HTTP requests for analytics purposes.
+ *
+ * This middleware:
+ * - Captures request start time
+ * - Measures request duration
+ * - Collects request metadata (method, path, status, etc.)
+ * - Logs the request data asynchronously using AnalyticsService
+ * - Includes fail-safe error handling
+ */
+export function analyticsLogger() {
+  return async (ctx: Context<AppBindings>, next: Next) => {
+    if (!env.ENABLE_ANALYTICS) {
+      return next(); // Skip analytics if disabled
+    }
+
+    const startTime = Date.now();
+
+    try {
+      // Process the request
+      await next();
+    }
+    finally {
+      // Calculate duration regardless of success/failure
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Collect request metadata
+      const requestData = {
+        method: ctx.req.method,
+        path: ctx.req.path,
+        status: ctx.res.status,
+        durationMs: duration,
+        // Optional additional metadata
+        ip: ctx.req.header("x-forwarded-for") || ctx.req.header("x-real-ip") || (ctx.env as any)?.CF_CONNECTING_IP,
+        userAgent: ctx.req.header("user-agent"),
+        referer: ctx.req.header("referer"),
+      };
+
+      // Log the request asynchronously with fail-safe error handling
+      try {
+        logRequest(requestData);
+      }
+      catch (error) {
+        // Fail-safe: log error but don't break the request flow
+        const logger = ctx.get("logger");
+        if (logger) {
+          logger.error(error, "Failed to log request analytics");
+        }
+        else {
+          // Fallback to console if logger is not available
+          console.error("Failed to log request analytics:", error);
+        }
+      }
+    }
+  };
+}
+
+
+
+================================================
+FILE: src/middlewares/__tests__/request-analytics.test.ts
+================================================
+import type { Context } from "hono";
+
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+import type { AppBindings } from "@/lib/types";
+
+import db from "@/db";
+import { requests } from "@/db/schema";
+import env from "@/env";
+import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
+import { analyticsLogger } from "@/middlewares/request-analytics";
+
+if (env.NODE_ENV !== "test") {
+  throw new Error("NODE_ENV must be 'test'");
+}
+
+describe("analytics Middleware", () => {
+  let testDbPath: string;
+  let originalAnalyticsEnabled: boolean;
+
+  beforeAll(async () => {
+    testDbPath = await setupTestDatabase();
+    // Enable analytics for these tests
+    originalAnalyticsEnabled = env.ENABLE_ANALYTICS;
+    (env as any).ENABLE_ANALYTICS = true;
+  });
+
+  afterAll(async () => {
+    await cleanupTestDatabase(testDbPath);
+    // Restore original analytics setting
+    (env as any).ENABLE_ANALYTICS = originalAnalyticsEnabled;
+  });
+
+  it("should log request analytics when middleware is executed", async () => {
+    // Create a mock context
+    const mockContext = {
+      req: {
+        method: "GET",
+        path: "/api/test",
+        header: vi.fn((name: string) => {
+          const headers: Record<string, string> = {
+            "user-agent": "test-user-agent",
+            "x-forwarded-for": "192.168.1.1",
+            "referer": "http://localhost:3000",
+          };
+          return headers[name];
+        }),
+      },
+      res: {
+        status: 200,
+      },
+      env: {},
+      get: vi.fn(() => null),
+    } as unknown as Context<AppBindings>;
+
+    // Create a mock next function
+    const mockNext = vi.fn(async () => {
+      // Simulate setting response status during request processing
+      (mockContext.res as { status: number }).status = 200;
+    });
+
+    // Execute the middleware
+    const middleware = analyticsLogger();
+    await middleware(mockContext, mockNext);
+
+    // Wait for the microtask to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Verify the request was logged
+    const loggedRequests = await db.select().from(requests).all();
+    expect(loggedRequests.length).toBeGreaterThan(0);
+
+    const loggedRequest = loggedRequests[0];
+    expect(loggedRequest.method).toBe("GET");
+    expect(loggedRequest.path).toBe("/api/test");
+    expect(loggedRequest.status).toBe(200);
+    expect(loggedRequest.durationMs).toBeGreaterThanOrEqual(0);
+  });
+});
+
+
+
+================================================
+FILE: src/routes/index.route.ts
+================================================
+import { createRoute } from "@hono/zod-openapi";
+import * as HttpStatusCodes from "stoker/http-status-codes";
+import { jsonContent } from "stoker/openapi/helpers";
+import { createMessageObjectSchema } from "stoker/openapi/schemas";
+
+import { createRouter } from "@/lib/create-app";
+
+const router = createRouter().openapi(
+  createRoute({
+    tags: ["Index"],
+    method: "get",
+    path: "/",
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("API by OLUWASETEMI"),
+        "API by OLUWASETEMI",
+      ),
+    },
+  }),
+  (c) => {
+    return c.json(
+      {
+        message: "API.OLUWASETEMI.DEV",
+      },
+      HttpStatusCodes.OK,
+    );
+  },
+);
+
+export default router;
+
+
+
+================================================
+FILE: src/routes/analytics/analytics.handlers.ts
+================================================
+import type { z } from "zod";
+
+import { and, eq, gte, lte, sql } from "drizzle-orm";
+import * as HttpStatusCodes from "stoker/http-status-codes";
+
+import type { selectRequestsSchema } from "@/db/schema";
+import type { AppRouteHandler } from "@/lib/types";
+
+import db from "@/db";
+import { requests } from "@/db/schema";
+
+import type { GetCountsRoute, GetRequestsRoute } from "./analytics.routes";
+
+type Request = z.infer<typeof selectRequestsSchema>;
+
+export const getRequests: AppRouteHandler<GetRequestsRoute> = async (c) => {
+  const { page, limit, method, path, status, from, to } = c.req.valid("query");
+
+  // Build where conditions
+  const whereConditions = [];
+
+  if (method) {
+    whereConditions.push(eq(requests.method, method));
+  }
+
+  if (path) {
+    whereConditions.push(eq(requests.path, path));
+  }
+
+  if (status) {
+    whereConditions.push(eq(requests.status, status));
+  }
+
+  if (from) {
+    whereConditions.push(gte(requests.createdAt, new Date(from)));
+  }
+
+  if (to) {
+    whereConditions.push(lte(requests.createdAt, new Date(to)));
+  }
+
+  const whereClause = whereConditions.length > 0
+    ? and(...whereConditions)
+    : undefined;
+
+  const offset = (page - 1) * limit;
+
+  const [requestsList, totalResult] = await Promise.all([
+    db.query.requests.findMany({
+      where: whereClause,
+      limit,
+      offset,
+      orderBy: (requests, { desc }) => [desc(requests.createdAt)],
+    }),
+    db.select({ count: sql<number>`count(*)` })
+      .from(requests)
+      .where(whereClause)
+      .get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Request[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: requestsList as Request[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
+};
+
+export const getCounts: AppRouteHandler<GetCountsRoute> = async (c) => {
+  const { from, to, path, method, groupBy } = c.req.valid("query");
+
+  // Build where conditions
+  const whereConditions = [];
+
+  if (method) {
+    whereConditions.push(eq(requests.method, method));
+  }
+
+  if (path) {
+    whereConditions.push(eq(requests.path, path));
+  }
+
+  if (from) {
+    whereConditions.push(gte(requests.createdAt, new Date(from)));
+  }
+
+  if (to) {
+    whereConditions.push(lte(requests.createdAt, new Date(to)));
+  }
+
+  const whereClause = whereConditions.length > 0
+    ? and(...whereConditions)
+    : undefined;
+
+  // Get total count
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(requests)
+    .where(whereClause)
+    .get();
+
+  const total = totalResult?.count || 0;
+
+  // If no groupBy is specified, return just the total
+  if (!groupBy) {
+    return c.json({
+      total,
+    }, HttpStatusCodes.OK);
+  }
+
+  // Group by the specified field
+  let groupedData: Array<{ key: string; count: number }> = [];
+
+  switch (groupBy) {
+    case "day":
+    {
+      const dayResults: { date: string; count: number }[] = await db
+        .select({
+          date: sql<string>`DATE(${requests.createdAt})`,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(sql`DATE(${requests.createdAt})`)
+        .orderBy(sql`DATE(${requests.createdAt})`)
+        .all();
+
+      groupedData = dayResults.map(r => ({
+        key: r.date,
+        count: r.count,
+      }));
+      break;
+    }
+
+    case "path":
+    {
+      const pathResults: { path: string; count: number }[] = await db
+        .select({
+          path: requests.path,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(requests.path)
+        .orderBy(sql`count(*) DESC`)
+        .all();
+
+      groupedData = pathResults.map(r => ({
+        key: r.path,
+        count: r.count,
+      }));
+      break;
+    }
+
+    case "method":
+    {
+      const methodResults: { method: string; count: number }[] = await db
+        .select({
+          method: requests.method,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(requests.method)
+        .orderBy(sql`count(*) DESC`)
+        .all();
+
+      groupedData = methodResults.map(r => ({
+        key: r.method,
+        count: r.count,
+      }));
+      break;
+    }
+
+    default:
+    {
+      return c.json({
+        total,
+        data: [],
+        groupedBy: groupBy,
+      }, HttpStatusCodes.OK);
+    }
+  }
+
+  return c.json({
+    total,
+    data: groupedData,
+    groupedBy: groupBy,
+  }, HttpStatusCodes.OK);
+};
+
+
+
+================================================
+FILE: src/routes/analytics/analytics.index.ts
+================================================
+import { createRouter } from "@/lib/create-app";
+
+import * as handlers from "./analytics.handlers";
+import * as routes from "./analytics.routes";
+
+const router = createRouter()
+  .openapi(routes.getRequests, handlers.getRequests)
+  .openapi(routes.getCounts, handlers.getCounts);
+
+export default router;
+
+
+
+================================================
+FILE: src/routes/analytics/analytics.routes.ts
+================================================
+import { createRoute, z } from "@hono/zod-openapi";
+import * as HttpStatusCodes from "stoker/http-status-codes";
+import { jsonContent } from "stoker/openapi/helpers";
+import { createErrorSchema } from "stoker/openapi/schemas";
+
+import { selectRequestsSchema } from "@/db/schema";
+
+const tags = ["Analytics"];
+
+// Schema for raw requests endpoint
+const requestsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  method: z.string().optional(),
+  path: z.string().optional(),
+  status: z.coerce.number().int().min(100).max(599).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+
+// Schema for counts endpoint
+const countsQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  path: z.string().optional(),
+  method: z.string().optional(),
+  groupBy: z.enum(["day", "path", "method"]).optional(),
+});
+
+// Response schemas
+const requestsResponseSchema = z.object({
+  data: z.array(selectRequestsSchema),
+  meta: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+  }),
+});
+
+const countsResponseSchema = z.object({
+  total: z.number(),
+  data: z.array(z.object({
+    key: z.string(),
+    count: z.number(),
+  })).optional(),
+  groupedBy: z.enum(["day", "path", "method"]).optional(),
+});
+
+// GET /analytics/requests - returns raw rows (paged)
+export const getRequests = createRoute({
+  path: "/analytics/requests",
+  method: "get",
+  tags,
+  request: {
+    query: requestsQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      requestsResponseSchema,
+      "Paginated list of request analytics",
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(requestsQuerySchema),
+      "Invalid query parameters",
+    ),
+  },
+});
+
+// GET /analytics/counts - returns aggregated counts
+export const getCounts = createRoute({
+  path: "/analytics/counts",
+  method: "get",
+  tags,
+  request: {
+    query: countsQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      countsResponseSchema,
+      "Aggregated request counts",
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(countsQuerySchema),
+      "Invalid query parameters",
+    ),
+  },
+});
+
+export type GetRequestsRoute = typeof getRequests;
+export type GetCountsRoute = typeof getCounts;
+
+
+
+================================================
+FILE: src/routes/graphql/graphql.index.ts
+================================================
+// src/routes/graphql/graphql.index.ts
+import { ApolloServer } from "@apollo/server";
+import { makeExecutableSchema, mergeSchemas } from "@graphql-tools/schema";
+import { buildSchema } from "drizzle-graphql";
+
+import db from "@/db";
+import env from "@/env";
+import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
+import { createRouter } from "@/lib/create-app";
+import { getCounts } from "@/services/analytics.service";
+
+// 1. Build the auto-generated schema
+const { schema: drizzleSchema } = buildSchema(db);
+
+// 2. Define your custom typeDefs and resolvers
+const typeDefs = `
+  type Query {
+    hello: String!
+    countRequests(
+      from: String
+      to: String
+      path: String
+      method: String
+      groupBy: String
+    ): CountsResult!
+  }
+  type Mutation {
+    sayHello(input: String!): String!
+  }
+  type CountsResult {
+    total: Int!
+    data: [GroupedCount!]!
+    groupedBy: String
+  }
+  type GroupedCount {
+    key: String!
+    count: Int!
+  }
+`;
+
+const resolvers = {
+  Query: {
+    hello: () => "Hello, world!",
+    countRequests: async (
+      _: any,
+      args: { from?: string; to?: string; path?: string; method?: string; groupBy?: string },
+    ) => {
+      return await getCounts(args);
+    },
+  },
+  Mutation: {
+    sayHello: async (_: any, { input }: { input: string }) => {
+      return `Hello, ${input}!`;
+    },
+  },
+};
+
+// 3. Create a custom schema
+const customSchema = makeExecutableSchema({ typeDefs, resolvers });
+
+// 4. Merge schemas
+const schema = mergeSchemas({
+  schemas: [drizzleSchema, customSchema],
+});
+
+// 5. Use this schema in ApolloServer
+const server = new ApolloServer({ schema });
+
+const router = createRouter();
+
+const graphqlHandler = startServerAndCreateHonoHandler(server, {
+  // eslint-disable-next-line unused-imports/no-unused-vars
+  context: async ({ req, c }) => {
+    try {
+      return {
+        db,
+        // Add more context properties
+        // user: req.header("authorization") ? await getUserFromToken(req.header("authorization")) : null,
+        // You can access the full Hono context if needed
+        honoContext: c,
+      };
+    }
+    catch (error) {
+      console.error("Error creating GraphQL context:", error);
+      throw error;
+    }
+  },
+});
+
+router.all("/graphql", graphqlHandler);
+
+// Optional: Serve GraphQL Playground in development
+if (env.NODE_ENV === "development") {
+  router.get("/playground", async (c) => {
+    const playgroundHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>GraphQL Playground</title>
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
+          <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
+          <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script>
+            window.addEventListener('load', function (event) {
+              GraphQLPlayground.init(document.getElementById('root'), {
+                endpoint: '/graphql'
+              })
+            })
+          </script>
+        </body>
+      </html>
+    `;
+    return c.html(playgroundHTML);
+  });
+}
+
+// async function getUserFromToken(authHeader: string) {
+//   // Implement your auth logic
+//   try {
+//     // Example: JWT verification
+//     // const token = authHeader.replace('Bearer ', '');
+//     // return await verifyJWT(token);
+//     return null;
+//   }
+//   catch (error) {
+//     console.error("Error verifying auth token:", error);
+//     return null;
+//   }
+// }
+
+export default router;
+
+
+
+================================================
+FILE: src/routes/graphql/graphql.test.ts
+================================================
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import env from "@/env";
+import { createTestApp } from "@/lib/create-app";
+import { setupTestDatabase, cleanupTestDatabase } from "@/lib/test-setup";
+
+import router from "./graphql.index";
+
+if (env.NODE_ENV !== "test") {
+  throw new Error("NODE_ENV must be 'test'");
+}
+
+const app = createTestApp(router);
+
+describe("graphql route", () => {
+  let testDbPath: string;
+
+  beforeAll(async () => {
+    testDbPath = await setupTestDatabase();
+  });
+
+  afterAll(async () => {
+    await cleanupTestDatabase(testDbPath);
+  });
+
+  it("handles a simple query", async () => {
+    const res = await app.request("/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "{ __schema { queryType { name } } }" }),
+    });
+
+    expect(res.status).toBe(200);
+    if (res.status === 200) {
+      const json = await res.json();
+      expect(json.data.__schema.queryType.name).toBe("Query");
+    }
+  });
+
+  describe("tasks GraphQL operations", () => {
+    let taskId: string;
+    const taskName = "GraphQL Test Task";
+    const taskDescription = "This is a test task created via GraphQL";
+
+    it("creates a task via mutation", async () => {
+      const mutation = `
+        mutation CreateTask($input: TasksInsertInput!) {
+          insertIntoTasks(values: [$input]) {
+            id
+            name
+            description
+            status
+            priority
+            archived
+            createdAt
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: mutation,
+          variables: {
+            input: {
+              name: taskName,
+              description: taskDescription,
+              status: "TODO",
+              priority: "HIGH",
+              archived: false,
+            },
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(json.data.insertIntoTasks).toHaveLength(1);
+
+        const task = json.data.insertIntoTasks[0];
+        taskId = task.id;
+        expect(task.name).toBe(taskName);
+        expect(task.description).toBe(taskDescription);
+        expect(task.status).toBe("TODO");
+        expect(task.priority).toBe("HIGH");
+        expect(task.archived).toBe(false);
+        expect(task.createdAt).toBeDefined();
+      }
+    });
+
+    it("queries all tasks", async () => {
+      const query = `
+        query GetAllTasks {
+          tasks {
+            id
+            name
+            description
+            status
+            priority
+            archived
+            createdAt
+            updatedAt
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+        expect(json.data.tasks.length).toBeGreaterThan(0);
+
+        const createdTask = json.data.tasks.find((task: any) => task.id === taskId);
+        expect(createdTask).toBeDefined();
+        expect(createdTask.name).toBe(taskName);
+      }
+    });
+
+    it("queries a single task by ID", async () => {
+      const query = `
+        query GetTask($id: String!) {
+          tasks(where: { id: { eq: $id } }) {
+            id
+            name
+            description
+            status
+            priority
+            archived
+            parentId
+            children
+            owner
+            tags
+            completedAt
+            createdAt
+            updatedAt
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { id: taskId },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(json.data.tasks).toHaveLength(1);
+
+        const task = json.data.tasks[0];
+        expect(task.id).toBe(taskId);
+        expect(task.name).toBe(taskName);
+        expect(task.description).toBe(taskDescription);
+      }
+    });
+
+    it("filters tasks by status", async () => {
+      const query = `
+        query GetTasksByStatus($status: TasksStatusEnum!) {
+          tasks(where: { status: { eq: $status } }) {
+            id
+            name
+            status
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { status: "TODO" },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+
+        // All returned tasks should have status "TODO"
+        json.data.tasks.forEach((task: any) => {
+          expect(task.status).toBe("TODO");
+        });
+      }
+    });
+
+    it("filters tasks by priority", async () => {
+      const query = `
+        query GetTasksByPriority($priority: TasksPriorityEnum!) {
+          tasks(where: { priority: { eq: $priority } }) {
+            id
+            name
+            priority
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { priority: "HIGH" },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+
+        // All returned tasks should have priority "HIGH"
+        json.data.tasks.forEach((task: any) => {
+          expect(task.priority).toBe("HIGH");
+        });
+      }
+    });
+
+    it("searches tasks by name", async () => {
+      const query = `
+        query SearchTasks($searchTerm: String!) {
+          tasks(where: { name: { like: $searchTerm } }) {
+            id
+            name
+            description
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { searchTerm: "%GraphQL%" },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+
+        // Should find our test task
+        const foundTask = json.data.tasks.find((task: any) => task.id === taskId);
+        expect(foundTask).toBeDefined();
+      }
+    });
+
+    it("updates a task via mutation", async () => {
+      const mutation = `
+        mutation UpdateTask($id: String!, $input: TasksUpdateInput!) {
+          updateTasks(where: { id: { eq: $id } }, set: $input) {
+            id
+            name
+            status
+            priority
+            description
+            updatedAt
+          }
+        }
+      `;
+
+      const updatedName = "Updated GraphQL Test Task";
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: mutation,
+          variables: {
+            id: taskId,
+            input: {
+              name: updatedName,
+              status: "IN_PROGRESS",
+              priority: "MEDIUM",
+            },
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(json.data.updateTasks).toHaveLength(1);
+
+        const task = json.data.updateTasks[0];
+        expect(task.name).toBe(updatedName);
+        expect(task.status).toBe("IN_PROGRESS");
+        expect(task.priority).toBe("MEDIUM");
+        expect(task.updatedAt).toBeDefined();
+      }
+    });
+
+    it("handles multiple filtering conditions", async () => {
+      const query = `
+        query GetTasksWithMultipleFilters($status: TasksStatusEnum!, $priority: TasksPriorityEnum!, $archived: Boolean!) {
+          tasks(where: {
+            status: { eq: $status },
+            priority: { eq: $priority },
+            archived: { eq: $archived }
+          }) {
+            id
+            name
+            status
+            priority
+            archived
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: {
+            status: "IN_PROGRESS",
+            priority: "MEDIUM",
+            archived: false,
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+
+        // All returned tasks should match all conditions
+        json.data.tasks.forEach((task: any) => {
+          expect(task.status).toBe("IN_PROGRESS");
+          expect(task.priority).toBe("MEDIUM");
+          expect(task.archived).toBe(false);
+        });
+      }
+    });
+
+    it("queries tasks without specific ordering", async () => {
+      const query = `
+        query GetTasksUnordered {
+          tasks {
+            id
+            name
+            createdAt
+            status
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+
+        // Just verify we get tasks back - ordering might be database-dependent
+        expect(json.data.tasks.length).toBeGreaterThanOrEqual(0);
+
+        // Verify each task has the expected fields
+        json.data.tasks.forEach((task: any) => {
+          expect(task.id).toBeDefined();
+          expect(task.name).toBeDefined();
+          expect(task.createdAt).toBeDefined();
+          expect(task.status).toBeDefined();
+        });
+      }
+    });
+
+    it("handles pagination with limit and offset", async () => {
+      const query = `
+        query GetTasksPaginated($limit: Int!, $offset: Int!) {
+          tasks(limit: $limit, offset: $offset) {
+            id
+            name
+            createdAt
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { limit: 2, offset: 0 },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(Array.isArray(json.data.tasks)).toBe(true);
+        expect(json.data.tasks.length).toBeLessThanOrEqual(2);
+      }
+    });
+
+    it("deletes a task via mutation", async () => {
+      const mutation = `
+        mutation DeleteTask($id: String!) {
+          deleteFromTasks(where: { id: { eq: $id } }) {
+            id
+            name
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: mutation,
+          variables: { id: taskId },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(json.data.deleteFromTasks).toHaveLength(1);
+        expect(json.data.deleteFromTasks[0].id).toBe(taskId);
+      }
+    });
+
+    it("verifies task was deleted", async () => {
+      const query = `
+        query GetDeletedTask($id: String!) {
+          tasks(where: { id: { eq: $id } }) {
+            id
+            name
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          variables: { id: taskId },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json.errors).toBeUndefined();
+        expect(json.data.tasks).toHaveLength(0);
+      }
+    });
+
+    it("handles GraphQL validation errors", async () => {
+      const invalidQuery = `
+        query InvalidQuery {
+          tasks {
+            invalidField
+          }
+        }
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: invalidQuery }),
+      });
+
+      expect(res.status).toBe(400);
+      if (res.status === 400) {
+        const json = await res.json();
+        expect(json.errors).toBeDefined();
+        expect(Array.isArray(json.errors)).toBe(true);
+        expect(json.errors[0].message).toContain("invalidField");
+      }
+    });
+
+    it("handles malformed GraphQL syntax", async () => {
+      const malformedQuery = `
+        query {
+          tasks {
+            id
+            name
+          // Missing closing brace
+      `;
+
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: malformedQuery }),
+      });
+
+      expect(res.status).toBe(400);
+      if (res.status === 400) {
+        const json = await res.json();
+        expect(json.errors).toBeDefined();
+        expect(Array.isArray(json.errors)).toBe(true);
+      }
+    });
+  });
+});
+
+
+
+================================================
+FILE: src/routes/tasks/tasks.handlers.ts
+================================================
+import type { z } from "zod";
+
+import { asc, desc, eq, sql } from "drizzle-orm";
+import * as HttpStatusCodes from "stoker/http-status-codes";
+import * as HttpStatusPhrases from "stoker/http-status-phrases";
+import { createErrorSchema } from "stoker/openapi/schemas";
+import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
+
+import type { selectTasksSchema } from "@/db/schema";
+import type { AppRouteHandler } from "@/lib/types";
+
+import db from "@/db";
+import { tasks } from "@/db/schema";
+import { notFoundSchema, ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
+
+import type {
+  CreateRoute,
+  GetOneRoute,
+  ListChildrenRoute,
+  ListRoute,
+  PatchRoute,
+  RemoveRoute,
+} from "./tasks.routes";
+
+type Task = z.infer<typeof selectTasksSchema>;
+
+export const list: AppRouteHandler<ListRoute> = async (c) => {
+  const { all, page, limit, status, priority, search, sort = "DESC" } = c.req.valid("query");
+
+  // Build where conditions
+  const whereConditions = [];
+  if (status)
+    whereConditions.push(eq(tasks.status, status));
+  if (priority)
+    whereConditions.push(eq(tasks.priority, priority));
+  if (search) {
+    const searchPattern = `%${search}%`;
+    whereConditions.push(
+      sql`(${tasks.name} LIKE ${searchPattern} OR ${tasks.description} LIKE ${searchPattern})`,
+    );
+  }
+
+  const orderBy = sort === "ASC" ? [asc(tasks.createdAt)] : [desc(tasks.createdAt)];
+
+  if (all) {
+    const tasksList = await db.query.tasks.findMany({
+      where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
+      limit: 200,
+      orderBy,
+    });
+    return c.json(tasksList as Task[], HttpStatusCodes.OK);
+  }
+  else {
+    const offset = (page - 1) * limit;
+
+    const [tasksList, totalResult] = await Promise.all([
+      db.query.tasks.findMany({
+        where: whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined,
+        limit,
+        offset,
+        orderBy,
+      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(tasks)
+        .where(whereConditions.length > 0 ? sql`${sql.join(whereConditions, sql` AND `)}` : undefined)
+        .get(),
+    ]);
+
+    if (!totalResult) {
+      return c.json({
+        data: [] as Task[],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      }, HttpStatusCodes.OK);
+    }
+
+    const totalCount = totalResult?.count ?? 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return c.json({
+      data: tasksList as Task[],
+      meta: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    }, HttpStatusCodes.OK);
+  }
+};
+
+// TODO: list all the children of a task
+export const listChildren: AppRouteHandler<ListChildrenRoute> = async (c) => {
+  const { id } = c.req.valid("param");
+
+  const { page, limit, all } = c.req.valid("query");
+
+  if (all) {
+    const tasksList = await db.query.tasks.findMany({
+      where(fields, operators) {
+        return operators.eq(fields.parentId, id);
+      },
+    });
+
+    return c.json(tasksList as Task[], HttpStatusCodes.OK);
+  }
+
+  const offset = (page - 1) * limit;
+
+  const [tasksList, totalResult] = await Promise.all([
+    db.query.tasks.findMany({
+      where(fields, operators) {
+        return operators.eq(fields.parentId, id);
+      },
+      limit,
+      offset,
+    }),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.parentId, id)).get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Task[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: tasksList as Task[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
+};
+
+export const create: AppRouteHandler<CreateRoute> = async (c) => {
+  const task = c.req.valid("json");
+  const inserted = await db.insert(tasks).values(task).returning().get();
+  return c.json(inserted, HttpStatusCodes.OK);
+};
+
+export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
+  const result = IdUUIDParamsSchema.safeParse(c.req.param());
+  if (!result.success) {
+    return c.json(
+      createErrorSchema(IdUUIDParamsSchema).parse({
+        success: false,
+        error: result.error,
+      }),
+      HttpStatusCodes.UNPROCESSABLE_ENTITY,
+    );
+  }
+
+  const { id } = result.data;
+  const task = await db.query.tasks.findFirst({
+    where(fields, operators) {
+      return operators.eq(fields.id, id);
+    },
+  });
+
+  if (!task) {
+    return c.json(
+      notFoundSchema.parse({
+        message: HttpStatusPhrases.NOT_FOUND,
+      }),
+      HttpStatusCodes.NOT_FOUND,
+    );
+  }
+
+  return c.json(task, HttpStatusCodes.OK);
+};
+
+export const patch: AppRouteHandler<PatchRoute> = async (c) => {
+  const { id } = c.req.valid("param");
+  const updates = c.req.valid("json");
+
+  if (Object.keys(updates).length === 0) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          issues: [
+            {
+              code: ZOD_ERROR_CODES.INVALID_UPDATES,
+              path: [],
+              message: ZOD_ERROR_MESSAGES.NO_UPDATES,
+            },
+          ],
+          name: "ZodError",
+        },
+      },
+      HttpStatusCodes.UNPROCESSABLE_ENTITY,
+    );
+  }
+
+  const task = await db
+    .update(tasks)
+    .set(updates)
+    .where(eq(tasks.id, id))
+    .returning()
+    .get();
+
+  if (!task) {
+    return c.json(
+      {
+        message: HttpStatusPhrases.NOT_FOUND,
+      },
+      HttpStatusCodes.NOT_FOUND,
+    );
+  }
+
+  return c.json(task, HttpStatusCodes.OK);
+};
+
+export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
+  const { id } = c.req.valid("param");
+  const task = await db.query.tasks.findFirst({
+    where(fields, operators) {
+      return operators.eq(fields.id, id);
+    },
+  });
+
+  if (task && task.isDefault) {
+    return c.json({ success: true, message: "Default task removed successfully" }, HttpStatusCodes.OK);
+  }
+
+  const result = await db.delete(tasks).where(eq(tasks.id, id));
+
+  if (result.rowsAffected === 0) {
+    return c.json(
+      {
+        message: HttpStatusPhrases.NOT_FOUND,
+      },
+      HttpStatusCodes.NOT_FOUND,
+    );
+  }
+
+  return c.body(null, HttpStatusCodes.NO_CONTENT);
+};
+
+
+
+================================================
+FILE: src/routes/tasks/tasks.index.ts
+================================================
+import { createRouter } from "@/lib/create-app";
+
+import * as handlers from "./tasks.handlers"; // controllers
+import * as routes from "./tasks.routes"; // routes
+
+const router = createRouter()
+  .openapi(routes.list, handlers.list)
+  .openapi(routes.listChildren, handlers.listChildren)
+  .openapi(routes.create, handlers.create)
+  .openapi(routes.getOne, handlers.getOne)
+  .openapi(routes.patch, handlers.patch)
+  // .openapi(routes.patchComplete, handlers.patchComplete)
+  .openapi(routes.remove, handlers.remove);
+
+export default router;
+
+
+
+================================================
+FILE: src/routes/tasks/tasks.routes.ts
+================================================
+import { createRoute, z } from "@hono/zod-openapi";
+import * as HttpStatusCodes from "stoker/http-status-codes";
+import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
+import { createErrorSchema } from "stoker/openapi/schemas";
+import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
+
+import { insertTasksSchema, patchTasksSchema, PriorityEnum, selectTasksSchema, StatusEnum } from "@/db/schema";
+import { notFoundSchema } from "@/lib/constants";
+
+const tags = ["Tasks"];
+
+export const list = createRoute({
+  path: "/tasks",
+  method: "get",
+  tags,
+  request: {
+    query: z.object({
+      all: z.coerce.boolean().optional().default(false),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(10),
+      status: StatusEnum.optional(),
+      priority: PriorityEnum.optional(),
+      search: z.string().optional(),
+      sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({
+        data: z.array(selectTasksSchema),
+        meta: z.object({
+          total: z.number(),
+          page: z.number(),
+          limit: z.number(),
+          totalPages: z.number(),
+          hasNextPage: z.boolean(),
+          hasPreviousPage: z.boolean(),
+        }),
+      }).or(z.array(selectTasksSchema)),
+      "List of tasks",
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(IdUUIDParamsSchema),
+      "Invalid id error",
+    ),
+  },
+});
+
+export const listChildren = createRoute({
+  path: "/tasks/{id}/children",
+  method: "get",
+  tags,
+  request: {
+    params: IdUUIDParamsSchema,
+    query: z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(10),
+      all: z.coerce.boolean().optional().default(false),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({
+        data: z.array(selectTasksSchema),
+        meta: z.object({
+          total: z.number(),
+          page: z.number(),
+          limit: z.number(),
+          totalPages: z.number(),
+          hasNextPage: z.boolean(),
+          hasPreviousPage: z.boolean(),
+        }),
+      }).or(z.array(selectTasksSchema)),
+      "List of children tasks",
+    ),
+  },
+});
+
+export const create = createRoute({
+  path: "/tasks",
+  method: "post",
+  tags,
+  request: {
+    body: jsonContentRequired(insertTasksSchema, "The task to create"),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(selectTasksSchema, "The created task"),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(insertTasksSchema),
+      "The validation error(s)",
+    ),
+  },
+});
+
+export const getOne = createRoute({
+  path: "/tasks/{id}",
+  method: "get",
+  tags,
+  request: {
+    // This is not working as expected, it should be a string
+    params: IdUUIDParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(selectTasksSchema, "The requested task"),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Task not found"),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(IdUUIDParamsSchema),
+      "Invalid id error",
+    ),
+  },
+});
+
+export const patch = createRoute({
+  path: "/tasks/{id}",
+  method: "patch",
+  tags,
+  request: {
+    params: IdUUIDParamsSchema,
+    body: jsonContentRequired(patchTasksSchema, "The task updates"),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(selectTasksSchema, "The updated task"),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Task not found"),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(patchTasksSchema).or(createErrorSchema(IdUUIDParamsSchema)),
+      "The validation error(s)",
+    ),
+  },
+});
+
+export const remove = createRoute({
+  path: "/tasks/{id}",
+  method: "delete",
+  tags,
+  request: {
+    params: IdUUIDParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.NO_CONTENT]: {
+      description: "Task deleted",
+    },
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Task not found"),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(IdUUIDParamsSchema),
+      "Invalid id error",
+    ),
+  },
+});
+
+export type ListRoute = typeof list;
+export type CreateRoute = typeof create;
+export type GetOneRoute = typeof getOne;
+export type PatchRoute = typeof patch;
+export type RemoveRoute = typeof remove;
+export type ListChildrenRoute = typeof listChildren;
+
+
+
+================================================
+FILE: src/routes/tasks/tasks.test.ts
+================================================
+/* eslint-disable ts/ban-ts-comment */
+import { testClient } from "hono/testing";
+import * as HttpStatusPhrases from "stoker/http-status-phrases";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+} from "vitest";
+import { ZodIssueCode } from "zod";
+
+import env from "@/env";
+import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
+import { createTestApp } from "@/lib/create-app";
+import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
+
+import router from "./tasks.index";
+
+if (env.NODE_ENV !== "test") {
+  throw new Error("NODE_ENV must be 'test'");
+}
+
+const client = testClient(createTestApp(router));
+
+describe("tasks routes", () => {
+  let testDbPath: string;
+
+  beforeAll(async () => {
+    testDbPath = await setupTestDatabase();
+  });
+
+  afterAll(async () => {
+    await cleanupTestDatabase(testDbPath);
+  });
+
+  it("post /tasks validates the body when creating", async () => {
+    const response = await client.tasks.$post({
+      json: {
+        // @ts-expect-error
+        status: "XXX",
+      },
+    });
+    expect(response.status).toBe(422);
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].path[0]).toBe("name");
+      expect(json.error.issues[0].message).toBe(ZOD_ERROR_MESSAGES.REQUIRED);
+    }
+  });
+
+  let id = crypto.randomUUID();
+  const name = "Learn vitest";
+
+  it("post /tasks creates a task", async () => {
+    const response = await client.tasks.$post({
+      json: {
+        name,
+        status: "TODO",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+
+      id = json.id as `${string}-${string}-${string}-${string}-${string}`;
+      expect(json.name).toBe(name);
+      expect(json.status).toBe("TODO");
+    }
+  });
+
+  it("get /tasks lists all tasks", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("get /tasks filters by status", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        status: "TODO",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.status === "TODO")).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks filters by priority", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        priority: "MEDIUM",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.priority === "MEDIUM")).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks searches by name and description", async () => {
+    // First create a task with a unique name
+    const uniqueName = `Test Search ${crypto.randomUUID()}`;
+    await client.tasks.$post({
+      json: {
+        name: uniqueName,
+        description: "This is a test search task",
+        status: "TODO",
+      },
+    });
+
+    const response = await client.tasks.$get({
+      query: {
+        search: uniqueName,
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.some(task => task.name === uniqueName)).toBe(true);
+      }
+    }
+  });
+
+  it("get /tasks sorts by createdAt in ascending order", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        sort: "ASC",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => a - b));
+      }
+    }
+  });
+
+  it("get /tasks sorts by createdAt in descending order by default", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      }
+    }
+  });
+
+  it("get /tasks combines filters, search, and sorting", async () => {
+    const response = await client.tasks.$get({
+      query: {
+        status: "TODO",
+        priority: "MEDIUM",
+        search: "test",
+        sort: "ASC",
+        all: true,
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(Array.isArray(json)).toBe(true);
+      if (Array.isArray(json)) {
+        expect(json.every(task => task.status === "TODO" && task.priority === "MEDIUM")).toBe(true);
+        const dates = json.map(task => new Date(task.createdAt as string).getTime());
+        expect(dates).toEqual([...dates].sort((a, b) => a - b));
+      }
+    }
+  });
+
+  // TODO: test the pagination
+
+  it("get /tasks/{id} validates the id param", async () => {
+    const response = await client.tasks[":id"].$get({
+      param: {
+        // @ts-expect-error
+        id: 999,
+      },
+    });
+
+    expect(response.status).toBe(422);
+
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].path[0]).toBe("id");
+      expect(json.error.issues[0].message).toBe(
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
+      );
+    }
+  });
+
+  it("get /tasks/{id} returns 404 when task not found", async () => {
+    const response = await client.tasks[":id"].$get({
+      param: {
+        id: crypto.randomUUID(),
+      },
+    });
+    expect(response.status).toBe(404);
+    if (response.status === 404) {
+      const json = await response.json();
+      expect(json.message).toBe(HttpStatusPhrases.NOT_FOUND);
+    }
+  });
+
+  it("get /tasks/{id} gets a single task", async () => {
+    const response = await client.tasks[":id"].$get({
+      param: {
+        id: id.toString(),
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(json.name).toBe(name);
+      expect(json.status).toBe("TODO");
+    }
+  });
+
+  // TODO: test the children routes
+
+  it("patch /tasks/{id} validates the body when updating", async () => {
+    const response = await client.tasks[":id"].$patch({
+      param: {
+        id: id.toString(),
+      },
+      json: {
+        name: "",
+      },
+    });
+    expect(response.status).toBe(422);
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].path[0]).toBe("name");
+      expect(json.error.issues[0].code).toBe(ZodIssueCode.too_small);
+    }
+  });
+
+  it("patch /tasks/{id} validates the id param", async () => {
+    const response = await client.tasks[":id"].$patch({
+      param: {
+        // @ts-expect-error
+        id: 999,
+      },
+      json: {},
+    });
+    expect(response.status).toBe(422);
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].path[0]).toBe("id");
+      expect(json.error.issues[0].message).toBe(
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
+      );
+    }
+  });
+
+  it("patch /tasks/{id} validates empty body", async () => {
+    const response = await client.tasks[":id"].$patch({
+      param: {
+        id: id.toString(),
+      },
+      json: {},
+    });
+    expect(response.status).toBe(422);
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].code).toBe(ZOD_ERROR_CODES.INVALID_UPDATES);
+      expect(json.error.issues[0].message).toBe(ZOD_ERROR_MESSAGES.NO_UPDATES);
+    }
+  });
+
+  it("patch /tasks/{id} updates a single property of a task", async () => {
+    const response = await client.tasks[":id"].$patch({
+      param: {
+        id: id.toString(),
+      },
+      json: {
+        status: "DONE",
+      },
+    });
+    expect(response.status).toBe(200);
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(json.status).toBe("DONE");
+    }
+  });
+
+  it("delete /tasks/{id} validates the id when deleting", async () => {
+    const response = await client.tasks[":id"].$delete({
+      param: {
+        // @ts-expect-error
+        id: 999,
+      },
+    });
+    expect(response.status).toBe(422);
+    if (response.status === 422) {
+      const json = await response.json();
+      expect(json.error.issues[0].path[0]).toBe("id");
+      expect(json.error.issues[0].message).toBe(
+        ZOD_ERROR_MESSAGES.INVALID_UUID,
+      );
+    }
+  });
+
+  it("delete /tasks/{id} removes a task", async () => {
+    const response = await client.tasks[":id"].$delete({
+      param: {
+        id,
+      },
+    });
+    expect(response.status).toBe(204);
+  });
+});
+
+
+
+================================================
+FILE: src/services/analytics.service.ts
+================================================
+import { and, eq, gte, lt, lte, sql } from "drizzle-orm";
+
+import db from "@/db";
+import { insertRequestsSchema, requests } from "@/db/schema";
+import env from "@/env";
+
+// Log a request to the database
+export function logRequest(data: any) {
+  // Skip logging if analytics is disabled
+  if (!env.ENABLE_ANALYTICS) {
+    return;
+  }
+
+  queueMicrotask(async () => {
+    try {
+      await db.insert(requests)
+        .values(insertRequestsSchema.parse(data))
+        .run();
+    }
+    catch (error) {
+      console.error("Failed to log request:", error);
+    }
+  });
+}
+
+// Get aggregated counts (refactored)
+export async function getCounts({
+  from,
+  to,
+  path,
+  method,
+  groupBy,
+}: {
+  from?: string;
+  to?: string;
+  path?: string;
+  method?: string;
+  groupBy?: string;
+} = {}): Promise<{
+  total: number;
+  data: Array<{ key: string; count: number }>;
+  groupedBy?: string;
+}> {
+  // Build where conditions
+  const whereConditions = [];
+
+  if (method) {
+    whereConditions.push(eq(requests.method, method));
+  }
+
+  if (path) {
+    whereConditions.push(eq(requests.path, path));
+  }
+
+  if (from) {
+    whereConditions.push(gte(requests.createdAt, new Date(from)));
+  }
+
+  if (to) {
+    whereConditions.push(lte(requests.createdAt, new Date(to)));
+  }
+
+  const whereClause = whereConditions.length > 0
+    ? and(...whereConditions)
+    : undefined;
+
+  // Get total count
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(requests)
+    .where(whereClause)
+    .get();
+
+  const total = totalResult?.count || 0;
+
+  // If no groupBy is specified, return just the total
+  if (!groupBy) {
+    return {
+      total,
+      data: [],
+    };
+  }
+
+  // Group by the specified field
+  let groupedData: Array<{ key: string; count: number }> = [];
+
+  switch (groupBy) {
+    case "day": {
+      const dayResults: { date: string | null; count: number }[] = await db
+        .select({
+          date: sql<string>`DATE(${requests.createdAt})`,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(sql`DATE(${requests.createdAt})`)
+        .orderBy(sql`DATE(${requests.createdAt})`)
+        .all();
+
+      groupedData = dayResults.map(r => ({
+        key: r.date ?? "(unknown)",
+        count: r.count,
+      }));
+      break;
+    }
+    case "path": {
+      const pathResults: { path: string; count: number }[] = await db
+        .select({
+          path: requests.path,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(requests.path)
+        .orderBy(sql`count(*) DESC`)
+        .all();
+
+      groupedData = pathResults.map(r => ({
+        key: r.path,
+        count: r.count,
+      }));
+      break;
+    }
+    case "method": {
+      const methodResults: { method: string; count: number }[] = await db
+        .select({
+          method: requests.method,
+          count: sql<number>`count(*)`,
+        })
+        .from(requests)
+        .where(whereClause)
+        .groupBy(requests.method)
+        .orderBy(sql`count(*) DESC`)
+        .all();
+
+      groupedData = methodResults.map(r => ({
+        key: r.method,
+        count: r.count,
+      }));
+      break;
+    }
+    default: {
+      return {
+        total,
+        data: [],
+        groupedBy: groupBy,
+      };
+    }
+  }
+
+  return {
+    total,
+    data: groupedData,
+    groupedBy: groupBy,
+  };
+}
+
+// Prune old entries
+export function pruneOld(days: number) {
+  queueMicrotask(async () => {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+
+      await db.delete(requests)
+        .where(lt(requests.createdAt, cutoffDate))
+        .run();
+    }
+    catch (error) {
+      console.error("Failed to prune old requests:", error);
+    }
+  });
+}
+
+
+
+================================================
+FILE: src/services/cleanup.service.ts
+================================================
+import * as cron from "node-cron";
+
+import env from "@/env";
+import { pruneOld } from "@/services/analytics.service";
+
+/**
+ * Sets up a cron job to clean up old analytics data
+ * Runs daily at 2 AM
+ */
+export function setupAnalyticsCleanup() {
+  // Only set up cleanup if analytics is enabled
+  if (!env.ENABLE_ANALYTICS) {
+    console.log("Analytics cleanup skipped - analytics disabled");
+    return;
+  }
+
+  // Run daily at 2 AM
+  cron.schedule("0 2 * * *", () => {
+    console.log("Running analytics cleanup job...");
+    pruneOld(env.ANALYTICS_RETENTION_DAYS);
+  });
+
+  console.log(`Analytics cleanup scheduled - will retain ${env.ANALYTICS_RETENTION_DAYS} days of data`);
+}
+
+/**
+ * Runs cleanup immediately (useful for manual cleanup or on startup)
+ */
+export function runCleanupNow() {
+  if (!env.ENABLE_ANALYTICS) {
+    console.log("Analytics cleanup skipped - analytics disabled");
+    return;
+  }
+
+  console.log("Running analytics cleanup now...");
+  pruneOld(env.ANALYTICS_RETENTION_DAYS);
+}
+
+
+
+================================================
+FILE: src/services/__tests__/analytics.service.test.ts
+================================================
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+} from "vitest";
+
+import db from "@/db";
+import { insertRequestsSchema, requests } from "@/db/schema";
+import env from "@/env";
+import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
+import { getCounts, logRequest } from "@/services/analytics.service";
+
+if (env.NODE_ENV !== "test") {
+  throw new Error("NODE_ENV must be 'test'");
+}
+
+describe("analyticsService - Aggregation Queries", () => {
+  let testDbPath: string;
+  let originalAnalyticsEnabled: boolean;
+
+  beforeAll(async () => {
+    testDbPath = await setupTestDatabase();
+    // Enable analytics for these tests
+    originalAnalyticsEnabled = env.ENABLE_ANALYTICS;
+    (env as any).ENABLE_ANALYTICS = true;
+  }, 30000);
+
+  afterAll(async () => {
+    await cleanupTestDatabase(testDbPath);
+    // Restore original analytics setting
+    (env as any).ENABLE_ANALYTICS = originalAnalyticsEnabled;
+  });
+
+  it("should return zero counts for empty database", async () => {
+    const result = await getCounts();
+
+    expect(result.total).toBe(0);
+    expect(result.data.length).toBe(0);
+  });
+
+  it("should return correct total count", async () => {
+    // Insert test data
+    await db.insert(requests)
+      .values([
+        insertRequestsSchema.parse({
+          method: "GET",
+          path: "/api/test",
+          status: 200,
+          durationMs: 100,
+        }),
+        insertRequestsSchema.parse({
+          method: "POST",
+          path: "/api/users",
+          status: 201,
+          durationMs: 250,
+        }),
+      ])
+      .run();
+
+    const result = await getCounts();
+
+    expect(result.total).toBe(2);
+  });
+
+  it("should return correct per-path aggregation", async () => {
+    // Clear previous data
+    await db.delete(requests).run();
+
+    // Insert test data with different paths
+    await db.insert(requests)
+      .values([
+        insertRequestsSchema.parse({
+          method: "GET",
+          path: "/api/users",
+          status: 200,
+          durationMs: 100,
+        }),
+        insertRequestsSchema.parse({
+          method: "POST",
+          path: "/api/users",
+          status: 201,
+          durationMs: 200,
+        }),
+        insertRequestsSchema.parse({
+          method: "GET",
+          path: "/api/posts",
+          status: 200,
+          durationMs: 150,
+        }),
+      ])
+      .run();
+
+    const result = await getCounts({
+      groupBy: "path",
+    });
+
+    expect(result.total).toBe(3);
+
+    const usersPath = result.data.find(p => p.key === "/api/users");
+    const postsPath = result.data.find(p => p.key === "/api/posts");
+
+    expect(usersPath?.count).toBe(2);
+    expect(postsPath?.count).toBe(1);
+  });
+
+  it("should return correct per-method aggregation", async () => {
+    // Clear previous data
+    await db.delete(requests).run();
+
+    // Insert test data with different methods
+    await db.insert(requests)
+      .values([
+        insertRequestsSchema.parse({
+          method: "GET",
+          path: "/api/users",
+          status: 200,
+          durationMs: 100,
+        }),
+        insertRequestsSchema.parse({
+          method: "GET",
+          path: "/api/posts",
+          status: 200,
+          durationMs: 120,
+        }),
+        insertRequestsSchema.parse({
+          method: "POST",
+          path: "/api/users",
+          status: 201,
+          durationMs: 200,
+        }),
+        insertRequestsSchema.parse({
+          method: "PUT",
+          path: "/api/users/1",
+          status: 200,
+          durationMs: 180,
+        }),
+      ])
+      .run();
+
+    const result = await getCounts({
+      groupBy: "method",
+    });
+
+    expect(result.total).toBe(4);
+
+    const getMethod = result.data.find(m => m.key === "GET");
+    const postMethod = result.data.find(m => m.key === "POST");
+    const putMethod = result.data.find(m => m.key === "PUT");
+
+    expect(getMethod?.count).toBe(2);
+    expect(postMethod?.count).toBe(1);
+    expect(putMethod?.count).toBe(1);
+  });
+
+  it("should handle logRequest function", async () => {
+    // Clear previous data
+    await db.delete(requests).run();
+
+    const requestData = {
+      method: "GET",
+      path: "/api/test",
+      status: 200,
+      durationMs: 100,
+      ip: "127.0.0.1",
+      userAgent: "test-agent",
+      referer: "http://test.com",
+    };
+
+    // Log the request
+    logRequest(requestData);
+
+    // Wait for the microtask to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Verify the request was logged
+    const result = await getCounts({
+      groupBy: "path",
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.data[0].key).toBe("/api/test");
+    expect(result.data[0].count).toBe(1);
+  });
+});
+
+
