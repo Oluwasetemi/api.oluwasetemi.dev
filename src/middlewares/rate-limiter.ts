@@ -68,6 +68,9 @@ export const apiRateLimiter = rateLimiter({
   message: defaultLimits.api.message,
   keyGenerator,
   skip,
+  // Environment-configurable options for skipping requests based on response status
+  skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS, // Skip counting successful requests (2xx, 3xx)
+  skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS, // Skip counting failed requests (4xx, 5xx)
 });
 
 export const authRateLimiter = rateLimiter({
@@ -76,6 +79,8 @@ export const authRateLimiter = rateLimiter({
   message: defaultLimits.auth.message,
   keyGenerator,
   skip: (c: Context) => env.NODE_ENV === "development", // Don't skip auth limits in production
+  skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
+  skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS,
 });
 
 export const publicRateLimiter = rateLimiter({
@@ -84,6 +89,8 @@ export const publicRateLimiter = rateLimiter({
   message: defaultLimits.public.message,
   keyGenerator,
   skip,
+  skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
+  skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS,
 });
 
 export const graphqlRateLimiter = rateLimiter({
@@ -92,6 +99,8 @@ export const graphqlRateLimiter = rateLimiter({
   message: defaultLimits.graphql.message,
   keyGenerator,
   skip,
+  skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
+  skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS,
 });
 
 // Custom middleware to add rate limit headers
