@@ -30,6 +30,11 @@ const EnvSchema = z
     DATABASE_AUTH_TOKEN: z.string().optional(),
     ENABLE_ANALYTICS: z.coerce.boolean().default(false),
     ANALYTICS_RETENTION_DAYS: z.coerce.number().default(30),
+    // Rate limiting configuration
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000), // 15 minutes
+    RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100), // requests per window
+    RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: z.coerce.boolean().default(false),
+    RATE_LIMIT_SKIP_FAILED_REQUESTS: z.coerce.boolean().default(false),
   })
   .superRefine((input, ctx) => {
     if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
