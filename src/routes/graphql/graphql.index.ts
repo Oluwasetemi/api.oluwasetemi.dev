@@ -7,6 +7,7 @@ import db from "@/db";
 import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
 import { createRouter } from "@/lib/create-app";
+import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
 import { getCounts } from "@/services/analytics.service";
 
 // 1. Build the auto-generated schema
@@ -87,7 +88,7 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
   },
 });
 
-router.all("/graphql", graphqlHandler);
+router.all("/graphql", graphqlRateLimiter, graphqlHandler);
 
 // Optional: Serve GraphQL Playground in development
 if (env.NODE_ENV === "development") {
