@@ -4,6 +4,7 @@ Think of this as a personal api repository.
 
 - [OLUWASETEMI API](#api.oluwasetemi.dev)
   - [Included](#included)
+  - [Security & Reliability](#security--reliability)
   - [Setup](#setup)
   - [Code Tour](#code-tour)
   - [Endpoints](#endpoints)
@@ -21,6 +22,56 @@ Think of this as a personal api repository.
 - Testing with [vitest](https://vitest.dev/)
 - GraphQL endpoint powered by [drizzle-graphql](https://github.com/drizzle-team/drizzle-graphql) and [Apollo Server](https://www.apollographql.com/docs/apollo-server/)
 - Sensible editor, formatting, and linting settings with [@antfu/eslint-config](https://github.com/antfu/eslint-config)
+
+## Security & Reliability
+
+This API includes comprehensive security measures and reliability improvements:
+
+### 🔒 Rate Limiting & Security
+
+- **Multi-runtime IP extraction**: Robust client IP detection across Node.js, Cloudflare Workers, Deno, and Bun environments
+- **Proxy chain validation**: Only trusts proxy headers when requests come from configured trusted proxies
+- **Header spoofing prevention**: Validates proxy chains to prevent rate limit bypass attacks
+- **Environment-aware rate limiting**: Different limits for API, auth, GraphQL, and public endpoints
+- **Graceful error handling**: Rate limiter continues working even when IP extraction fails
+
+### 🛡️ Security Headers
+
+- **Automatic HTTP header formatting**: Converts camelCase to proper Title-Case headers (e.g., `contentSecurityPolicy` → `Content-Security-Policy`)
+- **Environment-specific policies**: Stricter security in production, development-friendly settings locally
+- **Comprehensive security coverage**: CSP, CORS, HSTS, frame protection, and content type validation
+
+### 📊 Enhanced GraphQL
+
+- **Custom queries and mutations**: Extended auto-generated schema with custom resolvers
+- **Analytics integration**: GraphQL endpoint for `countRequests` with filtering and grouping
+- **Type-safe operations**: Full TypeScript support with proper error handling
+- **Development playground**: Interactive GraphQL playground in development mode
+
+### 🧪 Robust Testing
+
+- **Isolated test databases**: Each test gets a unique database to prevent conflicts
+- **Comprehensive cleanup**: Automatic cleanup of test data and database files
+- **Multi-environment support**: Tests work across different runtime environments
+- **Analytics testing**: Full test coverage for request logging and aggregation
+
+### 🔧 Environment Variables
+
+Additional security-related environment variables:
+
+| Variable                     | Description                               | Default | Required |
+| ---------------------------- | ----------------------------------------- | ------- | -------- |
+| `RATE_LIMIT_WINDOW_MS`       | Rate limit window in milliseconds         | `60000` | No       |
+| `RATE_LIMIT_MAX_REQUESTS`    | Max requests per window                   | `100`   | No       |
+| `RATE_LIMIT_TRUST_PROXY`     | Trust proxy headers for IP extraction     | `false` | No       |
+| `RATE_LIMIT_TRUSTED_PROXIES` | Comma-separated list of trusted proxy IPs | -       | No       |
+
+### 🚀 Performance & Reliability
+
+- **Non-blocking analytics**: Request logging doesn't impact response times
+- **Efficient database operations**: Optimized queries with proper indexing
+- **Memory-safe operations**: Proper cleanup and resource management
+- **Cross-platform compatibility**: Works reliably across different deployment environments
 
 ## Setup
 
@@ -71,15 +122,21 @@ pnpm test
 
 The following environment variables are supported:
 
-| Variable                   | Description                                  | Default       | Required        |
-| -------------------------- | -------------------------------------------- | ------------- | --------------- |
-| `NODE_ENV`                 | Environment mode                             | `development` | No              |
-| `PORT`                     | Server port                                  | `4444`        | No              |
-| `LOG_LEVEL`                | Logging level                                | `info`        | Yes             |
-| `DATABASE_URL`             | Database connection string                   | -             | Yes             |
-| `DATABASE_AUTH_TOKEN`      | Database auth token (required in production) | -             | Production only |
-| `ENABLE_ANALYTICS`         | Enable request analytics logging             | `false`       | No              |
-| `ANALYTICS_RETENTION_DAYS` | Days to retain analytics data                | `30`          | No              |
+| Variable                              | Description                                  | Default       | Required        |
+| ------------------------------------- | -------------------------------------------- | ------------- | --------------- |
+| `NODE_ENV`                            | Environment mode                             | `development` | No              |
+| `PORT`                                | Server port                                  | `4444`        | No              |
+| `LOG_LEVEL`                           | Logging level                                | `info`        | Yes             |
+| `DATABASE_URL`                        | Database connection string                   | -             | Yes             |
+| `DATABASE_AUTH_TOKEN`                 | Database auth token (required in production) | -             | Production only |
+| `ENABLE_ANALYTICS`                    | Enable request analytics logging             | `false`       | No              |
+| `ANALYTICS_RETENTION_DAYS`            | Days to retain analytics data                | `30`          | No              |
+| `RATE_LIMIT_WINDOW_MS`                | Rate limit window in milliseconds            | `60000`       | No              |
+| `RATE_LIMIT_MAX_REQUESTS`             | Max requests per window                      | `100`         | No              |
+| `RATE_LIMIT_TRUST_PROXY`              | Trust proxy headers for IP extraction        | `false`       | No              |
+| `RATE_LIMIT_TRUSTED_PROXIES`          | Comma-separated list of trusted proxy IPs    | -             | No              |
+| `RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS` | Skip counting successful requests (2xx, 3xx) | `false`       | No              |
+| `RATE_LIMIT_SKIP_FAILED_REQUESTS`     | Skip counting failed requests (4xx, 5xx)     | `false`       | No              |
 
 ### Analytics Configuration
 
@@ -129,6 +186,36 @@ All app routes are grouped together and exported into a single type as `AppType`
 | GET /analytics/counts    | Get aggregated analytics |
 
 The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
+
+### GraphQL Features
+
+- **Auto-generated schema**: Database tables are automatically exposed as GraphQL types
+- **Custom queries**: Additional queries like `countRequests` for analytics with filtering and grouping
+- **Type safety**: Full TypeScript integration with proper type checking
+- **Development playground**: Interactive GraphQL playground available at `/playground` in development mode
+
+#### Custom Queries
+
+**countRequests**: Get request analytics with optional filtering and grouping
+
+```graphql
+query {
+  countRequests(
+    from: "2024-01-01T00:00:00Z"
+    to: "2024-12-31T23:59:59Z"
+    groupBy: "day"
+    method: "GET"
+    path: "/api/tasks"
+  ) {
+    total
+    data {
+      key
+      count
+    }
+    groupedBy
+  }
+}
+```
 
 ### Analytics Endpoints
 

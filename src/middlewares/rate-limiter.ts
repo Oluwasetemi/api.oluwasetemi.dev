@@ -37,6 +37,15 @@ function isValidIp(ip: string): boolean {
   return ipv4Regex.test(ip) || ipv6Regex.test(ip);
 }
 
+// Helper function to check if an IP is in trusted proxy list
+function isTrustedProxy(ip: string): boolean {
+  if (!env.RATE_LIMIT_TRUSTED_PROXIES)
+    return false;
+
+  const trustedIps = env.RATE_LIMIT_TRUSTED_PROXIES.split(",").map(ip => ip.trim());
+  return trustedIps.includes(ip);
+}
+
 function keyGenerator(c: Context): string {
   const getClientIp = (): string | undefined => {
     if (!env.RATE_LIMIT_TRUST_PROXY) {
@@ -74,32 +83,40 @@ function keyGenerator(c: Context): string {
       return undefined;
     }
 
-    // If proxy trust is enabled, check proxy headers in priority order
-    const forwarded = c.req.header("x-forwarded-for");
-    const realIp = c.req.header("x-real-ip");
-    const cfConnecting = c.req.header("cf-connecting-ip");
+    // When proxy trust is enabled, validate the proxy chain
+    let directConnectionIp: string | undefined;
 
-    const forwardedIp = forwarded?.split(",")[0]?.trim();
-
-    const candidateIps = [forwardedIp, realIp, cfConnecting].filter(Boolean);
-    const validIp = candidateIps.find(ip => ip && isValidIp(ip));
-
-    if (validIp) {
-      return validIp;
-    }
-
-    // Fallback: try direct connection if available (with error handling)
     try {
+      // Get the direct connection IP first
       const nodeReq = (c.req as any).raw;
       if (nodeReq?.socket?.remoteAddress) {
-        const ip = nodeReq.socket.remoteAddress;
-        if (ip && isValidIp(ip)) {
-          return ip;
-        }
+        directConnectionIp = nodeReq.socket.remoteAddress;
       }
     }
     catch (error) {
-      console.warn("Failed to extract fallback client IP:", error);
+      console.warn("Failed to extract direct connection IP for proxy validation:", error);
+    }
+
+    // Only trust proxy headers if we're actually behind a trusted proxy
+    if (directConnectionIp && isTrustedProxy(directConnectionIp)) {
+      // We're behind a trusted proxy, check proxy headers in priority order
+      const forwarded = c.req.header("x-forwarded-for");
+      const realIp = c.req.header("x-real-ip");
+      const cfConnecting = c.req.header("cf-connecting-ip");
+
+      const forwardedIp = forwarded?.split(",")[0]?.trim();
+
+      const candidateIps = [forwardedIp, realIp, cfConnecting].filter(Boolean);
+      const validIp = candidateIps.find(ip => ip && isValidIp(ip));
+
+      if (validIp) {
+        return validIp;
+      }
+    }
+
+    // Fallback: use direct connection IP if available (with error handling)
+    if (directConnectionIp && isValidIp(directConnectionIp)) {
+      return directConnectionIp;
     }
 
     return undefined;
