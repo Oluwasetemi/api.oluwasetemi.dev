@@ -66,6 +66,17 @@ function skip(c: Context): boolean {
   return false;
 }
 
+// Separate skip function for GraphQL rate limiter
+function skipGraphQL(c: Context): boolean {
+  // Skip rate limiting in development mode
+  if (env.NODE_ENV === "development") {
+    return true;
+  }
+  
+  // GraphQL rate limiter should NOT skip GraphQL endpoints
+  return false;
+}
+
 // Create different rate limiters for different endpoint types
 export const apiRateLimiter = rateLimiter({
   windowMs: defaultLimits.api.windowMs,
@@ -103,7 +114,7 @@ export const graphqlRateLimiter = rateLimiter({
   limit: defaultLimits.graphql.limit,
   message: defaultLimits.graphql.message,
   keyGenerator,
-  skip,
+  skip: skipGraphQL, // Use dedicated GraphQL skip function
   skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
   skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS,
 });
