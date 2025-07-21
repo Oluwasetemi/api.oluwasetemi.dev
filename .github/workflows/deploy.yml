@@ -59,6 +59,7 @@ jobs:
         if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
         run: |
           chmod 600 $HOME/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
           ssh-add $HOME/.ssh/deploy_key
 
       - name: Setup SSH permissions for local testing (ACT)
@@ -86,11 +87,25 @@ jobs:
             exit 1
           fi
 
-      - name: Add VPS to known hosts
+      - name: Configure SSH client
         if: env.ACT != 'true'
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << EOF
+          Host ${{ secrets.VPS_HOST }}
+            HostName ${{ secrets.VPS_HOST }}
+            User ${{ secrets.VPS_USER }}
+            IdentityFile $HOME/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+          chmod 600 ~/.ssh/config
+          
+      - name: Add VPS to known hosts
+        if: env.ACT != 'true'
+        run: |
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Warning: Could not add host key, using StrictHostKeyChecking=no"
 
       - name: Mock deployment steps for local testing
         if: env.ACT == 'true'
@@ -107,7 +122,7 @@ jobs:
       - name: Create backup on VPS
         if: env.ACT != 'true'
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_HOST }} "
             cd ${{ secrets.DEPLOY_PATH }} &&
             if [ -d './' ]; then
               cp -r ./ ../backup-$(date +%Y%m%d-%H%M%S) || echo 'Backup failed, continuing...'
@@ -117,13 +132,13 @@ jobs:
       - name: Deploy to VPS
         if: env.ACT != 'true'
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 stop api.oluwasetemi.dev || true"
-          rsync -avz --delete --exclude node_modules --exclude .git --exclude .github --exclude .env --exclude .env.* --exclude '*.log' --exclude '.next' --exclude 'dist' --exclude 'coverage' --exclude '.nyc_output' ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install --prod --frozen-lockfile"
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && (pnpm run db:migrate && pnpm run db:generate) || echo 'No database operations needed'"
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pm2 start ecosystem.config.js || pm2 restart api.oluwasetemi.dev"
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 save"
+          ssh ${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
+          ssh ${{ secrets.VPS_HOST }} "pm2 stop api.oluwasetemi.dev || true"
+          rsync -avz --delete --exclude node_modules --exclude .git --exclude .github --exclude .env --exclude .env.* --exclude '*.log' --exclude '.next' --exclude 'dist' --exclude 'coverage' --exclude '.nyc_output' ./ ${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install --prod --frozen-lockfile"
+          ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && (pnpm run db:migrate && pnpm run db:generate) || echo 'No database operations needed'"
+          ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pm2 start ecosystem.config.js || pm2 restart api.oluwasetemi.dev"
+          ssh ${{ secrets.VPS_HOST }} "pm2 save"
 
       - name: Health Check with Retry
         if: env.ACT != 'true'
