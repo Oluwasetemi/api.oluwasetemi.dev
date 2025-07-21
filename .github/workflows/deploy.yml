@@ -53,18 +53,40 @@ jobs:
       - name: Add SSH key
         if: env.ACT != 'true'   # real runners only
         run: |
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' > $HOME/.ssh/deploy_key
+          # Clean and validate the SSH key
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' | sed '/^$/d' > $HOME/.ssh/deploy_key
 
-      - name: Configure SSH key permissions
+          # Ensure the key has proper newlines
+          if ! grep -q "BEGIN.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
+            echo "❌ SSH key does not contain valid header"
+            exit 1
+          fi
+
+          if ! grep -q "END.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
+            echo "❌ SSH key does not contain valid footer"
+            exit 1
+          fi
+
+      - name: Configure SSH key permissions and setup agent
         if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
         run: |
           chmod 600 $HOME/.ssh/deploy_key
-          # Validate SSH key format
-          if ! ssh-keygen -l -f $HOME/.ssh/deploy_key; then
+
+          # Validate SSH key format with detailed error output
+          if ! ssh-keygen -l -f $HOME/.ssh/deploy_key 2>&1; then
             echo "❌ SSH key validation failed"
+            echo "Key file contents (first/last lines for debugging):"
+            head -2 $HOME/.ssh/deploy_key
+            echo "..."
+            tail -2 $HOME/.ssh/deploy_key
             exit 1
           fi
-          echo "✅ SSH key validated successfully"
+
+          # Setup SSH agent
+          eval "$(ssh-agent -s)"
+          ssh-add $HOME/.ssh/deploy_key
+
+          echo "✅ SSH key validated and added to agent successfully"
 
       - name: Setup SSH permissions for local testing (ACT)
         if: env.ACT == 'true'
@@ -75,7 +97,10 @@ jobs:
 
       - name: Verify ssh-agent has key
         if: env.DEBUG_SSH == 'true' && env.ACT != 'true'
-        run: ssh-add -l
+        run: |
+          echo "🔍 Verifying SSH agent has loaded the key..."
+          ssh-add -l || (echo "❌ No keys found in ssh-agent" && exit 1)
+          echo "✅ SSH agent verification completed"
 
       - name: Verify fake SSH key for local testing
         if: env.DEBUG_SSH == 'true' && env.ACT == 'true'
@@ -103,9 +128,13 @@ jobs:
             IdentitiesOnly yes
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
+            ServerAliveInterval 60
+            ServerAliveCountMax 3
+            ConnectTimeout 10
           EOF
           chmod 600 ~/.ssh/config
-          
+          echo "✅ SSH client configuration completed"
+
       - name: Add VPS to known hosts
         if: env.ACT != 'true'
         run: |
