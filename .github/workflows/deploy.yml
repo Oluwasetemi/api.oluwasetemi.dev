@@ -59,7 +59,7 @@ jobs:
             exit 1
           fi
 
-          # Clean and prepare the SSH key
+          # Clean and prepare the SSH key(new)
           echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' | sed '/^$/d' > $HOME/.ssh/deploy_key
 
           # Validate file was created and has content
