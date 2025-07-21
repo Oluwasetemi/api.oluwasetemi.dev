@@ -55,12 +55,16 @@ jobs:
         run: |
           echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' > $HOME/.ssh/deploy_key
 
-      - name: Configure SSH key permissions and add to agent
+      - name: Configure SSH key permissions
         if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
         run: |
           chmod 600 $HOME/.ssh/deploy_key
-          eval "$(ssh-agent -s)"
-          ssh-add $HOME/.ssh/deploy_key
+          # Validate SSH key format
+          if ! ssh-keygen -l -f $HOME/.ssh/deploy_key; then
+            echo "❌ SSH key validation failed"
+            exit 1
+          fi
+          echo "✅ SSH key validated successfully"
 
       - name: Setup SSH permissions for local testing (ACT)
         if: env.ACT == 'true'
@@ -161,7 +165,7 @@ jobs:
         if: failure() && env.ACT != 'true'
         run: |
           echo "🔄 Rolling back due to deployment failure..."
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_HOST }} "
             cd ${{ secrets.DEPLOY_PATH }}/.. &&
             LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1) &&
             if [ -n \"\$LATEST_BACKUP\" ]; then
@@ -178,7 +182,7 @@ jobs:
       - name: Cleanup old backups
         if: success() && env.ACT != 'true'
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_HOST }} "
             cd ${{ secrets.DEPLOY_PATH }}/.. &&
             ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf || echo 'No old backups to clean'
           "
