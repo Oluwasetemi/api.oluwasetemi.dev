@@ -1,7 +1,3 @@
-import type { z } from "zod";
-
-import type { PriorityEnum, StatusEnum } from "./schema";
-
 import db from "./index";
 import { tasks } from "./schema";
 

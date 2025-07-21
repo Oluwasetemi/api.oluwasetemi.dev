@@ -1,4 +1,71 @@
 ================================================
+RECENT SECURITY & RELIABILITY UPDATES
+================================================
+
+## Security Improvements
+
+### Rate Limiting Security Fixes
+- Fixed IP extraction bug in src/middlewares/rate-limiter.ts that incorrectly used c.env?.incoming?.socket?.remoteAddress
+- Added multi-runtime IP extraction support for Node.js, Cloudflare Workers, Deno, and Bun environments
+- Implemented proper proxy chain validation to prevent header spoofing attacks
+- Added trusted proxy list validation using RATE_LIMIT_TRUSTED_PROXIES configuration
+- Fixed security vulnerability where cf-connecting-ip header was trusted even when RATE_LIMIT_TRUST_PROXY was false
+- Added graceful error handling to prevent rate limiter crashes when IP extraction fails
+
+### HTTP Header Formatting Fix
+- Fixed convertCamelToKebab function in src/middlewares/security-headers.ts
+- Headers now properly format as Title-Case (e.g., "contentSecurityPolicy" → "Content-Security-Policy")
+- Replaced regex-based approach with character-by-character processing to avoid overlapping matches
+- All security headers now follow standard HTTP header conventions
+
+## GraphQL Enhancements
+
+### Custom Queries and Mutations
+- Extended auto-generated Drizzle GraphQL schema with custom resolvers
+- Added countRequests query with filtering and grouping capabilities matching REST API
+- Refactored getCounts service to accept parameters for consistent API behavior
+- Added proper TypeScript integration for custom GraphQL operations
+- Implemented schema merging using @graphql-tools/schema for extensibility
+
+### Analytics Integration
+- GraphQL countRequests query supports filtering by: from, to, path, method, groupBy
+- Returns structured data with total count and grouped results
+- Handles null values in date grouping to prevent GraphQL non-nullable field errors
+- Full type safety with proper error handling
+
+## Testing Infrastructure
+
+### Database Test Setup
+- Fixed test database isolation issues in src/lib/test-setup.ts
+- Implemented proper cleanup of test data between test runs
+- Added timeout handling for long-running database operations
+- Improved test database creation and migration processes
+- Added comprehensive error handling for test environment setup
+
+### Test Coverage
+- Added analytics middleware testing with proper database mocking
+- GraphQL endpoint testing with comprehensive CRUD operations
+- Rate limiter testing across different runtime environments
+- Security headers testing with proper HTTP header validation
+
+## Configuration Enhancements
+
+### Environment Variables
+Added support for rate limiting configuration:
+- RATE_LIMIT_WINDOW_MS: Rate limit window in milliseconds (default: 60000)
+- RATE_LIMIT_MAX_REQUESTS: Max requests per window (default: 100)
+- RATE_LIMIT_TRUST_PROXY: Trust proxy headers for IP extraction (default: false)
+- RATE_LIMIT_TRUSTED_PROXIES: Comma-separated list of trusted proxy IPs
+- RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: Skip counting successful requests
+- RATE_LIMIT_SKIP_FAILED_REQUESTS: Skip counting failed requests
+
+### Performance Optimizations
+- Non-blocking analytics logging with microtask queuing
+- Efficient database queries with proper indexing
+- Memory-safe operations with automatic cleanup
+- Cross-platform compatibility across different deployment environments
+
+================================================
 FILE: README.md
 ================================================
 # OLUWASETEMI API
@@ -544,7 +611,7 @@ serve(
   (info) => {
     // eslint-disable-next-line no-console
     console.log(`Server is running on http://localhost:${info.port}`);
-    
+
     // Initialize analytics cleanup service
     setupAnalyticsCleanup();
   },
@@ -4157,5 +4224,3 @@ describe("analyticsService - Aggregation Queries", () => {
     expect(result.data[0].count).toBe(1);
   });
 });
-
-

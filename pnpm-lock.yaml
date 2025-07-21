@@ -50,6 +50,9 @@ importers:
       hono-pino:
         specifier: ^0.8.0
         version: 0.8.0(hono@4.8.2)(pino@9.7.0)
+      hono-rate-limiter:
+        specifier: ^0.4.2
+        version: 0.4.2(hono@4.8.2)
       node-cron:
         specifier: ^4.2.0
         version: 4.2.0
@@ -2129,6 +2132,11 @@ packages:
     peerDependencies:
       hono: '>=4.0.0'
       pino: '>=7.1.0'
+
+  hono-rate-limiter@0.4.2:
+    resolution: {integrity: sha512-AAtFqgADyrmbDijcRTT/HJfwqfvhalya2Zo+MgfdrMPas3zSMD8SU03cv+ZsYwRU1swv7zgVt0shwN059yzhjw==}
+    peerDependencies:
+      hono: ^4.1.1
 
   hono@4.8.2:
     resolution: {integrity: sha512-hM+1RIn9PK1I6SiTNS6/y7O1mvg88awYLFEuEtoiMtRyT3SD2iu9pSFgbBXT3b1Ua4IwzvSTLvwO0SEhDxCi4w==}
@@ -5256,6 +5264,10 @@ snapshots:
       defu: 6.1.4
       hono: 4.8.2
       pino: 9.7.0
+
+  hono-rate-limiter@0.4.2(hono@4.8.2):
+    dependencies:
+      hono: 4.8.2
 
   hono@4.8.2: {}
 

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import env from "@/env";
 import { createTestApp } from "@/lib/create-app";
-import { setupTestDatabase, cleanupTestDatabase } from "@/lib/test-setup";
+import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
 
 import router from "./graphql.index";
 
