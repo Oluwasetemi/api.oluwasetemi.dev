@@ -7,7 +7,7 @@ export default antfu(
     formatters: true,
     stylistic: {
       indent: 2,
-      semi: true,
+      semi: true,k
       quotes: "double",
     },
     ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", "CLAUDE.md"],
