@@ -58,6 +58,11 @@ function skip(c: Context): boolean {
     return true;
   }
 
+  // Skip GraphQL endpoints - they have their own specific rate limiter
+  if (path === "/graphql" || path === "/playground") {
+    return true;
+  }
+
   return false;
 }
 
