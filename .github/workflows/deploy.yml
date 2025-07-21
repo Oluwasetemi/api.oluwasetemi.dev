@@ -1,0 +1,135 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Setup SSH for local testing (ACT)
+        if: env.ACT == 'true'
+        run: |
+          echo "🧪 Setting up fake SSH for local testing with act"
+          mkdir -p ~/.ssh
+          echo "-----BEGIN OPENSSH PRIVATE KEY-----" > ~/.ssh/id_rsa
+          echo "fake-key-for-local-testing" >> ~/.ssh/id_rsa
+          echo "-----END OPENSSH PRIVATE KEY-----" >> ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "✅ Fake SSH key created for local testing"
+
+      - name: Setup SSH key for real deployment
+        if: env.ACT != 'true'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        if: env.ACT != 'true'
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Mock deployment steps for local testing
+        if: env.ACT == 'true'
+        run: |
+          echo "🧪 LOCAL TESTING MODE - Simulating deployment steps"
+          echo "✅ Would create backup on VPS"
+          echo "✅ Would sync files to VPS"
+          echo "✅ Would install dependencies on VPS"
+          echo "✅ Would run database migrations"
+          echo "✅ Would restart application"
+          echo "✅ Would run health check"
+          echo "🎉 Local testing simulation completed successfully!"
+
+      - name: Create backup on VPS
+        if: env.ACT != 'true'
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }} &&
+            if [ -d './' ]; then
+              cp -r ./ ../backup-$(date +%Y%m%d-%H%M%S) || echo 'Backup failed, continuing...'
+            fi
+          "
+
+      - name: Deploy to VPS
+        if: env.ACT != 'true'
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 stop api.oluwasetemi.dev || true"
+          rsync -avz --delete --exclude node_modules --exclude .git --exclude .github --exclude .env --exclude .env.* --exclude '*.log' --exclude '.next' --exclude 'dist' --exclude 'coverage' --exclude '.nyc_output' ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install --prod --frozen-lockfile"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && (pnpm run db:migrate && pnpm run db:generate) || echo 'No database operations needed'"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pm2 start ecosystem.config.js || pm2 restart api.oluwasetemi.dev"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 save"
+
+      - name: Health Check with Retry
+        if: env.ACT != 'true'
+        run: |
+          echo "Waiting for application to start..."
+          sleep 30
+          for i in {1..5}; do
+            if curl -f --connect-timeout 10 --max-time 30 ${{ secrets.APP_URL }}/health; then
+              echo "✅ Deployment successful!"
+              exit 0
+            else
+              echo "Health check attempt $i failed, retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Rollback on Failure
+        if: failure() && env.ACT != 'true'
+        run: |
+          echo "🔄 Rolling back due to deployment failure..."
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }}/.. &&
+            LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1) &&
+            if [ -n \"\$LATEST_BACKUP\" ]; then
+              rm -rf ${{ secrets.DEPLOY_PATH }} &&
+              mv \"\$LATEST_BACKUP\" ${{ secrets.DEPLOY_PATH }} &&
+              cd ${{ secrets.DEPLOY_PATH }} &&
+              pm2 restart api.oluwasetemi.dev &&
+              echo 'Rollback completed'
+            else
+              echo 'No backup found for rollback'
+            fi
+          "
+
+      - name: Cleanup old backups
+        if: success() && env.ACT != 'true'
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }}/.. &&
+            ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf || echo 'No old backups to clean'
+          "

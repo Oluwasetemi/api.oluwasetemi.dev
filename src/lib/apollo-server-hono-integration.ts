@@ -45,6 +45,7 @@ export function startServerAndCreateHonoHandler<TContext extends BaseContext = B
           body = await req.json();
         }
         catch (e) {
+          // eslint-disable-next-line no-console
           console.log(e);
           return c.json(
             { errors: [{ message: "Invalid JSON in request body" }] },
