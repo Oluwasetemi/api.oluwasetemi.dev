@@ -1,7 +1,7 @@
 {
   "name": "api.oluwasetemi.dev",
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "private": true,
   "author": "Oluwasetemi Ojo<me@oluwasetemi.dev>",
   "license": "MIT",
