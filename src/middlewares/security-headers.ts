@@ -98,11 +98,23 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): (c: Conte
 }
 
 function convertCamelToKebab(str: string): string {
-  return str
-    .replace(/([a-z])([A-Z])/g, "$1-$2")
-    .toLowerCase()
-    .replace(/^x/, "X")
-    .replace(/-([a-z])/g, (match, letter) => `-${letter.toUpperCase()}`);
+  let result = "";
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    if (char >= "A" && char <= "Z" && i > 0) {
+      result += `-${char}`;
+    }
+    else if (i === 0) {
+      result += char.toUpperCase();
+    }
+    else {
+      result += char;
+    }
+  }
+
+  return result.replace(/-([a-z])/g, (match, letter) => `-${letter.toUpperCase()}`);
 }
 
 export const strictSecurityHeaders = securityHeaders({

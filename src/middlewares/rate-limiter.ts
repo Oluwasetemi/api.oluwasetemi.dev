@@ -40,19 +40,41 @@ function isValidIp(ip: string): boolean {
 function keyGenerator(c: Context): string {
   const getClientIp = (): string | undefined => {
     if (!env.RATE_LIMIT_TRUST_PROXY) {
-      const nodeReq = (c.req as any).raw;
-      if (nodeReq?.socket?.remoteAddress) {
-        return nodeReq.socket.remoteAddress;
+      // When proxy trust is disabled, try to get direct connection IP
+      // Handle different runtime environments safely
+      try {
+        // Try Node.js-specific context
+        const nodeReq = (c.req as any).raw;
+        if (nodeReq?.socket?.remoteAddress) {
+          const ip = nodeReq.socket.remoteAddress;
+          if (ip && isValidIp(ip)) {
+            return ip;
+          }
+        }
+
+        // Try other potential runtime-specific IP sources
+        // Some environments may expose connection info differently
+        const env = (c as any).env;
+        if (env?.CF_CONNECTING_IP && isValidIp(env.CF_CONNECTING_IP)) {
+          return env.CF_CONNECTING_IP;
+        }
+
+        // Try request context that might be available in some runtimes
+        const requestContext = (c.req as any).requestContext;
+        if (requestContext?.remoteAddress && isValidIp(requestContext.remoteAddress)) {
+          return requestContext.remoteAddress;
+        }
+      }
+      catch (error) {
+        // Silently handle errors in IP extraction to prevent crashes
+        console.warn("Failed to extract direct client IP:", error);
       }
 
-      const cfConnecting = c.req.header("cf-connecting-ip");
-      if (cfConnecting && isValidIp(cfConnecting)) {
-        return cfConnecting;
-      }
-
+      // No fallback to proxy headers when trust is disabled
       return undefined;
     }
 
+    // If proxy trust is enabled, check proxy headers in priority order
     const forwarded = c.req.header("x-forwarded-for");
     const realIp = c.req.header("x-real-ip");
     const cfConnecting = c.req.header("cf-connecting-ip");
@@ -66,9 +88,18 @@ function keyGenerator(c: Context): string {
       return validIp;
     }
 
-    const nodeReq = (c.req as any).raw;
-    if (nodeReq?.socket?.remoteAddress) {
-      return nodeReq.socket.remoteAddress;
+    // Fallback: try direct connection if available (with error handling)
+    try {
+      const nodeReq = (c.req as any).raw;
+      if (nodeReq?.socket?.remoteAddress) {
+        const ip = nodeReq.socket.remoteAddress;
+        if (ip && isValidIp(ip)) {
+          return ip;
+        }
+      }
+    }
+    catch (error) {
+      console.warn("Failed to extract fallback client IP:", error);
     }
 
     return undefined;
