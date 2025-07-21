@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import * as cron from "node-cron";
 
 import env from "@/env";
