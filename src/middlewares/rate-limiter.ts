@@ -4,30 +4,25 @@ import { rateLimiter } from "hono-rate-limiter";
 
 import env from "@/env";
 
-// Default rate limiting configuration
 const defaultLimits = {
-  // General API rate limit
   api: {
-    windowMs: env.RATE_LIMIT_WINDOW_MS, // configurable window
-    limit: env.RATE_LIMIT_MAX_REQUESTS, // configurable limit
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    limit: env.RATE_LIMIT_MAX_REQUESTS,
     message: { error: "Too many requests, please try again later." },
   },
-  // Stricter limits for auth endpoints (when implemented)
   auth: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 5, // limit each IP to 5 requests per windowMs
+    windowMs: 10 * 60 * 1000,
+    limit: 10,
     message: { error: "Too many authentication attempts, please try again later." },
   },
-  // More lenient for health checks and docs
   public: {
-    windowMs: 1 * 60 * 1000, // 1 minute
-    limit: 60, // 60 requests per minute
+    windowMs: 1 * 60 * 1000,
+    limit: 60,
     message: { error: "Rate limit exceeded for public endpoints." },
   },
-  // GraphQL specific limits
   graphql: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 50, // limit GraphQL requests
+    windowMs: 15 * 60 * 1000,
+    limit: 50,
     message: { error: "GraphQL rate limit exceeded, please try again later." },
   },
 };
@@ -35,68 +30,69 @@ const defaultLimits = {
 // Helper function to validate IP address format
 function isValidIp(ip: string): boolean {
   // IPv4 regex
-  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})$/;
   // Basic IPv6 regex (simplified)
-  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
-  
+  const ipv6Regex = /^(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$|^::1$|^::$/i;
+
   return ipv4Regex.test(ip) || ipv6Regex.test(ip);
 }
 
-// Helper function to check if an IP is in trusted proxy list
-function isTrustedProxy(ip: string): boolean {
-  if (!env.RATE_LIMIT_TRUSTED_PROXIES) return false;
-  
-  const trustedIps = env.RATE_LIMIT_TRUSTED_PROXIES.split(",").map(ip => ip.trim());
-  return trustedIps.includes(ip);
-}
-
-// Key generator function to identify clients securely
 function keyGenerator(c: Context): string {
-  // Get connection info - this is the most reliable source
-  const connectionIp = c.env?.incoming?.socket?.remoteAddress;
-  
-  // If proxy trust is disabled, always use connection IP
-  if (!env.RATE_LIMIT_TRUST_PROXY) {
-    return connectionIp || "direct-connection";
-  }
+  const getClientIp = (): string | undefined => {
+    if (!env.RATE_LIMIT_TRUST_PROXY) {
+      const nodeReq = (c.req as any).raw;
+      if (nodeReq?.socket?.remoteAddress) {
+        return nodeReq.socket.remoteAddress;
+      }
 
-  // If proxy trust is enabled, validate the proxy chain
-  if (connectionIp && isTrustedProxy(connectionIp)) {
-    // We're behind a trusted proxy, check proxy headers
+      const cfConnecting = c.req.header("cf-connecting-ip");
+      if (cfConnecting && isValidIp(cfConnecting)) {
+        return cfConnecting;
+      }
+
+      return undefined;
+    }
+
     const forwarded = c.req.header("x-forwarded-for");
     const realIp = c.req.header("x-real-ip");
     const cfConnecting = c.req.header("cf-connecting-ip");
 
-    // Extract first IP from x-forwarded-for (original client)
     const forwardedIp = forwarded?.split(",")[0]?.trim();
-    
-    // Check each header in priority order and validate
+
     const candidateIps = [forwardedIp, realIp, cfConnecting].filter(Boolean);
     const validIp = candidateIps.find(ip => ip && isValidIp(ip));
-    
+
     if (validIp) {
       return validIp;
     }
+
+    const nodeReq = (c.req as any).raw;
+    if (nodeReq?.socket?.remoteAddress) {
+      return nodeReq.socket.remoteAddress;
+    }
+
+    return undefined;
+  };
+
+  const clientIp = getClientIp();
+
+  if (clientIp) {
+    return clientIp;
   }
-  
-  // Fallback to connection IP or generate unique identifier
-  return connectionIp || `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Skip rate limiting function for development
 function skip(c: Context): boolean {
-  // Skip rate limiting in development mode
   if (env.NODE_ENV === "development") {
     return true;
   }
 
-  // Skip for health check endpoints
   const path = c.req.path;
   if (path === "/" || path === "/health") {
     return true;
   }
 
-  // Skip GraphQL endpoints - they have their own specific rate limiter
   if (path === "/graphql" || path === "/playground") {
     return true;
   }
@@ -104,18 +100,15 @@ function skip(c: Context): boolean {
   return false;
 }
 
-// Separate skip function for GraphQL rate limiter
+// eslint-disable-next-line unused-imports/no-unused-vars
 function skipGraphQL(c: Context): boolean {
-  // Skip rate limiting in development mode
   if (env.NODE_ENV === "development") {
     return true;
   }
-  
-  // GraphQL rate limiter should NOT skip GraphQL endpoints
+
   return false;
 }
 
-// Create different rate limiters for different endpoint types
 export const apiRateLimiter = rateLimiter({
   windowMs: defaultLimits.api.windowMs,
   limit: defaultLimits.api.limit,
@@ -132,6 +125,7 @@ export const authRateLimiter = rateLimiter({
   limit: defaultLimits.auth.limit,
   message: defaultLimits.auth.message,
   keyGenerator,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   skip: (c: Context) => env.NODE_ENV === "development", // Don't skip auth limits in production
   skipSuccessfulRequests: env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
   skipFailedRequests: env.RATE_LIMIT_SKIP_FAILED_REQUESTS,

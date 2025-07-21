@@ -70,44 +70,33 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): (c: Conte
       }
     });
 
-    // Add some API-specific headers
-    c.header("X-API-Version", "1.0");
-    c.header("X-Powered-By", "Hono");
-
-    // Cache control for API responses - secure by default
     const method = c.req.method;
     const path = c.req.path;
-    
-    // Define explicitly cacheable endpoints (allowlist approach)
+
     const cacheableEndpoints = [
       "/", // root endpoint
       "/doc", // OpenAPI spec
       "/reference", // API documentation
     ];
-    
-    // Define sensitive endpoints that should never be cached
+
     const sensitiveEndpoints = [
       "/analytics",
-      "/graphql", 
-      "/tasks", // May contain user-specific data
+      "/graphql",
+      "/tasks",
     ];
-    
-    // Check if path exactly matches cacheable endpoints or is sensitive
+
     const isCacheable = method === "GET" && cacheableEndpoints.includes(path);
     const isSensitive = sensitiveEndpoints.some(endpoint => path.startsWith(endpoint));
-    
+
     if (isCacheable && !isSensitive) {
-      // Cache only safe, public endpoints with private cache
       c.header("Cache-Control", "private, max-age=300");
     }
     else {
-      // No cache for everything else (secure default)
       c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     }
   };
 }
 
-// Utility function to convert camelCase to kebab-case for header names
 function convertCamelToKebab(str: string): string {
   return str
     .replace(/([a-z])([A-Z])/g, "$1-$2")
@@ -116,9 +105,7 @@ function convertCamelToKebab(str: string): string {
     .replace(/-([a-z])/g, (match, letter) => `-${letter.toUpperCase()}`);
 }
 
-// Pre-configured middleware for different use cases
 export const strictSecurityHeaders = securityHeaders({
-  // Maximum security configuration
   contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none';",
   crossOriginEmbedderPolicy: "require-corp",
   crossOriginOpenerPolicy: "same-origin",
@@ -126,16 +113,13 @@ export const strictSecurityHeaders = securityHeaders({
 });
 
 export const apiSecurityHeaders = securityHeaders({
-  // API-optimized security headers
   contentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
   xFrameOptions: "DENY",
   xContentTypeOptions: "nosniff",
 });
 
 export const developmentSecurityHeaders = securityHeaders({
-  // Development-friendly headers
   ...developmentOptions,
 });
 
-// Export default as the standard security headers
 export default securityHeaders;
