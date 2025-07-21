@@ -74,14 +74,34 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): (c: Conte
     c.header("X-API-Version", "1.0");
     c.header("X-Powered-By", "Hono");
 
-    // Cache control for API responses
+    // Cache control for API responses - secure by default
     const method = c.req.method;
-    if (method === "GET" && !c.req.path.includes("/analytics")) {
-      // Cache GET requests for 5 minutes, except analytics
-      c.header("Cache-Control", "public, max-age=300");
+    const path = c.req.path;
+    
+    // Define explicitly cacheable endpoints (allowlist approach)
+    const cacheableEndpoints = [
+      "/", // root endpoint
+      "/doc", // OpenAPI spec
+      "/reference", // API documentation
+    ];
+    
+    // Define sensitive endpoints that should never be cached
+    const sensitiveEndpoints = [
+      "/analytics",
+      "/graphql", 
+      "/tasks", // May contain user-specific data
+    ];
+    
+    // Check if path exactly matches cacheable endpoints or is sensitive
+    const isCacheable = method === "GET" && cacheableEndpoints.includes(path);
+    const isSensitive = sensitiveEndpoints.some(endpoint => path.startsWith(endpoint));
+    
+    if (isCacheable && !isSensitive) {
+      // Cache only safe, public endpoints with private cache
+      c.header("Cache-Control", "private, max-age=300");
     }
     else {
-      // No cache for non-GET requests or sensitive endpoints
+      // No cache for everything else (secure default)
       c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     }
   };
