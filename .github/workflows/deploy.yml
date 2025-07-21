@@ -53,19 +53,42 @@ jobs:
       - name: Add SSH key
         if: env.ACT != 'true'   # real runners only
         run: |
-          # Clean and validate the SSH key
+          # Check if the secret exists and has content
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "❌ DEPLOY_SSH_KEY secret is empty or not set"
+            exit 1
+          fi
+
+          # Clean and prepare the SSH key
           echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' | sed '/^$/d' > $HOME/.ssh/deploy_key
 
-          # Ensure the key has proper newlines
+          # Validate file was created and has content
+          if [ ! -s $HOME/.ssh/deploy_key ]; then
+            echo "❌ SSH key file is empty after processing"
+            exit 1
+          fi
+
+          # Check file size (SSH keys should be substantial)
+          KEY_SIZE=$(wc -c < $HOME/.ssh/deploy_key)
+          if [ "$KEY_SIZE" -lt 100 ]; then
+            echo "❌ SSH key file is too small ($KEY_SIZE bytes). Expected at least 100 bytes."
+            echo "This suggests the secret content is invalid or truncated."
+            exit 1
+          fi
+
+          # Ensure the key has proper SSH key format
           if ! grep -q "BEGIN.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
-            echo "❌ SSH key does not contain valid header"
+            echo "❌ SSH key does not contain valid header (BEGIN PRIVATE KEY)"
+            echo "File appears to contain: $(head -c 50 $HOME/.ssh/deploy_key | tr '\n' ' ')..."
             exit 1
           fi
 
           if ! grep -q "END.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
-            echo "❌ SSH key does not contain valid footer"
+            echo "❌ SSH key does not contain valid footer (END PRIVATE KEY)"
             exit 1
           fi
+
+          echo "✅ SSH key secret validation passed"
 
       - name: Configure SSH key permissions and setup agent
         if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
