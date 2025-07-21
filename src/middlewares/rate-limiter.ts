@@ -32,17 +32,55 @@ const defaultLimits = {
   },
 };
 
-// Key generator function to identify clients
-function keyGenerator(c: Context): string {
-  // Try to get real IP from various headers (respecting proxy setup)
-  const forwarded = c.req.header("x-forwarded-for");
-  const realIp = c.req.header("x-real-ip");
-  const cfConnecting = c.req.header("cf-connecting-ip");
+// Helper function to validate IP address format
+function isValidIp(ip: string): boolean {
+  // IPv4 regex
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  // Basic IPv6 regex (simplified)
+  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+  
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
 
-  return forwarded?.split(",")[0]?.trim()
-    || realIp
-    || cfConnecting
-    || "unknown";
+// Helper function to check if an IP is in trusted proxy list
+function isTrustedProxy(ip: string): boolean {
+  if (!env.RATE_LIMIT_TRUSTED_PROXIES) return false;
+  
+  const trustedIps = env.RATE_LIMIT_TRUSTED_PROXIES.split(",").map(ip => ip.trim());
+  return trustedIps.includes(ip);
+}
+
+// Key generator function to identify clients securely
+function keyGenerator(c: Context): string {
+  // Get connection info - this is the most reliable source
+  const connectionIp = c.env?.incoming?.socket?.remoteAddress;
+  
+  // If proxy trust is disabled, always use connection IP
+  if (!env.RATE_LIMIT_TRUST_PROXY) {
+    return connectionIp || "direct-connection";
+  }
+
+  // If proxy trust is enabled, validate the proxy chain
+  if (connectionIp && isTrustedProxy(connectionIp)) {
+    // We're behind a trusted proxy, check proxy headers
+    const forwarded = c.req.header("x-forwarded-for");
+    const realIp = c.req.header("x-real-ip");
+    const cfConnecting = c.req.header("cf-connecting-ip");
+
+    // Extract first IP from x-forwarded-for (original client)
+    const forwardedIp = forwarded?.split(",")[0]?.trim();
+    
+    // Check each header in priority order and validate
+    const candidateIps = [forwardedIp, realIp, cfConnecting].filter(Boolean);
+    const validIp = candidateIps.find(ip => ip && isValidIp(ip));
+    
+    if (validIp) {
+      return validIp;
+    }
+  }
+  
+  // Fallback to connection IP or generate unique identifier
+  return connectionIp || `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // Skip rate limiting function for development

@@ -35,6 +35,10 @@ const EnvSchema = z
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100), // requests per window
     RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: z.coerce.boolean().default(false),
     RATE_LIMIT_SKIP_FAILED_REQUESTS: z.coerce.boolean().default(false),
+    // Security: Control whether to trust proxy headers for IP detection
+    RATE_LIMIT_TRUST_PROXY: z.coerce.boolean().default(false),
+    // Comma-separated list of trusted proxy IPs (when TRUST_PROXY is true)
+    RATE_LIMIT_TRUSTED_PROXIES: z.string().default(""),
   })
   .superRefine((input, ctx) => {
     if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
