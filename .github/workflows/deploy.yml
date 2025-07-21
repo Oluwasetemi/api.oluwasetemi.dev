@@ -35,22 +35,56 @@ jobs:
       - name: Build project
         run: pnpm run build
 
+      - name: Setup SSH directory
+        run: |
+          mkdir -p $HOME/.ssh
+
       - name: Setup SSH for local testing (ACT)
         if: env.ACT == 'true'
         run: |
           echo "🧪 Setting up fake SSH for local testing with act"
-          mkdir -p ~/.ssh
-          echo "-----BEGIN OPENSSH PRIVATE KEY-----" > ~/.ssh/id_rsa
-          echo "fake-key-for-local-testing" >> ~/.ssh/id_rsa
-          echo "-----END OPENSSH PRIVATE KEY-----" >> ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          cat > $HOME/.ssh/deploy_key << 'EOF'
+          -----BEGIN OPENSSH PRIVATE KEY-----
+          fake-key-for-local-testing
+          -----END OPENSSH PRIVATE KEY-----
+          EOF
           echo "✅ Fake SSH key created for local testing"
 
-      - name: Setup SSH key for real deployment
-        if: env.ACT != 'true'
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Add SSH key
+        if: env.ACT != 'true'   # real runners only
+        run: |
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' > $HOME/.ssh/deploy_key
+
+      - name: Configure SSH key permissions and add to agent
+        if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
+        run: |
+          chmod 600 $HOME/.ssh/deploy_key
+          ssh-add $HOME/.ssh/deploy_key
+
+      - name: Setup SSH permissions for local testing (ACT)
+        if: env.ACT == 'true'
+        run: |
+          echo "🧪 Setting up SSH permissions for local testing"
+          chmod 600 $HOME/.ssh/deploy_key
+          echo "✅ SSH permissions configured for local testing"
+
+      - name: Verify ssh-agent has key
+        if: env.DEBUG_SSH == 'true' && env.ACT != 'true'
+        run: ssh-add -l
+
+      - name: Verify fake SSH key for local testing
+        if: env.DEBUG_SSH == 'true' && env.ACT == 'true'
+        run: |
+          echo "🧪 LOCAL TESTING - Verifying fake SSH key"
+          if [ -f $HOME/.ssh/deploy_key ]; then
+            echo "✅ SSH key file exists at $HOME/.ssh/deploy_key"
+            echo "✅ Key permissions: $(ls -la $HOME/.ssh/deploy_key | awk '{print $1}')"
+            echo "📋 Simulating 'ssh-add -l' output:"
+            echo "2048 SHA256:fake-fingerprint-for-local-testing fake-key-for-local-testing (ED25519)"
+          else
+            echo "❌ SSH key file not found"
+            exit 1
+          fi
 
       - name: Add VPS to known hosts
         if: env.ACT != 'true'
