@@ -167,7 +167,7 @@ jobs:
         run: |
           # Add host to known hosts
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Warning: Could not add host key, using StrictHostKeyChecking=no"
-          
+
           # Test SSH connection
           echo "🔍 Testing SSH connection..."
           if ssh -o BatchMode=yes -o ConnectTimeout=30 ${{ secrets.VPS_HOST }} 'echo "✅ SSH connection successful"'; then
@@ -220,7 +220,7 @@ jobs:
           echo "Waiting for application to start..."
           sleep 30
           for i in {1..5}; do
-            if curl -f --connect-timeout 10 --max-time 30 ${{ secrets.APP_URL }}/health; then
+            if curl -f --connect-timeout 10 --max-time 30 ${{ secrets.APP_URL }}; then
               echo "✅ Deployment successful!"
               exit 0
             else
@@ -236,16 +236,25 @@ jobs:
         run: |
           echo "🔄 Rolling back due to deployment failure..."
           ssh ${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }}/.. &&
+            set -e
+            DEPLOY_PATH='${{ secrets.DEPLOY_PATH }}'
+            cd \$(dirname \"\$DEPLOY_PATH\") &&
             LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1) &&
-            if [ -n \"\$LATEST_BACKUP\" ]; then
-              rm -rf ${{ secrets.DEPLOY_PATH }} &&
-              mv \"\$LATEST_BACKUP\" ${{ secrets.DEPLOY_PATH }} &&
-              cd ${{ secrets.DEPLOY_PATH }} &&
+            if [ -n \"\$LATEST_BACKUP\" ] && [ -d \"\$LATEST_BACKUP\" ]; then
+              echo \"Found backup: \$LATEST_BACKUP\"
+              if [ -d \"\$DEPLOY_PATH\" ]; then
+                echo \"Removing current deployment directory\"
+                rm -rf \"\$DEPLOY_PATH\"
+              fi
+              echo \"Restoring from backup: \$LATEST_BACKUP\"
+              mv \"\$LATEST_BACKUP\" \"\$DEPLOY_PATH\" &&
+              cd \"\$DEPLOY_PATH\" &&
+              echo \"Restarting application\"
               pm2 restart api.oluwasetemi.dev &&
-              echo 'Rollback completed'
+              echo 'Rollback completed successfully'
             else
-              echo 'No backup found for rollback'
+              echo 'No valid backup found for rollback'
+              exit 1
             fi
           "
 
