@@ -1,13 +1,14 @@
 module.exports = {
   apps: [{
     name: "api.oluwasetemi.dev",
-    script: "./dist/src/index.js",
+    script: "src/index.ts",
     interpreter: "bun",
     instances: 1,
     exec_mode: "fork",
     env: {
       NODE_ENV: "production",
-      PORT: 3000,
+      PORT: 4444,
+      PATH: `${process.env.HOME}/.bun/bin:${process.env.PATH}`,
     },
     error_file: "./logs/err.log",
     out_file: "./logs/out.log",
