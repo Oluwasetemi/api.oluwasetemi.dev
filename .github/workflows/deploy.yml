@@ -238,22 +238,37 @@ jobs:
           ssh ${{ secrets.VPS_HOST }} "
             set -e
             DEPLOY_PATH='${{ secrets.DEPLOY_PATH }}'
-            cd \$(dirname \"\$DEPLOY_PATH\") &&
-            LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1) &&
+            DEPLOY_PARENT=\$(dirname \"\$DEPLOY_PATH\")
+
+            echo \"🔍 Looking for backups in: \$DEPLOY_PARENT\"
+            echo \"🔍 Current directory: \$(pwd)\"
+            echo \"🔍 Available backups:\"
+            ls -la backup-* 2>/dev/null || echo \"No backup-* files found in current directory\"
+
+            cd \"\$DEPLOY_PARENT\"
+            echo \"🔍 Looking for backups in parent directory: \$(pwd)\"
+            echo \"🔍 Available backups in parent:\"
+            ls -la backup-* 2>/dev/null || echo \"No backup-* files found in parent directory\"
+
+            LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1)
+            echo \"🔍 Latest backup found: \$LATEST_BACKUP\"
+
             if [ -n \"\$LATEST_BACKUP\" ] && [ -d \"\$LATEST_BACKUP\" ]; then
-              echo \"Found backup: \$LATEST_BACKUP\"
+              echo \"✅ Found valid backup: \$LATEST_BACKUP\"
               if [ -d \"\$DEPLOY_PATH\" ]; then
-                echo \"Removing current deployment directory\"
+                echo \"🗑️ Removing current deployment directory\"
                 rm -rf \"\$DEPLOY_PATH\"
               fi
-              echo \"Restoring from backup: \$LATEST_BACKUP\"
+              echo \"🔄 Restoring from backup: \$LATEST_BACKUP\"
               mv \"\$LATEST_BACKUP\" \"\$DEPLOY_PATH\" &&
               cd \"\$DEPLOY_PATH\" &&
-              echo \"Restarting application\"
+              echo \"🚀 Restarting application\"
               pm2 restart api.oluwasetemi.dev &&
-              echo 'Rollback completed successfully'
+              echo '✅ Rollback completed successfully'
             else
-              echo 'No valid backup found for rollback'
+              echo '❌ No valid backup found for rollback'
+              echo \"🔍 Debugging: Checking if any backup directories exist\"
+              find . -name \"backup-*\" -type d 2>/dev/null || echo \"No backup directories found anywhere\"
               exit 1
             fi
           "

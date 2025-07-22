@@ -125,7 +125,7 @@ export const strictSecurityHeaders = securityHeaders({
 });
 
 export const apiSecurityHeaders = securityHeaders({
-  contentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
+  contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self'; frame-ancestors 'none';",
   xFrameOptions: "DENY",
   xContentTypeOptions: "nosniff",
 });

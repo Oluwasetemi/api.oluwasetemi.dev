@@ -1,3 +1,4 @@
+/* eslint-disable node/no-process-env */
 module.exports = {
   apps: [{
     name: "api.oluwasetemi.dev",
