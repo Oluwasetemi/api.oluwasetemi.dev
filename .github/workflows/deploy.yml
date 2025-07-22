@@ -197,7 +197,24 @@ jobs:
           ssh ${{ secrets.VPS_HOST }} "
             if [ -d '${{ secrets.DEPLOY_PATH }}' ]; then
               cd ${{ secrets.DEPLOY_PATH }}/.. &&
-              cp -r '${{ secrets.DEPLOY_PATH }}' backup-$(date +%Y%m%d-%H%M%S) || echo 'Backup failed, continuing...'
+              echo \"📦 Creating backup with database preservation...\"
+
+              # Create backup directory
+              BACKUP_NAME=\"backup-\$(date +%Y%m%d-%H%M%S)\"
+              cp -r '${{ secrets.DEPLOY_PATH }}' \"\$BACKUP_NAME\"
+
+              # Preserve database files if they exist
+              if [ -f '${{ secrets.DEPLOY_PATH }}/prod.db' ]; then
+                echo \"💾 Preserving prod.db in backup\"
+                cp '${{ secrets.DEPLOY_PATH }}/prod.db' \"\$BACKUP_NAME/prod.db\"
+              fi
+
+              if [ -f '${{ secrets.DEPLOY_PATH }}/dev.db' ]; then
+                echo \"💾 Preserving dev.db in backup\"
+                cp '${{ secrets.DEPLOY_PATH }}/dev.db' \"\$BACKUP_NAME/dev.db\"
+              fi
+
+              echo \"✅ Backup created: \$BACKUP_NAME\"
             else
               echo 'No existing deployment directory to backup'
             fi
@@ -208,7 +225,57 @@ jobs:
         run: |
           ssh ${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
           ssh ${{ secrets.VPS_HOST }} "pm2 stop api.oluwasetemi.dev || true"
-          rsync -avz --delete --exclude node_modules --exclude .git --exclude .github --exclude .env --exclude .env.* --exclude '*.log' --exclude '.next' --exclude 'dist' --exclude 'coverage' --exclude '.nyc_output' ./ ${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+          # Preserve existing database files before deployment
+          ssh ${{ secrets.VPS_HOST }} "
+            if [ -f '${{ secrets.DEPLOY_PATH }}/prod.db' ]; then
+              echo \"💾 Preserving existing prod.db\"
+              cp '${{ secrets.DEPLOY_PATH }}/prod.db' '/tmp/prod.db.backup'
+            fi
+            if [ -f '${{ secrets.DEPLOY_PATH }}/dev.db' ]; then
+              echo \"💾 Preserving existing dev.db\"
+              cp '${{ secrets.DEPLOY_PATH }}/dev.db' '/tmp/dev.db.backup'
+            fi
+          "
+
+          # Deploy using git pull
+          ssh ${{ secrets.VPS_HOST }} "
+            cd '${{ secrets.DEPLOY_PATH }}'
+
+            # Initialize git repository if it doesn't exist
+            if [ ! -d '.git' ]; then
+              echo \"🔧 Initializing git repository\"
+              git init
+              git remote add origin https://github.com/oluwasetemi/api.oluwasetemi.dev.git
+            fi
+
+            # Fetch latest changes
+            echo \"📥 Fetching latest changes from GitHub\"
+            git fetch origin main
+
+            # Reset to latest commit (this will update all files)
+            echo \"🔄 Updating to latest commit\"
+            git reset --hard origin/main
+
+            # Clean untracked files (but preserve .env and database files)
+            echo \"🧹 Cleaning untracked files\"
+            git clean -fd
+          "
+
+          # Restore database files after deployment
+          ssh ${{ secrets.VPS_HOST }} "
+            if [ -f '/tmp/prod.db.backup' ]; then
+              echo \"💾 Restoring prod.db\"
+              cp '/tmp/prod.db.backup' '${{ secrets.DEPLOY_PATH }}/prod.db'
+              rm '/tmp/prod.db.backup'
+            fi
+            if [ -f '/tmp/dev.db.backup' ]; then
+              echo \"💾 Restoring dev.db\"
+              cp '/tmp/dev.db.backup' '${{ secrets.DEPLOY_PATH }}/dev.db'
+              rm '/tmp/dev.db.backup'
+            fi
+          "
+
           ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install"
           ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && (pnpm run db:migrate && pnpm run db:generate) || echo 'No database operations needed'"
           ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pm2 start ecosystem.config.cjs || pm2 restart api.oluwasetemi.dev"
@@ -255,13 +322,36 @@ jobs:
 
             if [ -n \"\$LATEST_BACKUP\" ] && [ -d \"\$LATEST_BACKUP\" ]; then
               echo \"✅ Found valid backup: \$LATEST_BACKUP\"
+
+              # Preserve current database files before rollback
               if [ -d \"\$DEPLOY_PATH\" ]; then
+                echo \"💾 Preserving current database files before rollback\"
+                if [ -f \"\$DEPLOY_PATH/prod.db\" ]; then
+                  cp \"\$DEPLOY_PATH/prod.db\" \"/tmp/prod.db.current\"
+                fi
+                if [ -f \"\$DEPLOY_PATH/dev.db\" ]; then
+                  cp \"\$DEPLOY_PATH/dev.db\" \"/tmp/dev.db.current\"
+                fi
                 echo \"🗑️ Removing current deployment directory\"
                 rm -rf \"\$DEPLOY_PATH\"
               fi
+
               echo \"🔄 Restoring from backup: \$LATEST_BACKUP\"
               mv \"\$LATEST_BACKUP\" \"\$DEPLOY_PATH\" &&
               cd \"\$DEPLOY_PATH\" &&
+
+              # Restore current database files (they might be more recent than backup)
+              if [ -f \"/tmp/prod.db.current\" ]; then
+                echo \"💾 Restoring current prod.db (preserving latest data)\"
+                cp \"/tmp/prod.db.current\" \"\$DEPLOY_PATH/prod.db\"
+                rm \"/tmp/prod.db.current\"
+              fi
+              if [ -f \"/tmp/dev.db.current\" ]; then
+                echo \"💾 Restoring current dev.db (preserving latest data)\"
+                cp \"/tmp/dev.db.current\" \"\$DEPLOY_PATH/dev.db\"
+                rm \"/tmp/dev.db.current\"
+              fi
+
               echo \"🚀 Restarting application\"
               pm2 restart api.oluwasetemi.dev &&
               echo '✅ Rollback completed successfully'
@@ -294,8 +384,8 @@ jobs:
             echo \"📊 Total backups found: \$BACKUP_COUNT\"
 
             if [ \"\$BACKUP_COUNT\" -gt 2 ]; then
-              echo \"🗑️ Cleaning up old backups (keeping latest 3)...\"
-              # Get list of backups to delete (all except the 3 most recent)
+              echo \"🗑️ Cleaning up old backups (keeping latest 2)...\"
+              # Get list of backups to delete (all except the 2 most recent)
               BACKUPS_TO_DELETE=\$(ls -t backup-* 2>/dev/null | tail -n +\$((BACKUP_COUNT - 2)))
 
               if [ -n \"\$BACKUPS_TO_DELETE\" ]; then
