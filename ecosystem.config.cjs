@@ -3,8 +3,8 @@ module.exports = {
     name: "api.oluwasetemi.dev",
     script: "./dist/src/index.js",
     interpreter: "bun",
-    instances: "max",
-    exec_mode: "cluster",
+    instances: 1,
+    exec_mode: "fork",
     env: {
       NODE_ENV: "production",
       PORT: 3000,
@@ -14,7 +14,5 @@ module.exports = {
     log_file: "./logs/combined.log",
     time: true,
     max_memory_restart: "1G",
-    // Bun-specific optimizations
-    node_args: "--smol",
   }],
 };
