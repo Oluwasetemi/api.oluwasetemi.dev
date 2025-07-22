@@ -105,8 +105,10 @@ jobs:
             exit 1
           fi
 
-          # Setup SSH agent
+          # Setup SSH agent and export environment variables
           eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
           ssh-add $HOME/.ssh/deploy_key
 
           echo "✅ SSH key validated and added to agent successfully"
@@ -153,15 +155,29 @@ jobs:
             UserKnownHostsFile /dev/null
             ServerAliveInterval 60
             ServerAliveCountMax 3
-            ConnectTimeout 10
+            ConnectTimeout 30
+            TCPKeepAlive yes
+            Compression yes
           EOF
           chmod 600 ~/.ssh/config
           echo "✅ SSH client configuration completed"
 
-      - name: Add VPS to known hosts
+      - name: Add VPS to known hosts and test connection
         if: env.ACT != 'true'
         run: |
+          # Add host to known hosts
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Warning: Could not add host key, using StrictHostKeyChecking=no"
+          
+          # Test SSH connection
+          echo "🔍 Testing SSH connection..."
+          if ssh -o BatchMode=yes -o ConnectTimeout=30 ${{ secrets.VPS_HOST }} 'echo "✅ SSH connection successful"'; then
+            echo "✅ SSH connection test passed"
+          else
+            echo "❌ SSH connection test failed"
+            echo "🔍 Debugging SSH connection..."
+            ssh -vvv -o BatchMode=yes -o ConnectTimeout=30 ${{ secrets.VPS_HOST }} 'echo "Connection test"' 2>&1 || true
+            exit 1
+          fi
 
       - name: Mock deployment steps for local testing
         if: env.ACT == 'true'
