@@ -30,7 +30,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build project
         run: pnpm run build
@@ -209,7 +209,7 @@ jobs:
           ssh ${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
           ssh ${{ secrets.VPS_HOST }} "pm2 stop api.oluwasetemi.dev || true"
           rsync -avz --delete --exclude node_modules --exclude .git --exclude .github --exclude .env --exclude .env.* --exclude '*.log' --exclude '.next' --exclude 'dist' --exclude 'coverage' --exclude '.nyc_output' ./ ${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install --prod --frozen-lockfile"
+          ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pnpm install"
           ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && (pnpm run db:migrate && pnpm run db:generate) || echo 'No database operations needed'"
           ssh ${{ secrets.VPS_HOST }} "cd ${{ secrets.DEPLOY_PATH }} && pm2 start ecosystem.config.cjs || pm2 restart api.oluwasetemi.dev"
           ssh ${{ secrets.VPS_HOST }} "pm2 save"
