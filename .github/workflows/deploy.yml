@@ -277,6 +277,44 @@ jobs:
         if: success() && env.ACT != 'true'
         run: |
           ssh ${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }}/.. &&
-            ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf || echo 'No old backups to clean'
+            set -e
+            DEPLOY_PATH='${{ secrets.DEPLOY_PATH }}'
+            DEPLOY_PARENT=\$(dirname \"\$DEPLOY_PATH\")
+
+            echo \"🧹 Starting backup cleanup...\"
+            cd \"\$DEPLOY_PARENT\"
+            echo \"🔍 Looking for backups in: \$(pwd)\"
+
+            # List all backups
+            echo \"📋 All available backups:\"
+            ls -la backup-* 2>/dev/null || echo \"No backup-* files found\"
+
+            # Count total backups
+            BACKUP_COUNT=\$(ls -1 backup-* 2>/dev/null | wc -l)
+            echo \"📊 Total backups found: \$BACKUP_COUNT\"
+
+            if [ \"\$BACKUP_COUNT\" -gt 2 ]; then
+              echo \"🗑️ Cleaning up old backups (keeping latest 3)...\"
+              # Get list of backups to delete (all except the 3 most recent)
+              BACKUPS_TO_DELETE=\$(ls -t backup-* 2>/dev/null | tail -n +\$((BACKUP_COUNT - 2)))
+
+              if [ -n \"\$BACKUPS_TO_DELETE\" ]; then
+                echo \"🗑️ Backups to delete:\"
+                echo \"\$BACKUPS_TO_DELETE\" | while read backup; do
+                  echo \"  - \$backup\"
+                done
+
+                # Delete old backups
+                echo \"\$BACKUPS_TO_DELETE\" | xargs -r rm -rf
+                echo \"✅ Cleanup completed successfully\"
+              else
+                echo \"ℹ️ No backups to delete\"
+              fi
+            else
+              echo \"ℹ️ Only \$BACKUP_COUNT backups found, keeping all (minimum 3)\"
+            fi
+
+            # Show remaining backups
+            echo \"📋 Remaining backups:\"
+            ls -la backup-* 2>/dev/null || echo \"No backups remaining\"
           "
