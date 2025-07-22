@@ -195,9 +195,11 @@ jobs:
         if: env.ACT != 'true'
         run: |
           ssh ${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }} &&
-            if [ -d './' ]; then
-              cp -r ./ ../backup-$(date +%Y%m%d-%H%M%S) || echo 'Backup failed, continuing...'
+            if [ -d '${{ secrets.DEPLOY_PATH }}' ]; then
+              cd ${{ secrets.DEPLOY_PATH }}/.. &&
+              cp -r '${{ secrets.DEPLOY_PATH }}' backup-$(date +%Y%m%d-%H%M%S) || echo 'Backup failed, continuing...'
+            else
+              echo 'No existing deployment directory to backup'
             fi
           "
 
