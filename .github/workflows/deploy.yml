@@ -382,29 +382,29 @@ jobs:
             echo \"📋 All available backups:\"
             ls -la backup-* 2>/dev/null || echo \"No backup-* files found\"
 
-            # Count total backups
-            BACKUP_COUNT=\$(ls -1 backup-* 2>/dev/null | wc -l)
-            echo \"📊 Total backups found: \$BACKUP_COUNT\"
+            # Count total backup directories (not files)
+            BACKUP_COUNT=\$(find . -maxdepth 1 -type d -name \"backup-*\" | wc -l)
+            echo \"📊 Total backup directories found: \$BACKUP_COUNT\"
 
             if [ \"\$BACKUP_COUNT\" -gt 2 ]; then
               echo \"🗑️ Cleaning up old backups (keeping latest 2)...\"
-              # Get list of backups to delete (all except the 2 most recent)
-              BACKUPS_TO_DELETE=\$(ls -t backup-* 2>/dev/null | tail -n +\$((BACKUP_COUNT - 2)))
+              # Get list of backup directories to delete (all except the 2 most recent)
+              BACKUPS_TO_DELETE=\$(find . -maxdepth 1 -type d -name \"backup-*\" -printf \"%T@ %p\\n\" | sort -nr | tail -n +\$((BACKUP_COUNT - 1)) | cut -d' ' -f2-)
 
               if [ -n \"\$BACKUPS_TO_DELETE\" ]; then
-                echo \"🗑️ Backups to delete:\"
+                echo \"🗑️ Backup directories to delete:\"
                 echo \"\$BACKUPS_TO_DELETE\" | while read backup; do
                   echo \"  - \$backup\"
                 done
 
-                # Delete old backups
+                # Delete old backup directories
                 echo \"\$BACKUPS_TO_DELETE\" | xargs -r rm -rf
                 echo \"✅ Cleanup completed successfully\"
               else
-                echo \"ℹ️ No backups to delete\"
+                echo \"ℹ️ No backup directories to delete\"
               fi
             else
-              echo \"ℹ️ Only \$BACKUP_COUNT backups found, keeping all (minimum 3)\"
+              echo \"ℹ️ Only \$BACKUP_COUNT backup directories found, keeping all (minimum 2)\"
             fi
 
             # Show remaining backups
