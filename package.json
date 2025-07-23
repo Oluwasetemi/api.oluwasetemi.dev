@@ -3,12 +3,16 @@
   "type": "module",
   "version": "0.1.4",
   "private": true,
+  "packageManager": "pnpm@10.13.1",
   "author": "Oluwasetemi Ojo<me@oluwasetemi.dev>",
   "license": "MIT",
   "homepage": "https://api.oluwasetemi.dev/reference",
   "repository": {
     "type": "git",
     "url": "https://github.com/oluwasetemi/api.oluwasetemi.dev"
+  },
+  "engines": {
+    "node": ">=22.15.32"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
