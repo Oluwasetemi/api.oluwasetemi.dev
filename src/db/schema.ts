@@ -4,12 +4,14 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+import { generateUUID } from "@/lib/uuid";
+
 // Define enums
 export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
 export const StatusEnum = z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]);
 
 export const tasks = sqliteTable("tasks", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()), // Make this the primary key
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
   name: text().notNull(),
   description: text(),
   start: integer({ mode: "timestamp" }),

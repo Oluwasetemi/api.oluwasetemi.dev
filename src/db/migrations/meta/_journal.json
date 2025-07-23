@@ -29,6 +29,13 @@
       "when": 1749886163220,
       "tag": "0003_last_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1753287977214,
+      "tag": "0004_lush_domino",
+      "breakpoints": true
     }
   ]
 }

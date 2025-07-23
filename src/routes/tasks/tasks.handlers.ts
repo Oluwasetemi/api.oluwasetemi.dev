@@ -157,8 +157,60 @@ export const listChildren: AppRouteHandler<ListChildrenRoute> = async (c) => {
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
-  const task = c.req.valid("json");
-  const inserted = await db.insert(tasks).values(task).returning().get();
+  const taskData = c.req.valid("json");
+
+  if (taskData.parentId) {
+    const parentId = taskData.parentId;
+    if (!parentId) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            issues: [
+              {
+                code: "invalid_reference",
+                path: ["parentId"],
+                message: "Parent task ID is required",
+              },
+            ],
+            name: "ValidationError",
+          },
+        },
+        HttpStatusCodes.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const parentTask = await db.query.tasks.findFirst({
+      where(fields, operators) {
+        return operators.eq(fields.id, parentId);
+      },
+    });
+
+    if (!parentTask) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            issues: [
+              {
+                code: "invalid_reference",
+                path: ["parentId"],
+                message: "Parent task not found",
+              },
+            ],
+            name: "ValidationError",
+          },
+        },
+        HttpStatusCodes.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
+  const taskToInsert = {
+    ...taskData,
+  };
+
+  const inserted = await db.insert(tasks).values(taskToInsert).returning().get();
   return c.json(inserted, HttpStatusCodes.OK);
 };
 
