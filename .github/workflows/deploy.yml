@@ -238,15 +238,18 @@ jobs:
             fi
           "
 
-          # Deploy using git pull
+                    # Deploy using git pull
           ssh ${{ secrets.VPS_HOST }} "
             cd '${{ secrets.DEPLOY_PATH }}'
+
+            # Configure git to use SSH with deploy key
+            export GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_api.oluwasetemi.dev -o IdentitiesOnly=yes'
 
             # Initialize git repository if it doesn't exist
             if [ ! -d '.git' ]; then
               echo \"🔧 Initializing git repository\"
               git init
-              git remote add origin https://github.com/oluwasetemi/api.oluwasetemi.dev.git
+              git remote add origin git@github.com:oluwasetemi/api.oluwasetemi.dev.git
             fi
 
             # Fetch latest changes
