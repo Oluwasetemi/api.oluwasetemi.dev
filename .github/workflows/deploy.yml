@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "22"
-  PNPM_VERSION: "10"
+  NODE_VERSION: "lts/*"
+  PNPM_VERSION: "10.13.1"
 
 jobs:
   deploy:
