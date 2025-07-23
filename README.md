@@ -255,6 +255,8 @@ Returns aggregated request counts and statistics.
 
 **Examples:**
 
+I love [HTTPie](https://httpie.io/). Its easier to learn compared to `curl`.
+
 ```bash
 # Get total request count
 http :4444/analytics/counts
