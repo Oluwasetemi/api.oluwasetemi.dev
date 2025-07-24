@@ -2,7 +2,43 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { apiRateLimiter, authRateLimiter, rateLimitHeaders } from "./rate-limiter";
+import { authRateLimiter, rateLimitHeaders } from "./rate-limiter";
+import { rateLimiter } from "hono-rate-limiter";
+import env from "@/env";
+
+// Helper function to create dynamic rate limiter with current env values
+function createApiRateLimiter() {
+  return rateLimiter({
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    limit: env.RATE_LIMIT_MAX_REQUESTS,
+    message: { error: "Too many requests, please try again later." },
+    keyGenerator: (c) => {
+      // For development, use consistent key
+      if (env.NODE_ENV === "development") {
+        return "*********";
+      }
+      // Extract IP address from headers (production)
+      const forwardedFor = c.req.header("x-forwarded-for");
+      const realIp = c.req.header("x-real-ip");
+      const cfConnectingIp = c.req.header("cf-connecting-ip");
+      return forwardedFor?.split(",")[0]?.trim() || realIp || cfConnectingIp || "unknown";
+    },
+    skip: (c) => {
+      // Check if rate limiting is globally disabled
+      if (!env.RATE_LIMIT_ENABLED) {
+        return true;
+      }
+      const path = c.req.path;
+      if (path === "/") {
+        return true;
+      }
+      if (path === "/graphql" || path === "/playground") {
+        return true;
+      }
+      return false;
+    },
+  });
+}
 
 // Mock environment for different scenarios
 const mockEnv = vi.hoisted(() => ({
@@ -41,7 +77,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.RATE_LIMIT_ENABLED = false;
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -55,7 +91,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.NODE_ENV = "development";
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -69,7 +105,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.NODE_ENV = "production";
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -83,7 +119,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.RATE_LIMIT_MAX_REQUESTS = 0;
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -97,7 +133,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.RATE_LIMIT_MAX_REQUESTS = 1000000;
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -113,7 +149,7 @@ describe("rate Limiter Edge Cases", () => {
       mockEnv.RATE_LIMIT_WINDOW_MS = 1000; // 1 second
 
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -142,7 +178,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should handle multiple rate limiters on same endpoint", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.use("/special/*", authRateLimiter); // Second rate limiter
       app.get("/special/endpoint", c => c.json({ message: "special" }));
 
@@ -169,7 +205,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should not interfere with existing headers", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.use("*", rateLimitHeaders());
       app.get("/test", (c) => {
         c.header("Custom-Header", "test-value");
@@ -188,7 +224,7 @@ describe("rate Limiter Edge Cases", () => {
   describe("path Handling Edge Cases", () => {
     it("should handle paths with query parameters", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -202,7 +238,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should handle paths with special characters", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test-path_with.special", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -214,7 +250,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should handle very long paths", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test-long-path", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -226,7 +262,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should handle case sensitivity in paths", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test-case", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -240,7 +276,7 @@ describe("rate Limiter Edge Cases", () => {
   describe("hTTP Methods", () => {
     it("should handle different HTTP methods", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ method: "GET" }));
       app.post("/test", c => c.json({ method: "POST" }));
       app.put("/test", c => c.json({ method: "PUT" }));
@@ -276,7 +312,7 @@ describe("rate Limiter Edge Cases", () => {
         await next();
       });
 
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", c => c.json({ message: "success" }));
 
       const client: any = testClient(app);
@@ -288,7 +324,7 @@ describe("rate Limiter Edge Cases", () => {
 
     it("should handle application errors after rate limiting", async () => {
       const app = new OpenAPIHono();
-      app.use("*", apiRateLimiter);
+      app.use("*", createApiRateLimiter());
       app.get("/test", () => {
         throw new Error("Application error");
       });
