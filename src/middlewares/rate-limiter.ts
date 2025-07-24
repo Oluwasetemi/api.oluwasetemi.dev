@@ -12,15 +12,19 @@ const defaultLimits = {
   },
 };
 
-// eslint-disable-next-line unused-imports/no-unused-vars
 function keyGenerator(c: Context): string {
   // For development, use localhost IP
   if (env.NODE_ENV === "development") {
     return "127.0.0.1";
   }
 
-  // For production, generate a session-based key
-  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Extract IP address from headers (production)
+  const forwardedFor = c.req.header("x-forwarded-for");
+  const realIp = c.req.header("x-real-ip");
+  const cfConnectingIp = c.req.header("cf-connecting-ip");
+
+  // Use the first available IP address
+  return forwardedFor?.split(",")[0]?.trim() || realIp || cfConnectingIp || "unknown";
 }
 
 function skip(c: Context): boolean {
