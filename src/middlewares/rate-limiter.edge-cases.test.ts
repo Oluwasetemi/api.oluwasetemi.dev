@@ -1,10 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { rateLimiter } from "hono-rate-limiter";
 import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { authRateLimiter, rateLimitHeaders } from "./rate-limiter";
-import { rateLimiter } from "hono-rate-limiter";
 import env from "@/env";
+
+import { authRateLimiter, rateLimitHeaders } from "./rate-limiter";
 
 // Helper function to create dynamic rate limiter with current env values
 function createApiRateLimiter() {
