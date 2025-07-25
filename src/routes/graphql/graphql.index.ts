@@ -11,11 +11,10 @@ import { AuthService, extractBearerToken } from "@/lib/auth";
 import { createRouter } from "@/lib/create-app";
 import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
 import { getCounts } from "@/services/analytics.service";
+import { formatUserForGraphQL } from "@/utils/time";
 
-// 1. Build the auto-generated schema
 const { schema: drizzleSchema } = buildSchema(db);
 
-// 2. Define your custom typeDefs and resolvers
 const typeDefs = `
   type Query {
     hello: String!
@@ -92,25 +91,20 @@ const resolvers = {
       name?: string;
       imageUrl?: string;
     }) => {
-      // Normalize and validate email
       const normalizedEmail = AuthService.normalizeEmail(email);
 
-      // Validate password strength
       const passwordValidation = AuthService.validatePassword(password);
       if (!passwordValidation.isValid) {
         throw new Error(`Password validation failed: ${passwordValidation.errors.join(", ")}`);
       }
 
-      // Check if user already exists
       const existingUser = await AuthService.findUserByEmail(normalizedEmail);
       if (existingUser) {
         throw new Error("Email already exists");
       }
 
-      // Hash password
       const hashedPassword = await AuthService.hashPassword(password);
 
-      // Create user
       const [newUser] = await db
         .insert(users)
         .values({
@@ -130,7 +124,6 @@ const resolvers = {
           updatedAt: users.updatedAt,
         });
 
-      // Generate tokens with user data
       const tokenPayload = {
         userId: newUser.id,
         email: newUser.email,
@@ -141,71 +134,64 @@ const resolvers = {
       const accessToken = AuthService.generateAccessToken(tokenPayload);
       const refreshToken = AuthService.generateRefreshToken(tokenPayload);
 
-      // Update last login
       await AuthService.updateLastLogin(newUser.id);
 
+      const updatedUser = await AuthService.findUserById(newUser.id);
+      if (!updatedUser) {
+        throw new Error("Failed to retrieve updated user data");
+      }
+
       return {
-        user: newUser,
+        user: formatUserForGraphQL(updatedUser),
         accessToken,
         refreshToken,
       };
     },
     login: async (_: any, { email, password }: { email: string; password: string }) => {
-      // Normalize email
       const normalizedEmail = AuthService.normalizeEmail(email);
 
-      // Find user with password
       const user = await AuthService.findUserByEmail(normalizedEmail);
       if (!user || !user.isActive) {
         throw new Error("Invalid credentials");
       }
 
-      // Verify password
       const isValid = await AuthService.verifyPassword(password, user.password);
       if (!isValid) {
         throw new Error("Invalid credentials");
       }
 
-      // Generate tokens with user data
+      await AuthService.updateLastLogin(user.id);
+
+      const updatedUser = await AuthService.findUserById(user.id);
+      if (!updatedUser) {
+        throw new Error("Failed to retrieve updated user data");
+      }
+
       const tokenPayload = {
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-        imageUrl: user.imageUrl,
-        isActive: user.isActive,
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        imageUrl: updatedUser.imageUrl,
+        isActive: updatedUser.isActive,
       };
       const accessToken = AuthService.generateAccessToken(tokenPayload);
       const refreshToken = AuthService.generateRefreshToken(tokenPayload);
 
-      // Update last login
-      await AuthService.updateLastLogin(user.id);
-
-      // Remove password from response
-      const { password: _pwd, ...userWithoutPassword } = user;
-
       return {
-        user: {
-          ...userWithoutPassword,
-          lastLoginAt: userWithoutPassword.lastLoginAt ? userWithoutPassword.lastLoginAt.toISOString() : null,
-          createdAt: userWithoutPassword.createdAt ? userWithoutPassword.createdAt.toISOString() : null,
-          updatedAt: userWithoutPassword.updatedAt ? userWithoutPassword.updatedAt.toISOString() : null,
-        },
+        user: formatUserForGraphQL(updatedUser),
         accessToken,
         refreshToken,
       };
     },
     refreshToken: async (_: any, { refreshToken }: { refreshToken: string }) => {
       try {
-        // Verify refresh token
         const payload = AuthService.verifyRefreshToken(refreshToken);
 
-        // Check if user exists and is active
         const user = await AuthService.findUserById(payload.userId);
         if (!user || !user.isActive) {
           throw new Error("Invalid user");
         }
 
-        // Generate new tokens with fresh user data
         const tokenPayload = {
           userId: user.id,
           email: user.email,
@@ -228,10 +214,8 @@ const resolvers = {
   },
 };
 
-// 3. Create a custom schema
 const customSchema = makeExecutableSchema({ typeDefs, resolvers });
 
-// 4. Merge schemas
 const schema = mergeSchemas({
   schemas: [drizzleSchema, customSchema],
 });
@@ -310,7 +294,6 @@ if (env.NODE_ENV === "development") {
 }
 
 async function getUserFromToken(authHeader: string) {
-  // Implement JWT auth logic for GraphQL
   try {
     const token = extractBearerToken(authHeader);
     if (!token) {
@@ -319,21 +302,19 @@ async function getUserFromToken(authHeader: string) {
 
     const payload = AuthService.verifyAccessToken(token);
 
-    // Check if user is active (cached from JWT)
     if (!payload.isActive) {
       return null;
     }
 
-    // Return user data from JWT (cached, no database lookup needed)
     return {
       id: payload.userId,
       email: payload.email,
       name: payload.name,
       imageUrl: payload.imageUrl,
       isActive: payload.isActive,
-      lastLoginAt: null, // Not cached in JWT for security
-      createdAt: new Date().toISOString(), // Placeholder
-      updatedAt: new Date().toISOString(), // Placeholder
+      lastLoginAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   }
   catch (error) {
