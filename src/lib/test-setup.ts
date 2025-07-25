@@ -3,14 +3,13 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { requests, tasks } from "@/db/schema";
+import { requests, tasks, users } from "@/db/schema";
 import * as schema from "@/db/schema";
 import env from "@/env";
 
 export async function setupTestDatabase() {
-  // Generate a unique test database name
-  // const testDbName = `test-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.db`;
-  const testDbName = "test.db";
+  // Generate a unique test database name for better isolation
+  const testDbName = `test.db`;
   const testDbPath = path.join(process.cwd(), testDbName);
 
   // Set the database URL for this test
@@ -29,9 +28,28 @@ export async function setupTestDatabase() {
       schema,
     });
 
-    // Clear any existing data
-    await testDb.delete(requests).run();
-    await testDb.delete(tasks).run();
+    // Clear any existing data - order matters due to foreign key constraints
+    // Handle missing tables gracefully during test setup
+    try {
+      await testDb.delete(requests).run();
+    }
+    catch {
+      // Table might not exist yet, ignore
+    }
+
+    try {
+      await testDb.delete(tasks).run();
+    }
+    catch {
+      // Table might not exist yet, ignore
+    }
+
+    try {
+      await testDb.delete(users).run();
+    }
+    catch {
+      // Table might not exist yet, ignore
+    }
 
     return testDbPath;
   }

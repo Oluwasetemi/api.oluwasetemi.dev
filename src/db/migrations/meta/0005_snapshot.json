@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "360d3454-8c75-4821-8ce2-f175a4c3cd44",
-  "prevId": "3d59ba74-7b16-4a09-99c5-ee2385858f11",
+  "id": "64f95b7f-6603-47b6-8dad-e541353f4bdb",
+  "prevId": "360d3454-8c75-4821-8ce2-f175a4c3cd44",
   "tables": {
     "requests": {
       "name": "requests",
@@ -288,6 +288,13 @@
         },
         "name": {
           "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "image_url": {
+          "name": "image_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

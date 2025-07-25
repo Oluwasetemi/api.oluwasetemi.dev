@@ -39,3 +39,5 @@ export default function createApp() {
 export function createTestApp<S extends Schema>(router: AppOpenAPI<S>) {
   return createApp().route("/", router);
 }
+
+export type TestApp<S extends Schema> = ReturnType<typeof createTestApp<S>>;
