@@ -576,14 +576,14 @@ describe("graphql route", () => {
           const json = await res.json();
           expect(json.errors).toBeUndefined();
           expect(json.data.register).toBeDefined();
-          
+
           const { user, accessToken, refreshToken } = json.data.register;
-          
+
           // Store for other tests
           userAccessToken = accessToken;
           userRefreshToken = refreshToken;
           userId = user.id;
-          
+
           // Verify user data
           expect(user.id).toBeDefined();
           expect(user.email).toBe(variables.email);
@@ -592,7 +592,7 @@ describe("graphql route", () => {
           expect(user.isActive).toBe(true);
           expect(user.createdAt).toBeDefined();
           expect(user.updatedAt).toBeDefined();
-          
+
           // Verify tokens
           expect(accessToken).toBeDefined();
           expect(typeof accessToken).toBe("string");
@@ -643,7 +643,7 @@ describe("graphql route", () => {
         `;
 
         const duplicateEmail = generateUniqueEmail("duplicate");
-        
+
         // Register first user
         const variables1 = {
           email: duplicateEmail,
@@ -682,7 +682,7 @@ describe("graphql route", () => {
         // First register a user
         const email = generateUniqueEmail("login-test");
         const password = "Password123!";
-        
+
         const registerMutation = `
           mutation RegisterUser($email: String!, $password: String!) {
             register(email: $email, password: $password) {
@@ -696,8 +696,8 @@ describe("graphql route", () => {
         await app.request("/graphql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: registerMutation, 
+          body: JSON.stringify({
+            query: registerMutation,
             variables: { email, password },
           }),
         });
@@ -723,8 +723,8 @@ describe("graphql route", () => {
         const res = await app.request("/graphql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: loginMutation, 
+          body: JSON.stringify({
+            query: loginMutation,
             variables: { email, password },
           }),
         });
@@ -734,9 +734,9 @@ describe("graphql route", () => {
           const json = await res.json();
           expect(json.errors).toBeUndefined();
           expect(json.data.login).toBeDefined();
-          
+
           const { user, accessToken, refreshToken } = json.data.login;
-          
+
           expect(user.email).toBe(email);
           expect(user.isActive).toBe(true);
           expect(accessToken).toBeDefined();
@@ -791,7 +791,7 @@ describe("graphql route", () => {
 
         const res = await app.request("/graphql", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${userAccessToken}`,
           },
@@ -844,7 +844,7 @@ describe("graphql route", () => {
 
         const res = await app.request("/graphql", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer invalid-token",
           },
@@ -874,8 +874,8 @@ describe("graphql route", () => {
         const res = await app.request("/graphql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: mutation, 
+          body: JSON.stringify({
+            query: mutation,
             variables: { refreshToken: userRefreshToken },
           }),
         });
@@ -885,14 +885,14 @@ describe("graphql route", () => {
           const json = await res.json();
           expect(json.errors).toBeUndefined();
           expect(json.data.refreshToken).toBeDefined();
-          
+
           const { accessToken, refreshToken } = json.data.refreshToken;
-          
+
           expect(accessToken).toBeDefined();
           expect(typeof accessToken).toBe("string");
           expect(refreshToken).toBeDefined();
           expect(typeof refreshToken).toBe("string");
-          
+
           // Update tokens for future tests
           userAccessToken = accessToken;
           userRefreshToken = refreshToken;
@@ -912,8 +912,8 @@ describe("graphql route", () => {
         const res = await app.request("/graphql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: mutation, 
+          body: JSON.stringify({
+            query: mutation,
             variables: { refreshToken: "invalid-refresh-token" },
           }),
         });
