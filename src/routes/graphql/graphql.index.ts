@@ -11,7 +11,7 @@ import { AuthService, extractBearerToken } from "@/lib/auth";
 import { createRouter } from "@/lib/create-app";
 import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
 import { getCounts } from "@/services/analytics.service";
-import { formatUserForGraphQL } from "@/utils/time";
+import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
 
 const { schema: drizzleSchema } = buildSchema(db);
 
@@ -306,16 +306,15 @@ async function getUserFromToken(authHeader: string) {
       return null;
     }
 
-    return {
-      id: payload.userId,
-      email: payload.email,
-      name: payload.name,
-      imageUrl: payload.imageUrl,
-      isActive: payload.isActive,
-      lastLoginAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    // Fetch complete user data with actual timestamps
+    const user = await getUserWithTimestamps(payload);
+
+    if (!user) {
+      return null;
+    }
+
+    // Format for GraphQL with proper timestamp conversion
+    return formatUserForGraphQL(user);
   }
   catch (error) {
     console.error("Error verifying auth token:", error);

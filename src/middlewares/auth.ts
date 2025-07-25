@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 
 import { AuthService, extractBearerToken } from "@/lib/auth";
+import { getUserWithTimestamps } from "@/utils/time";
 
 export type AuthVariables = {
   user: {
@@ -38,17 +39,14 @@ export async function authMiddleware(c: Context, next: Next) {
       });
     }
 
-    // Use cached user data from JWT (no database lookup needed!)
-    const user = {
-      id: payload.userId,
-      email: payload.email,
-      name: payload.name,
-      imageUrl: payload.imageUrl,
-      isActive: payload.isActive,
-      lastLoginAt: null, // Not cached in JWT for security
-      createdAt: new Date(), // Placeholder
-      updatedAt: new Date(), // Placeholder
-    };
+    // Fetch complete user data with actual timestamps
+    const user = await getUserWithTimestamps(payload);
+
+    if (!user) {
+      throw new HTTPException(HttpStatusCodes.UNAUTHORIZED, {
+        message: "User not found or inactive",
+      });
+    }
 
     c.set("user", user);
     await next();
