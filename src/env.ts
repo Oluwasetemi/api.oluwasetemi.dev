@@ -26,8 +26,7 @@ const EnvSchema = z
       "trace",
       "silent",
     ]),
-    DATABASE_URL: z.string().url(),
-    DATABASE_AUTH_TOKEN: z.string().optional(),
+    DATABASE_URL: z.string().min(1),
     ENABLE_ANALYTICS: z.coerce.boolean().default(false),
     ANALYTICS_RETENTION_DAYS: z.coerce.number().default(30),
     // Rate limiting configuration
@@ -47,16 +46,6 @@ const EnvSchema = z
     JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   })
   .superRefine((input, ctx) => {
-    if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_type,
-        expected: "string",
-        received: "undefined",
-        path: ["DATABASE_AUTH_TOKEN"],
-        message: "Must be set when NODE_ENV is 'production'",
-      });
-    }
-
     // Validate JWT secrets are strong enough for production
     if (input.NODE_ENV === "production") {
       if (input.JWT_SECRET.length < 64) {

@@ -20,16 +20,16 @@ export type AuthVariables = {
 };
 
 export async function authMiddleware(c: Context, next: Next) {
-  const authHeader = c.req.header("Authorization");
-  const token = extractBearerToken(authHeader);
-
-  if (!token) {
-    throw new HTTPException(HttpStatusCodes.UNAUTHORIZED, {
-      message: "Authentication required",
-    });
-  }
-
   try {
+    const authHeader = c.req.header("Authorization");
+    const token = extractBearerToken(authHeader);
+
+    if (!token) {
+      throw new HTTPException(HttpStatusCodes.UNAUTHORIZED, {
+        message: "Authorization token required",
+      });
+    }
+
     const payload = AuthService.verifyAccessToken(token);
 
     // Check if user is active (cached from JWT)
@@ -72,27 +72,12 @@ export async function optionalAuthMiddleware(c: Context, next: Next) {
     return;
   }
 
+  // If token provided, try to authenticate
   try {
-    const payload = AuthService.verifyAccessToken(token);
-
-    // Check if user is active (cached from JWT)
-    if (!payload.isActive) {
-      // For optional auth, we don't throw, just continue without user
-      await next();
-      return;
-    }
-
-    // Fetch complete user data with actual timestamps
-    const user = await getUserWithTimestamps(payload);
-
-    if (user) {
-      c.set("user", user);
-    }
-
-    await next();
+    await authMiddleware(c, next);
   }
   catch {
-    // For optional auth, we don't throw on invalid tokens, just continue without user
+    // If authentication fails, continue without user (don't throw)
     await next();
   }
 }
