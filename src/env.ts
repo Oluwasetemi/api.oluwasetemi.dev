@@ -92,4 +92,18 @@ if (error) {
   process.exit(1);
 }
 
+// Debug DATABASE_URL in production to help diagnose connection issues
+if (env!.NODE_ENV === "production") {
+  const dbUrl = env!.DATABASE_URL;
+  console.log("🔍 DATABASE_URL validation:");
+  console.log(`  Length: ${dbUrl.length}`);
+  console.log(`  Starts with: ${dbUrl.substring(0, 20)}...`);
+  console.log(`  Protocol: ${dbUrl.split('://')[0]}`);
+  
+  // Check if it's a valid libsql URL format
+  if (!dbUrl.startsWith('libsql://') && !dbUrl.startsWith('file:')) {
+    console.warn("⚠️  DATABASE_URL should start with 'libsql://' for Turso or 'file:' for SQLite");
+  }
+}
+
 export default env!;
