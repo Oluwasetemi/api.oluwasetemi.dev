@@ -60,6 +60,7 @@ Use `pnpm test` with file patterns:
 ### JWT Authentication System (Latest)
 
 - **Comprehensive Authentication**: Implemented complete JWT-based authentication system
+
   - Access tokens (24h) and refresh tokens (7d) with secure payload structure
   - Password validation with complexity requirements (uppercase, lowercase, digits, special chars)
   - Email normalization and duplicate prevention with unique constraints
@@ -67,11 +68,13 @@ Use `pnpm test` with file patterns:
   - Last login tracking and user activation status management
 
 - **Database Schema Enhancements**: Extended user model with authentication fields
+
   - Added `users` table with `id`, `email`, `password`, `name`, `imageUrl`, `isActive`, `lastLoginAt`, `createdAt`, `updatedAt`
-  - Added foreign key constraint for `tasks.owner` referencing `users.id` 
+  - Added foreign key constraint for `tasks.owner` referencing `users.id`
   - Proper indexing for email lookups and user relationships
 
 - **GraphQL Authentication Integration**: Complete GraphQL auth implementation
+
   - `register(email, password, name?, imageUrl?)` - User registration with validation
   - `login(email, password)` - User authentication with credential verification
   - `refreshToken(refreshToken)` - Token refresh with user validation
@@ -79,6 +82,7 @@ Use `pnpm test` with file patterns:
   - Proper timestamp handling and user data formatting for GraphQL responses
 
 - **REST API Authentication Routes**: OpenAPI-documented authentication endpoints
+
   - `POST /auth/register` - User registration with comprehensive validation
   - `POST /auth/login` - User login with credential verification
   - `POST /auth/refresh` - Token refresh endpoint
@@ -86,6 +90,7 @@ Use `pnpm test` with file patterns:
   - Consistent error handling and response formatting across all endpoints
 
 - **Authentication Middleware**: Secure request authentication and authorization
+
   - JWT token verification with proper error handling
   - User context injection with actual database timestamps (no placeholders)
   - Performance optimization with JWT payload caching in non-production environments
@@ -103,7 +108,7 @@ Authentication configuration:
 
 - `JWT_SECRET` - Secret key for JWT access token signing (required, min 32 chars)
 - `JWT_EXPIRES_IN` - Access token expiration time (default: 24h)
-- `JWT_REFRESH_SECRET` - Secret key for JWT refresh token signing (required, min 32 chars)  
+- `JWT_REFRESH_SECRET` - Secret key for JWT refresh token signing (required, min 32 chars)
 - `JWT_REFRESH_EXPIRES_IN` - Refresh token expiration time (default: 7d)
 
 Rate limiting and security configuration:

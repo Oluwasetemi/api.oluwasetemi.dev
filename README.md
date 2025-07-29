@@ -192,12 +192,12 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ### Authentication Endpoints
 
-| Path                     | Description                              |
-| ------------------------ | ---------------------------------------- |
-| POST /auth/register      | Register a new user account             |
-| POST /auth/login         | Login with email and password           |
-| POST /auth/refresh       | Refresh access token using refresh token |
-| GET /auth/me             | Get current authenticated user (protected) |
+| Path                | Description                                |
+| ------------------- | ------------------------------------------ |
+| POST /auth/register | Register a new user account                |
+| POST /auth/login    | Login with email and password              |
+| POST /auth/refresh  | Refresh access token using refresh token   |
+| GET /auth/me        | Get current authenticated user (protected) |
 
 ### Core API Endpoints
 
@@ -214,12 +214,12 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ### GraphQL & Analytics
 
-| Path                     | Description              |
-| ------------------------ | ------------------------ |
-| GET /graphql             | GraphQL endpoint         |
-| GET /playground          | GraphQL Playground (dev only) |
-| GET /analytics/requests  | List request analytics   |
-| GET /analytics/counts    | Get aggregated analytics |
+| Path                    | Description                   |
+| ----------------------- | ----------------------------- |
+| GET /graphql            | GraphQL endpoint              |
+| GET /playground         | GraphQL Playground (dev only) |
+| GET /analytics/requests | List request analytics        |
+| GET /analytics/counts   | Get aggregated analytics      |
 
 The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
 
@@ -238,6 +238,7 @@ The GraphQL endpoint includes comprehensive authentication support:
 #### Mutations
 
 **register**: Create a new user account
+
 ```graphql
 mutation RegisterUser($email: String!, $password: String!, $name: String, $imageUrl: String) {
   register(email: $email, password: $password, name: $name, imageUrl: $imageUrl) {
@@ -257,6 +258,7 @@ mutation RegisterUser($email: String!, $password: String!, $name: String, $image
 ```
 
 **login**: Authenticate with email and password
+
 ```graphql
 mutation LoginUser($email: String!, $password: String!) {
   login(email: $email, password: $password) {
@@ -274,6 +276,7 @@ mutation LoginUser($email: String!, $password: String!) {
 ```
 
 **refreshToken**: Get new tokens using refresh token
+
 ```graphql
 mutation RefreshTokens($refreshToken: String!) {
   refreshToken(refreshToken: $refreshToken) {
@@ -286,6 +289,7 @@ mutation RefreshTokens($refreshToken: String!) {
 #### Queries
 
 **me**: Get current authenticated user (requires Authorization header)
+
 ```graphql
 query GetCurrentUser {
   me {
@@ -302,6 +306,7 @@ query GetCurrentUser {
 ```
 
 To use protected queries, include the JWT token in the Authorization header:
+
 ```
 Authorization: Bearer your-jwt-token-here
 ```
