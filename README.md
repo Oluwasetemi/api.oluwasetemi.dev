@@ -16,6 +16,7 @@ Think of this as a personal api repository.
 - Structured logging with [pino](https://getpino.io/) / [hono-pino](https://www.npmjs.com/package/hono-pino)
 - Documented / type-safe routes with [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
 - Interactive API documentation with [scalar](https://scalar.com/#api-docs) / [@scalar/hono-api-reference](https://github.com/scalar/scalar/tree/main/packages/hono-api-reference)
+- **JWT Authentication** with access/refresh tokens, password validation, and user management
 - Convenience methods / helpers to reduce boilerplate with [stoker](https://www.npmjs.com/package/stoker)
 - Type-safe schemas and environment variables with [zod](https://zod.dev/)
 - Single source of truth database schemas with [drizzle](https://orm.drizzle.team/docs/overview) and [drizzle-zod](https://orm.drizzle.team/docs/zod)
@@ -26,6 +27,15 @@ Think of this as a personal api repository.
 ## Security & Reliability
 
 This API includes comprehensive security measures and reliability improvements:
+
+### 🔐 JWT Authentication System
+
+- **Complete authentication flow**: User registration, login, token refresh, and protected routes
+- **Secure password requirements**: Enforced complexity with uppercase, lowercase, digits, and special characters
+- **Dual token strategy**: Short-lived access tokens (24h) and long-lived refresh tokens (7d)
+- **Password security**: bcrypt hashing with environment-specific rounds (dev: 6, prod: 12)
+- **User management**: Email normalization, duplicate prevention, account activation, and last login tracking
+- **Multi-platform support**: Both REST API and GraphQL authentication endpoints
 
 ### 🔒 Rate Limiting & Security
 
@@ -43,6 +53,7 @@ This API includes comprehensive security measures and reliability improvements:
 
 ### 📊 Enhanced GraphQL
 
+- **Authentication integration**: Complete GraphQL auth mutations and queries (`register`, `login`, `refreshToken`, `me`)
 - **Custom queries and mutations**: Extended auto-generated schema with custom resolvers
 - **Analytics integration**: GraphQL endpoint for `countRequests` with filtering and grouping
 - **Type-safe operations**: Full TypeScript support with proper error handling
@@ -57,10 +68,14 @@ This API includes comprehensive security measures and reliability improvements:
 
 ### 🔧 Environment Variables
 
-Additional security-related environment variables:
+Additional security and authentication-related environment variables:
 
 | Variable                     | Description                               | Default | Required |
 | ---------------------------- | ----------------------------------------- | ------- | -------- |
+| `JWT_SECRET`                 | Secret key for JWT access token signing   | -       | Yes      |
+| `JWT_REFRESH_SECRET`         | Secret key for JWT refresh token signing  | -       | Yes      |
+| `JWT_EXPIRES_IN`             | Access token expiration time              | `24h`   | No       |
+| `JWT_REFRESH_EXPIRES_IN`     | Refresh token expiration time             | `7d`    | No       |
 | `RATE_LIMIT_WINDOW_MS`       | Rate limit window in milliseconds         | `60000` | No       |
 | `RATE_LIMIT_MAX_REQUESTS`    | Max requests per window                   | `100`   | No       |
 | `RATE_LIMIT_TRUST_PROXY`     | Trust proxy headers for IP extraction     | `false` | No       |
@@ -135,6 +150,10 @@ The following environment variables are supported:
 | `RATE_LIMIT_MAX_REQUESTS`             | Max requests per window                      | `100`         | No              |
 | `RATE_LIMIT_TRUST_PROXY`              | Trust proxy headers for IP extraction        | `false`       | No              |
 | `RATE_LIMIT_TRUSTED_PROXIES`          | Comma-separated list of trusted proxy IPs    | -             | No              |
+| `JWT_SECRET`                          | Secret key for JWT access token signing      | -             | Yes             |
+| `JWT_REFRESH_SECRET`                  | Secret key for JWT refresh token signing     | -             | Yes             |
+| `JWT_EXPIRES_IN`                      | Access token expiration time                 | `24h`         | No              |
+| `JWT_REFRESH_EXPIRES_IN`              | Refresh token expiration time                | `7d`          | No              |
 | `RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS` | Skip counting successful requests (2xx, 3xx) | `false`       | No              |
 | `RATE_LIMIT_SKIP_FAILED_REQUESTS`     | Skip counting failed requests (4xx, 5xx)     | `false`       | No              |
 
@@ -171,6 +190,17 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ## Endpoints
 
+### Authentication Endpoints
+
+| Path                     | Description                              |
+| ------------------------ | ---------------------------------------- |
+| POST /auth/register      | Register a new user account             |
+| POST /auth/login         | Login with email and password           |
+| POST /auth/refresh       | Refresh access token using refresh token |
+| GET /auth/me             | Get current authenticated user (protected) |
+
+### Core API Endpoints
+
 | Path                     | Description              |
 | ------------------------ | ------------------------ |
 | GET /doc                 | Open API Specification   |
@@ -181,7 +211,13 @@ All app routes are grouped together and exported into a single type as `AppType`
 | GET /tasks/{id}/Children | Get one task by id       |
 | PATCH /tasks/{id}        | Patch one task by id     |
 | DELETE /tasks/{id}       | Delete one task by id    |
+
+### GraphQL & Analytics
+
+| Path                     | Description              |
+| ------------------------ | ------------------------ |
 | GET /graphql             | GraphQL endpoint         |
+| GET /playground          | GraphQL Playground (dev only) |
 | GET /analytics/requests  | List request analytics   |
 | GET /analytics/counts    | Get aggregated analytics |
 
@@ -190,9 +226,85 @@ The `/graphql` endpoint exposes the existing database schema via GraphQL so you 
 ### GraphQL Features
 
 - **Auto-generated schema**: Database tables are automatically exposed as GraphQL types
+- **Authentication support**: Complete auth mutations (`register`, `login`, `refreshToken`) and queries (`me`)
 - **Custom queries**: Additional queries like `countRequests` for analytics with filtering and grouping
 - **Type safety**: Full TypeScript integration with proper type checking
 - **Development playground**: Interactive GraphQL playground available at `/playground` in development mode
+
+### GraphQL Authentication
+
+The GraphQL endpoint includes comprehensive authentication support:
+
+#### Mutations
+
+**register**: Create a new user account
+```graphql
+mutation RegisterUser($email: String!, $password: String!, $name: String, $imageUrl: String) {
+  register(email: $email, password: $password, name: $name, imageUrl: $imageUrl) {
+    user {
+      id
+      email
+      name
+      imageUrl
+      isActive
+      createdAt
+      updatedAt
+    }
+    accessToken
+    refreshToken
+  }
+}
+```
+
+**login**: Authenticate with email and password
+```graphql
+mutation LoginUser($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
+    user {
+      id
+      email
+      name
+      imageUrl
+      lastLoginAt
+    }
+    accessToken
+    refreshToken
+  }
+}
+```
+
+**refreshToken**: Get new tokens using refresh token
+```graphql
+mutation RefreshTokens($refreshToken: String!) {
+  refreshToken(refreshToken: $refreshToken) {
+    accessToken
+    refreshToken
+  }
+}
+```
+
+#### Queries
+
+**me**: Get current authenticated user (requires Authorization header)
+```graphql
+query GetCurrentUser {
+  me {
+    id
+    email
+    name
+    imageUrl
+    isActive
+    lastLoginAt
+    createdAt
+    updatedAt
+  }
+}
+```
+
+To use protected queries, include the JWT token in the Authorization header:
+```
+Authorization: Bearer your-jwt-token-here
+```
 
 #### Custom Queries
 

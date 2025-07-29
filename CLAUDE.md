@@ -57,7 +57,54 @@ Use `pnpm test` with file patterns:
   - Fixed timeout issues with database migrations in test environments
   - Improved error handling and async operation management
 
+### JWT Authentication System (Latest)
+
+- **Comprehensive Authentication**: Implemented complete JWT-based authentication system
+  - Access tokens (24h) and refresh tokens (7d) with secure payload structure
+  - Password validation with complexity requirements (uppercase, lowercase, digits, special chars)
+  - Email normalization and duplicate prevention with unique constraints
+  - bcrypt password hashing with environment-specific rounds (dev: 6, prod: 12)
+  - Last login tracking and user activation status management
+
+- **Database Schema Enhancements**: Extended user model with authentication fields
+  - Added `users` table with `id`, `email`, `password`, `name`, `imageUrl`, `isActive`, `lastLoginAt`, `createdAt`, `updatedAt`
+  - Added foreign key constraint for `tasks.owner` referencing `users.id` 
+  - Proper indexing for email lookups and user relationships
+
+- **GraphQL Authentication Integration**: Complete GraphQL auth implementation
+  - `register(email, password, name?, imageUrl?)` - User registration with validation
+  - `login(email, password)` - User authentication with credential verification
+  - `refreshToken(refreshToken)` - Token refresh with user validation
+  - `me` - Protected query to get current authenticated user with proper context
+  - Proper timestamp handling and user data formatting for GraphQL responses
+
+- **REST API Authentication Routes**: OpenAPI-documented authentication endpoints
+  - `POST /auth/register` - User registration with comprehensive validation
+  - `POST /auth/login` - User login with credential verification
+  - `POST /auth/refresh` - Token refresh endpoint
+  - `GET /auth/me` - Protected route to get current user data
+  - Consistent error handling and response formatting across all endpoints
+
+- **Authentication Middleware**: Secure request authentication and authorization
+  - JWT token verification with proper error handling
+  - User context injection with actual database timestamps (no placeholders)
+  - Performance optimization with JWT payload caching in non-production environments
+  - Comprehensive test coverage with 34+ test cases across REST and GraphQL
+
+- **Security Improvements**: Enhanced security measures throughout the system
+  - Fixed timestamp conversion bugs preventing Invalid Date values
+  - Resolved stale lastLoginAt issues by updating timestamps before responses
+  - Proper user data fetching with actual timestamps instead of placeholder values
+  - Rate limiting bypass in test environment to prevent test interference
+
 ### New Environment Variables
+
+Authentication configuration:
+
+- `JWT_SECRET` - Secret key for JWT access token signing (required, min 32 chars)
+- `JWT_EXPIRES_IN` - Access token expiration time (default: 24h)
+- `JWT_REFRESH_SECRET` - Secret key for JWT refresh token signing (required, min 32 chars)  
+- `JWT_REFRESH_EXPIRES_IN` - Refresh token expiration time (default: 7d)
 
 Rate limiting and security configuration:
 
@@ -99,6 +146,7 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 
 - **OpenAPI Integration**: Routes use `@hono/zod-openapi` for type-safe API documentation
 - **GraphQL**: Auto-generated from Drizzle schema using `drizzle-graphql` with custom resolvers
+- **JWT Authentication**: Complete authentication system with REST and GraphQL support
 - **Analytics**: Optional request logging when `ENABLE_ANALYTICS=true`
 - **Rate Limiting**: Configurable rate limiting with multi-runtime IP extraction
 - **Security Headers**: Comprehensive security headers with proper formatting
@@ -106,7 +154,12 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 
 ### Database Schema
 
-- **Tasks**: Hierarchical task system with parent-child relationships stored as JSON
+- **Users**: Authentication system with JWT support, password hashing, and user management
+  - Foreign key relationships with tasks for ownership tracking
+  - Proper indexing for email lookups and authentication performance
+- **Tasks**: Hierarchical task system with parent-child relationships and user ownership
+  - Owner field references users table for proper access control
+  - JSON storage for flexible child task relationships
 - **Requests**: Analytics table for request logging with automatic cleanup
 
 ### Testing Configuration
@@ -127,9 +180,12 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 
 **Required**: `DATABASE_URL`, `LOG_LEVEL`
 
+**Required for Authentication**: `JWT_SECRET`, `JWT_REFRESH_SECRET`
+
 **Optional**:
 
 - Core: `NODE_ENV`, `PORT`, `DATABASE_AUTH_TOKEN` (production only)
+- Authentication: `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`
 - Analytics: `ENABLE_ANALYTICS`, `ANALYTICS_RETENTION_DAYS`
 - Rate Limiting: `RATE_LIMIT_ENABLED`, `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_TRUST_PROXY`, `RATE_LIMIT_TRUSTED_PROXIES`, `RATE_LIMIT_SKIP_SUCCESSFUL`, `RATE_LIMIT_SKIP_FAILED`
 - Security: `SECURITY_HEADERS_ENABLED`
