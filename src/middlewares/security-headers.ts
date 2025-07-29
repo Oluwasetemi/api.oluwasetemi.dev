@@ -125,7 +125,7 @@ export const strictSecurityHeaders = securityHeaders({
 });
 
 export const apiSecurityHeaders = securityHeaders({
-  contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self'; frame-ancestors 'none';",
+  contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://embeddable-sandbox.cdn.apollographql.com https://sandbox.embed.apollographql.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://fonts.gstatic.com; connect-src 'self' https://apollo-server-landing-page.cdn.apollographql.com https://sandbox.embed.apollographql.com; frame-src 'self' https://sandbox.embed.apollographql.com; manifest-src 'self' https://apollo-server-landing-page.cdn.apollographql.com; frame-ancestors 'none';",
   xFrameOptions: "DENY",
   xContentTypeOptions: "nosniff",
 });

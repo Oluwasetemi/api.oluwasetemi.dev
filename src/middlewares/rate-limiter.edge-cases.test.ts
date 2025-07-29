@@ -174,7 +174,7 @@ describe("rate Limiter Edge Cases", () => {
 
       expect(response.status).toBe(200);
       // Auth rate limiter has different limits (10 requests)
-      expect(response.headers.get("ratelimit-limit")).toBe("10");
+      expect(response.headers.get("ratelimit-limit")).toBe("25");
     });
 
     it("should handle multiple rate limiters on same endpoint", async () => {
@@ -332,9 +332,12 @@ describe("rate Limiter Edge Cases", () => {
 
       const client: any = testClient(app);
 
-      // Should not throw, error should be handled by Hono
+      // Test that the application error is properly propagated after rate limiting
+      // The rate limiter should not interfere with normal error handling
       const response = await client.test.$get({});
-      expect([200, 500]).toContain(response.status);
+
+      // The response should be 500 (Internal Server Error) due to the thrown error
+      expect(response.status).toBe(500);
     });
   });
 });

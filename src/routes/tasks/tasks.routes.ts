@@ -120,6 +120,14 @@ export const patch = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(selectTasksSchema, "The updated task"),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      z.object({ message: z.string() }),
+      "Authentication required to update this task",
+    ),
+    [HttpStatusCodes.FORBIDDEN]: jsonContent(
+      z.object({ message: z.string() }),
+      "You can only update tasks you own",
+    ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Task not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(patchTasksSchema).or(createErrorSchema(IdUUIDParamsSchema)),
@@ -136,9 +144,21 @@ export const remove = createRoute({
     params: IdUUIDParamsSchema,
   },
   responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({ success: z.boolean(), message: z.string() }),
+      "Default task removed successfully",
+    ),
     [HttpStatusCodes.NO_CONTENT]: {
       description: "Task deleted",
     },
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      z.object({ message: z.string() }),
+      "Authentication required to delete this task",
+    ),
+    [HttpStatusCodes.FORBIDDEN]: jsonContent(
+      z.object({ message: z.string() }),
+      "You can only delete tasks you own",
+    ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Task not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(IdUUIDParamsSchema),

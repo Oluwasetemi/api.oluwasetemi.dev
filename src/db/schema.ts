@@ -4,7 +4,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-import { generateUUID } from "@/lib/uuid";
+import { generateUUID } from "@/utils/uuid";
 
 // Define enums
 export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
@@ -105,3 +105,42 @@ export const insertRequestsSchema = createInsertSchema(requests, {
   });
 
 export const patchRequestsSchema = insertRequestsSchema.partial();
+
+// Users table for authentication
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  email: text().notNull().unique(),
+  password: text().notNull(),
+  name: text(),
+  imageUrl: text("image_url"),
+  isActive: integer({ mode: "boolean" }).notNull().default(true),
+  lastLoginAt: integer({ mode: "timestamp" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_users_email").on(table.email),
+  index("idx_users_is_active").on(table.isActive),
+]);
+
+export const selectUsersSchema = createSelectSchema(users);
+
+export const insertUsersSchema = createInsertSchema(users, {
+  email: schema => schema.email.email().min(1).max(255),
+  password: schema => schema.password.min(8).max(128),
+  name: schema => schema.name.optional().nullable().transform(val => val || null),
+  imageUrl: schema => schema.imageUrl.optional().nullable().refine(val => !val || z.string().url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
+})
+  .required({
+    email: true,
+    password: true,
+  })
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    lastLoginAt: true,
+  });
+
+export const patchUsersSchema = insertUsersSchema.partial();

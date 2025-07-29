@@ -10,7 +10,7 @@ export default antfu(
       semi: true,
       quotes: "double",
     },
-    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", "CLAUDE.md"],
+    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", ".claude"],
   },
   {
     rules: {
@@ -30,7 +30,7 @@ export default antfu(
         "error",
         {
           case: "kebabCase",
-          ignore: ["README.md"],
+          ignore: ["README.md", "CLAUDE.md"],
         },
       ],
     },

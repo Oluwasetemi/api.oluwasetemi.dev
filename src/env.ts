@@ -40,6 +40,11 @@ const EnvSchema = z
     RATE_LIMIT_TRUST_PROXY: z.coerce.boolean().default(false),
     // Comma-separated list of trusted proxy IPs (when TRUST_PROXY is true)
     RATE_LIMIT_TRUSTED_PROXIES: z.string().default(""),
+    // Authentication JWT configuration
+    JWT_SECRET: z.string().min(32),
+    JWT_EXPIRES_IN: z.string().default("24h"),
+    JWT_REFRESH_SECRET: z.string().min(32),
+    JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   })
   .superRefine((input, ctx) => {
     if (input.NODE_ENV === "production" && !input.DATABASE_AUTH_TOKEN) {
@@ -50,6 +55,40 @@ const EnvSchema = z
         path: ["DATABASE_AUTH_TOKEN"],
         message: "Must be set when NODE_ENV is 'production'",
       });
+    }
+
+    // Validate JWT secrets are strong enough for production
+    if (input.NODE_ENV === "production") {
+      if (input.JWT_SECRET.length < 64) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          type: "string",
+          minimum: 64,
+          inclusive: true,
+          path: ["JWT_SECRET"],
+          message: "JWT_SECRET must be at least 64 characters in production",
+        });
+      }
+
+      if (input.JWT_REFRESH_SECRET.length < 64) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          type: "string",
+          minimum: 64,
+          inclusive: true,
+          path: ["JWT_REFRESH_SECRET"],
+          message: "JWT_REFRESH_SECRET must be at least 64 characters in production",
+        });
+      }
+
+      // Ensure secrets are different
+      if (input.JWT_SECRET === input.JWT_REFRESH_SECRET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["JWT_REFRESH_SECRET"],
+          message: "JWT_SECRET and JWT_REFRESH_SECRET must be different",
+        });
+      }
     }
   });
 

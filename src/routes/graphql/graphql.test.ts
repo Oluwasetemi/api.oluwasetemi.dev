@@ -525,4 +525,406 @@ describe("graphql route", () => {
       }
     });
   });
+
+  describe("authentication GraphQL operations", () => {
+    let userAccessToken: string;
+    let userRefreshToken: string;
+    let userId: string;
+
+    // Helper function to generate unique emails for test isolation
+    function generateUniqueEmail(base: string): string {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      return `${base}-${timestamp}-${random}@example.com`;
+    }
+
+    describe("register mutation", () => {
+      it("should register a new user", async () => {
+        const mutation = `
+          mutation RegisterUser($email: String!, $password: String!, $name: String, $imageUrl: String) {
+            register(email: $email, password: $password, name: $name, imageUrl: $imageUrl) {
+              user {
+                id
+                email
+                name
+                imageUrl
+                isActive
+                createdAt
+                updatedAt
+              }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const variables = {
+          email: generateUniqueEmail("graphql-test"),
+          password: "Password123!",
+          name: "GraphQL Test User",
+          imageUrl: "https://example.com/avatar.jpg",
+        };
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: mutation, variables }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeUndefined();
+          expect(json.data.register).toBeDefined();
+
+          const { user, accessToken, refreshToken } = json.data.register;
+
+          // Store for other tests
+          userAccessToken = accessToken;
+          userRefreshToken = refreshToken;
+          userId = user.id;
+
+          // Verify user data
+          expect(user.id).toBeDefined();
+          expect(user.email).toBe(variables.email);
+          expect(user.name).toBe(variables.name);
+          expect(user.imageUrl).toBe(variables.imageUrl);
+          expect(user.isActive).toBe(true);
+          expect(user.createdAt).toBeDefined();
+          expect(user.updatedAt).toBeDefined();
+
+          // Verify tokens
+          expect(accessToken).toBeDefined();
+          expect(typeof accessToken).toBe("string");
+          expect(refreshToken).toBeDefined();
+          expect(typeof refreshToken).toBe("string");
+        }
+      });
+
+      it("should reject registration with invalid password", async () => {
+        const mutation = `
+          mutation RegisterUser($email: String!, $password: String!) {
+            register(email: $email, password: $password) {
+              user { id }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const variables = {
+          email: generateUniqueEmail("invalid-password"),
+          password: "weak", // Invalid password
+        };
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: mutation, variables }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Password validation failed");
+        }
+      });
+
+      it("should reject registration with duplicate email", async () => {
+        const mutation = `
+          mutation RegisterUser($email: String!, $password: String!) {
+            register(email: $email, password: $password) {
+              user { id }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const duplicateEmail = generateUniqueEmail("duplicate");
+
+        // Register first user
+        const variables1 = {
+          email: duplicateEmail,
+          password: "Password123!",
+        };
+
+        await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: mutation, variables: variables1 }),
+        });
+
+        // Try to register with same email
+        const variables2 = {
+          email: duplicateEmail,
+          password: "DifferentPassword123!",
+        };
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: mutation, variables: variables2 }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Email already exists");
+        }
+      });
+    });
+
+    describe("login mutation", () => {
+      it("should login with valid credentials", async () => {
+        // First register a user
+        const email = generateUniqueEmail("login-test");
+        const password = "Password123!";
+
+        const registerMutation = `
+          mutation RegisterUser($email: String!, $password: String!) {
+            register(email: $email, password: $password) {
+              user { id }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: registerMutation,
+            variables: { email, password },
+          }),
+        });
+
+        // Now test login
+        const loginMutation = `
+          mutation LoginUser($email: String!, $password: String!) {
+            login(email: $email, password: $password) {
+              user {
+                id
+                email
+                name
+                imageUrl
+                isActive
+                lastLoginAt
+              }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: loginMutation,
+            variables: { email, password },
+          }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeUndefined();
+          expect(json.data.login).toBeDefined();
+
+          const { user, accessToken, refreshToken } = json.data.login;
+
+          expect(user.email).toBe(email);
+          expect(user.isActive).toBe(true);
+          expect(accessToken).toBeDefined();
+          expect(refreshToken).toBeDefined();
+        }
+      });
+
+      it("should reject login with invalid credentials", async () => {
+        const mutation = `
+          mutation LoginUser($email: String!, $password: String!) {
+            login(email: $email, password: $password) {
+              user { id }
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const variables = {
+          email: generateUniqueEmail("nonexistent"),
+          password: "WrongPassword123!",
+        };
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: mutation, variables }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Invalid credentials");
+        }
+      });
+    });
+
+    describe("me query", () => {
+      it("should return current user when authenticated", async () => {
+        const query = `
+          query GetMe {
+            me {
+              id
+              email
+              name
+              imageUrl
+              isActive
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${userAccessToken}`,
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeUndefined();
+          expect(json.data.me).toBeDefined();
+          expect(json.data.me.id).toBe(userId);
+          expect(json.data.me.isActive).toBe(true);
+        }
+      });
+
+      it("should return error when not authenticated", async () => {
+        const query = `
+          query GetMe {
+            me {
+              id
+              email
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Authentication required");
+        }
+      });
+
+      it("should return error with invalid token", async () => {
+        const query = `
+          query GetMe {
+            me {
+              id
+              email
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer invalid-token",
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Authentication required");
+        }
+      });
+    });
+
+    describe("refreshToken mutation", () => {
+      it("should refresh tokens with valid refresh token", async () => {
+        const mutation = `
+          mutation RefreshTokens($refreshToken: String!) {
+            refreshToken(refreshToken: $refreshToken) {
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: mutation,
+            variables: { refreshToken: userRefreshToken },
+          }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeUndefined();
+          expect(json.data.refreshToken).toBeDefined();
+
+          const { accessToken, refreshToken } = json.data.refreshToken;
+
+          expect(accessToken).toBeDefined();
+          expect(typeof accessToken).toBe("string");
+          expect(refreshToken).toBeDefined();
+          expect(typeof refreshToken).toBe("string");
+
+          // Update tokens for future tests
+          userAccessToken = accessToken;
+          userRefreshToken = refreshToken;
+        }
+      });
+
+      it("should reject invalid refresh token", async () => {
+        const mutation = `
+          mutation RefreshTokens($refreshToken: String!) {
+            refreshToken(refreshToken: $refreshToken) {
+              accessToken
+              refreshToken
+            }
+          }
+        `;
+
+        const res = await app.request("/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: mutation,
+            variables: { refreshToken: "invalid-refresh-token" },
+          }),
+        });
+
+        expect(res.status).toBe(200);
+        if (res.status === 200) {
+          const json = await res.json();
+          expect(json.errors).toBeDefined();
+          expect(json.errors[0].message).toContain("Invalid refresh token");
+        }
+      });
+    });
+  });
 });
