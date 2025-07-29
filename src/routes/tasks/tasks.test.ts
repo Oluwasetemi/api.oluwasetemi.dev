@@ -1,4 +1,3 @@
-/* eslint-disable ts/ban-ts-comment */
 import { testClient } from "hono/testing";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import {
@@ -354,23 +353,23 @@ describe("tasks routes", () => {
     // Helper function to create authenticated client
     const createAuthClient = (token: string) => ({
       tasks: {
-        $post: async (args: { json: any }) => {
+        "$post": async (args: { json: any }) => {
           return fullApp.request("/tasks", {
             method: "POST",
-            headers: { 
+            headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}` 
+              "Authorization": `Bearer ${token}`,
             },
             body: JSON.stringify(args.json),
           });
         },
-        [":id"]: {
+        ":id": {
           $patch: async (args: { param: { id: string }; json: any }) => {
             return fullApp.request(`/tasks/${args.param.id}`, {
               method: "PATCH",
-              headers: { 
+              headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}` 
+                "Authorization": `Bearer ${token}`,
               },
               body: JSON.stringify(args.json),
             });
@@ -388,11 +387,11 @@ describe("tasks routes", () => {
     beforeAll(async () => {
       // Create test app that includes auth routes for user registration/login
       fullApp = (await import("@/app")).default;
-      
+
       // Register and login two test users
       const user1Email = `user1-${Date.now()}@example.com`;
       const user2Email = `user2-${Date.now()}@example.com`;
-      
+
       // Register User 1
       const user1RegisterResponse = await fullApp.request("/auth/register", {
         method: "POST",
@@ -621,9 +620,9 @@ describe("tasks routes", () => {
       it("handles invalid bearer token gracefully", async () => {
         const response = await fullApp.request("/tasks", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            Authorization: "Bearer invalid-token" 
+            "Authorization": "Bearer invalid-token",
           },
           body: JSON.stringify({
             name: "Invalid Token Task",
@@ -640,9 +639,9 @@ describe("tasks routes", () => {
       it("handles malformed authorization header gracefully", async () => {
         const response = await fullApp.request("/tasks", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            Authorization: "NotBearer token" 
+            "Authorization": "NotBearer token",
           },
           body: JSON.stringify({
             name: "Malformed Auth Task",
@@ -659,12 +658,12 @@ describe("tasks routes", () => {
       it("handles expired token gracefully", async () => {
         // Use a token that's clearly expired (JWT with exp in the past)
         const expiredToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiZXhwIjoxfQ.invalid";
-        
+
         const response = await fullApp.request("/tasks", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${expiredToken}` 
+            "Authorization": `Bearer ${expiredToken}`,
           },
           body: JSON.stringify({
             name: "Expired Token Task",
