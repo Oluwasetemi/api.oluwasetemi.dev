@@ -46,7 +46,6 @@ const EnvSchema = z
     JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   })
   .superRefine((input, ctx) => {
-
     // Validate JWT secrets are strong enough for production
     if (input.NODE_ENV === "production") {
       if (input.JWT_SECRET.length < 64) {
@@ -91,6 +90,5 @@ if (error) {
   console.error(JSON.stringify(error.flatten().fieldErrors, null, 2));
   process.exit(1);
 }
-
 
 export default env!;
