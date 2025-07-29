@@ -1,2 +1,6 @@
 onlyBuiltDependencies:
+  - '@apollo/protobufjs'
   - better-sqlite3
+  - esbuild
+  - simple-git-hooks
+  - sqlite3
