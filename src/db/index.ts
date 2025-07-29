@@ -1,6 +1,5 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import fs from "node:fs";
 
 import env from "@/env";
 
@@ -21,11 +20,8 @@ function validateDatabaseUrl(url: string): void {
     dbPath = url.replace("file:", "");
   }
   else {
+    // eslint-disable-next-line unused-imports/no-unused-vars
     dbPath = url;
-  }
-
-  if (!fs.existsSync(dbPath)) {
-    throw new Error(`Database file not found: ${dbPath}`);
   }
 }
 
