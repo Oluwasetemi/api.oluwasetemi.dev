@@ -55,7 +55,7 @@ export const apiRateLimiter = rateLimiter({
 
 export const authRateLimiter = rateLimiter({
   windowMs: 10 * 60 * 1000,
-  limit: 10,
+  limit: 25,
   message: { error: "Too many authentication attempts, please try again later." },
   keyGenerator,
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -72,7 +72,7 @@ export const publicRateLimiter = rateLimiter({
 
 export const graphqlRateLimiter = rateLimiter({
   windowMs: 15 * 60 * 1000,
-  limit: 50,
+  limit: 500,
   message: { error: "GraphQL rate limit exceeded, please try again later." },
   keyGenerator,
   // eslint-disable-next-line unused-imports/no-unused-vars
