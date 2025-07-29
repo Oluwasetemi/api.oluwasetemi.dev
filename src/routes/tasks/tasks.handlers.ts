@@ -206,8 +206,11 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
     }
   }
 
+  // Get authenticated user if available and set as owner
+  const user = c.get("user");
   const taskToInsert = {
     ...taskData,
+    ...(user ? { owner: user.id } : {}),
   };
 
   const inserted = await db.insert(tasks).values(taskToInsert).returning().get();
@@ -268,6 +271,44 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     );
   }
 
+  // First, get the existing task to check ownership
+  const existingTask = await db.query.tasks.findFirst({
+    where(fields, operators) {
+      return operators.eq(fields.id, id);
+    },
+  });
+
+  if (!existingTask) {
+    return c.json(
+      {
+        message: HttpStatusPhrases.NOT_FOUND,
+      },
+      HttpStatusCodes.NOT_FOUND,
+    );
+  }
+
+  // Check ownership if task has an owner
+  if (existingTask.owner) {
+    const user = c.get("user");
+    if (!user) {
+      return c.json(
+        {
+          message: "Authentication required to update this task",
+        },
+        HttpStatusCodes.UNAUTHORIZED,
+      );
+    }
+
+    if (existingTask.owner !== user.id) {
+      return c.json(
+        {
+          message: "You can only update tasks you own",
+        },
+        HttpStatusCodes.FORBIDDEN,
+      );
+    }
+  }
+
   const task = await db
     .update(tasks)
     .set(updates)
@@ -297,6 +338,28 @@ export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
 
   if (task && task.isDefault) {
     return c.json({ success: true, message: "Default task removed successfully" }, HttpStatusCodes.OK);
+  }
+
+  // Check ownership if task has an owner
+  if (task && task.owner) {
+    const user = c.get("user");
+    if (!user) {
+      return c.json(
+        {
+          message: "Authentication required to delete this task",
+        },
+        HttpStatusCodes.UNAUTHORIZED,
+      );
+    }
+
+    if (task.owner !== user.id) {
+      return c.json(
+        {
+          message: "You can only delete tasks you own",
+        },
+        HttpStatusCodes.FORBIDDEN,
+      );
+    }
   }
 
   const result = await db.delete(tasks).where(eq(tasks.id, id));

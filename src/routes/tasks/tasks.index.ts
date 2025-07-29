@@ -1,9 +1,15 @@
 import { createRouter } from "@/lib/create-app";
+import { optionalAuth } from "@/middlewares/auth";
 
 import * as handlers from "./tasks.handlers"; // controllers
 import * as routes from "./tasks.routes"; // routes
 
-const router = createRouter()
+const router = createRouter();
+
+// Apply optional authentication to all tasks routes
+router.use("*", optionalAuth());
+
+router
   .openapi(routes.list, handlers.list)
   .openapi(routes.listChildren, handlers.listChildren)
   .openapi(routes.create, handlers.create)

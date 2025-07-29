@@ -62,6 +62,45 @@ export async function authMiddleware(c: Context, next: Next) {
   }
 }
 
+export async function optionalAuthMiddleware(c: Context, next: Next) {
+  const authHeader = c.req.header("Authorization");
+  const token = extractBearerToken(authHeader);
+
+  // If no token provided, continue without setting user
+  if (!token) {
+    await next();
+    return;
+  }
+
+  try {
+    const payload = AuthService.verifyAccessToken(token);
+
+    // Check if user is active (cached from JWT)
+    if (!payload.isActive) {
+      // For optional auth, we don't throw, just continue without user
+      await next();
+      return;
+    }
+
+    // Fetch complete user data with actual timestamps
+    const user = await getUserWithTimestamps(payload);
+
+    if (user) {
+      c.set("user", user);
+    }
+
+    await next();
+  }
+  catch {
+    // For optional auth, we don't throw on invalid tokens, just continue without user
+    await next();
+  }
+}
+
 export function requireAuth() {
   return authMiddleware;
+}
+
+export function optionalAuth() {
+  return optionalAuthMiddleware;
 }
