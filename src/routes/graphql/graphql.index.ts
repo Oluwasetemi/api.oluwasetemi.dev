@@ -1,6 +1,6 @@
 // src/routes/graphql/graphql.index.ts
 import { ApolloServer } from "@apollo/server";
-import { ApolloServerPluginLandingPageLocalDefault, ApolloServerPluginLandingPageProductionDefault } from "@apollo/server/plugin/landingPage/default";
+import { ApolloServerPluginLandingPageProductionDefault } from "@apollo/server/plugin/landingPage/default";
 import { makeExecutableSchema, mergeSchemas } from "@graphql-tools/schema";
 import { buildSchema } from "drizzle-graphql";
 
@@ -225,17 +225,15 @@ const schema = mergeSchemas({
 const server = new ApolloServer({
   schema,
   introspection: true,
-  plugins: [env.NODE_ENV === "production"
-    ? ApolloServerPluginLandingPageProductionDefault({
-        graphRef: "my-graph-id@my-graph-variant",
-        footer: false,
-        embed: true,
-        includeCookies: false,
-      })
-    : ApolloServerPluginLandingPageLocalDefault({
-        footer: false,
-        includeCookies: false,
-      })],
+  plugins: [
+    // Use production landing page that should be compatible with our CSP
+    ApolloServerPluginLandingPageProductionDefault({
+      graphRef: "my-graph-id@my-graph-variant",
+      footer: false,
+      embed: true,
+      includeCookies: false,
+    }),
+  ],
 });
 
 const router = createRouter();
