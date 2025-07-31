@@ -31,5 +31,5 @@ lerna-debug.log*
 
 dist/
 prod.db.backup
-prod.db-shm
-prod.db-wal
+*.db-shm
+*.db-wal
