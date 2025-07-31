@@ -228,10 +228,9 @@ const server = new ApolloServer({
   plugins: [
     // Use production landing page that should be compatible with our CSP
     ApolloServerPluginLandingPageProductionDefault({
-      graphRef: "my-graph-id@my-graph-variant",
       footer: false,
-      embed: true,
-      includeCookies: false,
+      embed: false,
+      includeCookies: true,
     }),
   ],
 });
