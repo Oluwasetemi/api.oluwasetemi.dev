@@ -152,7 +152,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ['20', '22']  # Application requires Node >=22.15.32
+        node-version: ['22', '24']  # Application requires Node >=22.15.32
       fail-fast: false
 
     env:
@@ -238,6 +238,7 @@ jobs:
     permissions:
       contents: read
       actions: write  # For triggering workflow
+      statuses: write  # For creating commit status
 
     outputs:
       deployment-triggered: ${{ steps.trigger-deploy.outputs.triggered }}
@@ -254,10 +255,10 @@ jobs:
               workflow_id: 'deploy.yml',
               ref: 'main'
             });
-            
+
             console.log('✅ Deployment workflow triggered successfully');
             core.setOutput('triggered', 'true');
-            
+
             return result;
 
       - name: Notify deployment trigger
