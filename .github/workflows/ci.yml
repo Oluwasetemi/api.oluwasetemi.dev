@@ -1,0 +1,366 @@
+---
+name: CI/CD Pipeline
+
+# Workflow triggers
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Allow manual triggering
+
+# Global environment variables available to all jobs
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DEPLOY_TIMEOUT: '300'
+  CACHE_VERSION: 'v1'
+
+# Concurrency settings to prevent multiple deployments
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Default settings for all jobs
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+# Job definitions with dependencies
+jobs:
+  # ========================================
+  # LINT JOB - Code quality and standards
+  # ========================================
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      pull-requests: write  # For PR comments
+
+    outputs:
+      lint-passed: ${{ steps.lint-check.outcome }}
+      warnings-count: ${{ steps.lint-results.outputs.warnings }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache-key-prefix: 'lint'
+
+      - name: Run ESLint
+        id: eslint
+        run: pnpm run lint
+        continue-on-error: true
+
+      - name: Run TypeScript type checking
+        id: typecheck
+        run: pnpm run typecheck
+        continue-on-error: true
+
+      - name: Security audit
+        id: security
+        run: pnpm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Lint check summary
+        id: lint-check
+        run: |
+          if [[ "${{ steps.eslint.outcome }}" == "failure" ]] || \
+             [[ "${{ steps.typecheck.outcome }}" == "failure" ]]; then
+            echo "❌ Linting or type checking failed"
+            exit 1
+          else
+            echo "✅ All linting and type checks passed"
+          fi
+
+      - name: Process lint results
+        id: lint-results
+        if: always()
+        run: |
+          # For now, just report success/failure since we're using pnpm lint
+          if [[ "${{ steps.eslint.outcome }}" == "success" ]]; then
+            echo "warnings=0" >> "$GITHUB_OUTPUT"
+            echo "No linting warnings"
+          else
+            echo "warnings=1" >> "$GITHUB_OUTPUT"
+            echo "Linting issues found"
+          fi
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const warnings = '${{ steps.lint-results.outputs.warnings }}';
+            const passed = '${{ steps.lint-check.outcome }}' === 'success';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔍 Lint Results\n\n${passed ? '✅ All checks passed!' : '❌ Some checks failed'}\n\nWarnings found: ${warnings}`
+            });
+
+  # ========================================
+  # TEST JOB - Run all test suites with Node version matrix
+  # ========================================
+  test:
+    name: Test Suite (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: lint  # Only run after lint passes
+
+    permissions:
+      contents: read
+      checks: write  # For test reporting
+
+    strategy:
+      matrix:
+        node-version: ['18', '20', '22']
+      fail-fast: false
+
+    env:
+      CI: true
+      NODE_ENV: test
+
+    outputs:
+      coverage: ${{ steps.coverage.outputs.percentage }}
+      test-results: ${{ steps.test-summary.outputs.results }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache-key-prefix: 'test'
+
+      - name: Run tests with coverage
+        id: run-tests
+        run: pnpm run test -- --coverage --run
+
+      - name: Generate coverage report
+        id: coverage
+        if: success()
+        run: |
+          # Check if coverage directory exists
+          if [ -d "coverage" ]; then
+            echo "coverage_exists=true" >> "$GITHUB_OUTPUT"
+            # Try to extract coverage percentage if coverage-summary.json exists
+            if [ -f "coverage/coverage-summary.json" ]; then
+              coverage=$(jq -r '.total.lines.pct // "0"' coverage/coverage-summary.json 2>/dev/null || echo "0")
+              echo "percentage=$coverage" >> "$GITHUB_OUTPUT"
+              echo "Code coverage: $coverage%"
+            else
+              echo "percentage=0" >> "$GITHUB_OUTPUT"
+              echo "Coverage summary not found"
+            fi
+          else
+            echo "coverage_exists=false" >> "$GITHUB_OUTPUT"
+            echo "percentage=0" >> "$GITHUB_OUTPUT"
+            echo "No coverage data generated"
+          fi
+
+      - name: Upload coverage artifact
+        if: steps.coverage.outputs.coverage_exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            !coverage/tmp/
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        if: steps.coverage.outputs.coverage_exists == 'true' && matrix.node-version == '22'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-node-${{ matrix.node-version }}
+          fail_ci_if_error: false
+
+      - name: Test summary
+        id: test-summary
+        if: always()
+        run: |
+          echo "results=${{ steps.run-tests.outcome }}" >> "$GITHUB_OUTPUT"
+          echo "Test suite with Node ${{ matrix.node-version }}: ${{ steps.run-tests.outcome }}"
+
+  # ========================================
+  # DEPLOY JOB - Deploy to target environment
+  # ========================================
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [lint, test]  # Only run after both lint and test pass
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+      deployments: write
+      id-token: write  # For OIDC
+
+    environment:
+      name: production
+      url: ${{ steps.deploy-app.outputs.url }}
+
+    outputs:
+      deployment-url: ${{ steps.deploy-app.outputs.url }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate version
+        id: version
+        run: |
+          VERSION=$(date +%Y%m%d)-${{ github.run_number }}-$(git rev-parse --short HEAD)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Deployment version: $VERSION"
+
+      - name: Build application
+        uses: ./.github/actions/build
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          build-command: 'pnpm run build'
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
+          aws-region: us-east-1
+
+      - name: Deploy to ECS
+        id: deploy-ecs
+        run: |
+          # Update ECS service with new image
+          aws ecs update-service \
+            --cluster production-cluster \
+            --service app-service \
+            --force-new-deployment \
+            --desired-count 3
+
+          # Wait for deployment to stabilize
+          aws ecs wait services-stable \
+            --cluster production-cluster \
+            --services app-service \
+            --timeout ${{ env.DEPLOY_TIMEOUT }}
+
+      - name: Deploy to Kubernetes
+        id: deploy-k8s
+        run: |
+          # Setup kubectl
+          aws eks update-kubeconfig --name production-cluster
+
+          # Apply deployment
+          kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          kubectl rollout status deployment/app --timeout=${{ env.DEPLOY_TIMEOUT }}s
+
+      - name: Run smoke tests
+        id: smoke-tests
+        run: |
+          # Wait for application to be ready
+          sleep 30
+
+          # Run basic health checks
+          curl -f https://api.example.com/health || exit 1
+          pnpm run test:smoke
+
+      - name: Create deployment record
+        id: deploy-app
+        run: |
+          URL="https://app.example.com"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+          # Record deployment in tracking system
+          curl -X POST https://deploy-tracker.example.com/deployments \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ steps.version.outputs.version }}",
+              "environment": "production",
+              "url": "'$URL'",
+              "commit": "${{ github.sha }}",
+              "deployed_by": "${{ github.actor }}",
+              "timestamp": "'$(date -Iseconds)'"
+            }'
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.deploy-app.outcome }}' === 'success' ? '✅' : '❌';
+            const version = '${{ steps.version.outputs.version }}';
+            const url = '${{ steps.deploy-app.outputs.url }}';
+
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment.id,
+              state: '${{ steps.deploy-app.outcome }}',
+              environment_url: url,
+              description: `Deployed version ${version}`
+            });
+
+      - name: Rollback on failure
+        if: failure() && steps.deploy-ecs.outcome == 'failure'
+        run: |
+          echo "Deployment failed, initiating rollback..."
+          aws ecs update-service \
+            --cluster production-cluster \
+            --service app-service \
+            --force-new-deployment
+
+          kubectl rollout undo deployment/app
