@@ -61,12 +61,36 @@ jobs:
 
       - name: Run ESLint
         id: eslint
-        run: pnpm run lint || echo "eslint_failed=true" >> "$GITHUB_ENV"
+        run: |
+          set +e  # Don't exit on error
+          pnpm run lint
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          echo "eslint_exit_code=$EXIT_CODE" >> "$GITHUB_ENV"
+          # ESLint returns 1 for errors, 0 for success (even with warnings)
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "eslint_failed=true" >> "$GITHUB_ENV"
+            echo "ESLint found errors"
+          else
+            echo "ESLint passed (may have warnings)"
+          fi
         continue-on-error: true
 
       - name: Run TypeScript type checking
         id: typecheck
-        run: pnpm run typecheck || echo "typecheck_failed=true" >> "$GITHUB_ENV"
+        run: |
+          set +e  # Don't exit on error
+          pnpm run typecheck
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          echo "typecheck_exit_code=$EXIT_CODE" >> "$GITHUB_ENV"
+          # TypeScript returns non-zero for errors
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "typecheck_failed=true" >> "$GITHUB_ENV"
+            echo "TypeScript found errors"
+          else
+            echo "TypeScript type checking passed"
+          fi
         continue-on-error: true
 
       - name: Security audit
