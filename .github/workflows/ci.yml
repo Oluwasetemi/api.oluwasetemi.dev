@@ -61,12 +61,12 @@ jobs:
 
       - name: Run ESLint
         id: eslint
-        run: pnpm run lint
+        run: pnpm run lint || echo "eslint_failed=true" >> "$GITHUB_ENV"
         continue-on-error: true
 
       - name: Run TypeScript type checking
         id: typecheck
-        run: pnpm run typecheck
+        run: pnpm run typecheck || echo "typecheck_failed=true" >> "$GITHUB_ENV"
         continue-on-error: true
 
       - name: Security audit
@@ -77,8 +77,8 @@ jobs:
       - name: Lint check summary
         id: lint-check
         run: |
-          if [[ "${{ steps.eslint.outcome }}" == "failure" ]] || \
-             [[ "${{ steps.typecheck.outcome }}" == "failure" ]]; then
+          if [[ "${{ env.eslint_failed }}" == "true" ]] || \
+             [[ "${{ env.typecheck_failed }}" == "true" ]]; then
             echo "❌ Linting or type checking failed"
             exit 1
           else
