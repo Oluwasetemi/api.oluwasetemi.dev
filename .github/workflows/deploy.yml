@@ -1,7 +1,10 @@
+---
 name: Deploy to VPS
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -10,14 +13,82 @@ env:
   PNPM_VERSION: "10.14.0"
 
 jobs:
-  deploy:
+  # ========================================
+  # TEST JOB - Run tests before deployment
+  # ========================================
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run type check
+        run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build project
+        run: pnpm run build
+
+      # Upload build artifacts for deployment job
+      - name: Upload build artifacts
+        if: matrix.node-version == '22.x'  # Only upload from one matrix job
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            package.json
+            pnpm-lock.yaml
+            ecosystem.config.cjs
+          retention-days: 1
+
+  # ========================================
+  # DEPLOY JOB - Deploy to production
+  # ========================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test  # Depends on test job completion
+
+    # Only deploy from main branch on push events (not PRs)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    # Environment protection rules
+    # Configure environment protection in GitHub Settings > Environments > production
+    # Options: required reviewers, deployment branches, environment secrets
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Re-use Node/pnpm setup from test job
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -29,6 +100,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
+      # Optional: Download build artifacts from test job instead of rebuilding
+      # Uncomment if you want to use pre-built artifacts
+      # - name: Download build artifacts
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: build-artifacts
+      #     path: .
+
+      # If not using artifacts, install dependencies and build
       - name: Install dependencies
         run: pnpm install
 
@@ -37,13 +117,13 @@ jobs:
 
       - name: Setup SSH directory
         run: |
-          mkdir -p $HOME/.ssh
+          mkdir -p "$HOME"/.ssh
 
       - name: Setup SSH for local testing (ACT)
         if: env.ACT == 'true'
         run: |
           echo "🧪 Setting up fake SSH for local testing with act"
-          cat > $HOME/.ssh/deploy_key << 'EOF'
+          cat > "$HOME"/.ssh/deploy_key << 'EOF'
           -----BEGIN OPENSSH PRIVATE KEY-----
           fake-key-for-local-testing
           -----END OPENSSH PRIVATE KEY-----
@@ -60,16 +140,16 @@ jobs:
           fi
 
           # Clean and prepare the SSH key(new)
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' | sed '/^$/d' > $HOME/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' | sed '/^$/d' > "$HOME"/.ssh/deploy_key
 
           # Validate file was created and has content
-          if [ ! -s $HOME/.ssh/deploy_key ]; then
+          if [ ! -s "$HOME"/.ssh/deploy_key ]; then
             echo "❌ SSH key file is empty after processing"
             exit 1
           fi
 
           # Check file size (SSH keys should be substantial)
-          KEY_SIZE=$(wc -c < $HOME/.ssh/deploy_key)
+          KEY_SIZE=$(wc -c < "$HOME"/.ssh/deploy_key)
           if [ "$KEY_SIZE" -lt 100 ]; then
             echo "❌ SSH key file is too small ($KEY_SIZE bytes). Expected at least 100 bytes."
             echo "This suggests the secret content is invalid or truncated."
@@ -77,13 +157,13 @@ jobs:
           fi
 
           # Ensure the key has proper SSH key format
-          if ! grep -q "BEGIN.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
+          if ! grep -q "BEGIN.*PRIVATE KEY" "$HOME"/.ssh/deploy_key; then
             echo "❌ SSH key does not contain valid header (BEGIN PRIVATE KEY)"
-            echo "File appears to contain: $(head -c 50 $HOME/.ssh/deploy_key | tr '\n' ' ')..."
+            echo "File appears to contain: $(head -c 50 "$HOME/.ssh/deploy_key" | tr '\n' ' ')..."
             exit 1
           fi
 
-          if ! grep -q "END.*PRIVATE KEY" $HOME/.ssh/deploy_key; then
+          if ! grep -q "END.*PRIVATE KEY" "$HOME"/.ssh/deploy_key; then
             echo "❌ SSH key does not contain valid footer (END PRIVATE KEY)"
             exit 1
           fi
@@ -93,23 +173,23 @@ jobs:
       - name: Configure SSH key permissions and setup agent
         if: env.ACT != 'true'   # Skip SSH agent setup in ACT mode
         run: |
-          chmod 600 $HOME/.ssh/deploy_key
+          chmod 600 "$HOME"/.ssh/deploy_key
 
           # Validate SSH key format with detailed error output
-          if ! ssh-keygen -l -f $HOME/.ssh/deploy_key 2>&1; then
+          if ! ssh-keygen -l -f "$HOME"/.ssh/deploy_key 2>&1; then
             echo "❌ SSH key validation failed"
             echo "Key file contents (first/last lines for debugging):"
-            head -2 $HOME/.ssh/deploy_key
+            head -2 "$HOME"/.ssh/deploy_key
             echo "..."
-            tail -2 $HOME/.ssh/deploy_key
+            tail -2 "$HOME"/.ssh/deploy_key
             exit 1
           fi
 
           # Setup SSH agent and export environment variables
           eval "$(ssh-agent -s)"
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
-          ssh-add $HOME/.ssh/deploy_key
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-add "$HOME"/.ssh/deploy_key
 
           echo "✅ SSH key validated and added to agent successfully"
 
@@ -117,7 +197,7 @@ jobs:
         if: env.ACT == 'true'
         run: |
           echo "🧪 Setting up SSH permissions for local testing"
-          chmod 600 $HOME/.ssh/deploy_key
+          chmod 600 "$HOME"/.ssh/deploy_key
           echo "✅ SSH permissions configured for local testing"
 
       - name: Verify ssh-agent has key
@@ -131,9 +211,9 @@ jobs:
         if: env.DEBUG_SSH == 'true' && env.ACT == 'true'
         run: |
           echo "🧪 LOCAL TESTING - Verifying fake SSH key"
-          if [ -f $HOME/.ssh/deploy_key ]; then
+          if [ -f "$HOME/.ssh/deploy_key" ]; then
             echo "✅ SSH key file exists at $HOME/.ssh/deploy_key"
-            echo "✅ Key permissions: $(ls -la $HOME/.ssh/deploy_key | awk '{print $1}')"
+            echo "✅ Key permissions: $(ls -la "$HOME/.ssh/deploy_key" | awk '{print $1}')"
             echo "📋 Simulating 'ssh-add -l' output:"
             echo "2048 SHA256:fake-fingerprint-for-local-testing fake-key-for-local-testing (ED25519)"
           else
@@ -149,7 +229,7 @@ jobs:
           Host ${{ secrets.VPS_HOST }}
             HostName ${{ secrets.VPS_HOST }}
             User ${{ secrets.VPS_USER }}
-            IdentityFile $HOME/.ssh/deploy_key
+            IdentityFile "$HOME"/.ssh/deploy_key
             IdentitiesOnly yes
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
@@ -313,12 +393,12 @@ jobs:
             echo \"🔍 Looking for backups in: \$DEPLOY_PARENT\"
             echo \"🔍 Current directory: \$(pwd)\"
             echo \"🔍 Available backups:\"
-            ls -la backup-* 2>/dev/null || echo \"No backup-* files found in current directory\"
+            find . -maxdepth 1 -name 'backup-*' -type d 2>/dev/null || echo \"No backup-* files found in current directory\"
 
             cd \"\$DEPLOY_PARENT\"
             echo \"🔍 Looking for backups in parent directory: \$(pwd)\"
             echo \"🔍 Available backups in parent:\"
-            ls -la backup-* 2>/dev/null || echo \"No backup-* files found in parent directory\"
+            find . -maxdepth 1 -name 'backup-*' -type d 2>/dev/null || echo \"No backup-* files found in parent directory\"
 
             LATEST_BACKUP=\$(ls -t backup-* 2>/dev/null | head -n1)
             echo \"🔍 Latest backup found: \$LATEST_BACKUP\"
@@ -380,7 +460,7 @@ jobs:
 
             # List all backups
             echo \"📋 All available backups:\"
-            ls -la backup-* 2>/dev/null || echo \"No backup-* files found\"
+            find . -maxdepth 1 -name 'backup-*' -type d 2>/dev/null || echo \"No backup-* files found\"
 
             # Count total backup directories (not files)
             BACKUP_COUNT=\$(find . -maxdepth 1 -type d -name \"backup-*\" | wc -l)
@@ -409,5 +489,5 @@ jobs:
 
             # Show remaining backups
             echo \"📋 Remaining backups:\"
-            ls -la backup-* 2>/dev/null || echo \"No backups remaining\"
+            find . -maxdepth 1 -name 'backup-*' -type d 2>/dev/null || echo \"No backups remaining\"
           "

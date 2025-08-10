@@ -1,10 +1,11 @@
+---
 name: Lint
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
-    branches: [main, develop]
+    # Runs on all pull request targets (no branch restrictions)
 
 jobs:
   lint:
@@ -19,14 +20,14 @@ jobs:
         with:
           version: latest
 
-      - name: Use Node.js
+      - name: Set up Node.js with cache
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Run ESLint
+      - name: Run lint script
         run: pnpm run lint
