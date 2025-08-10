@@ -226,165 +226,49 @@ jobs:
           echo "Test suite with Node ${{ matrix.node-version }}: ${{ steps.run-tests.outcome }}"
 
   # ========================================
-  # DEPLOY JOB - Deploy to target environment
+  # DEPLOY JOB - Trigger deployment workflow
   # ========================================
   deploy:
-    name: Deploy Application
+    name: Trigger Deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     needs: [lint, test]  # Only run after both lint and test pass
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     permissions:
       contents: read
-      packages: write
-      deployments: write
-      id-token: write  # For OIDC
-
-    environment:
-      name: production
-      url: ${{ steps.deploy-app.outputs.url }}
+      actions: write  # For triggering workflow
 
     outputs:
-      deployment-url: ${{ steps.deploy-app.outputs.url }}
-      version: ${{ steps.version.outputs.version }}
+      deployment-triggered: ${{ steps.trigger-deploy.outputs.triggered }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Generate version
-        id: version
-        run: |
-          VERSION=$(date +%Y%m%d)-${{ github.run_number }}-$(git rev-parse --short HEAD)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Deployment version: $VERSION"
-
-      - name: Build application
-        uses: ./.github/actions/build
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          build-command: 'pnpm run build'
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
-          aws-region: us-east-1
-
-      - name: Deploy to ECS
-        id: deploy-ecs
-        run: |
-          # Update ECS service with new image
-          aws ecs update-service \
-            --cluster production-cluster \
-            --service app-service \
-            --force-new-deployment \
-            --desired-count 3
-
-          # Wait for deployment to stabilize
-          aws ecs wait services-stable \
-            --cluster production-cluster \
-            --services app-service \
-            --timeout ${{ env.DEPLOY_TIMEOUT }}
-
-      - name: Deploy to Kubernetes
-        id: deploy-k8s
-        run: |
-          # Setup kubectl
-          aws eks update-kubeconfig --name production-cluster
-
-          # Apply deployment
-          kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-          kubectl rollout status deployment/app --timeout=${{ env.DEPLOY_TIMEOUT }}s
-
-      - name: Run smoke tests
-        id: smoke-tests
-        run: |
-          # Wait for application to be ready
-          sleep 30
-
-          # Run basic health checks
-          curl -f https://api.example.com/health || exit 1
-          pnpm run test:smoke
-
-      - name: Create deployment record
-        id: deploy-app
-        run: |
-          URL="https://app.example.com"
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-
-          # Record deployment in tracking system
-          curl -X POST https://deploy-tracker.example.com/deployments \
-            -H "Content-Type: application/json" \
-            -d '{
-              "version": "${{ steps.version.outputs.version }}",
-              "environment": "production",
-              "url": "'$URL'",
-              "commit": "${{ github.sha }}",
-              "deployed_by": "${{ github.actor }}",
-              "timestamp": "'$(date -Iseconds)'"
-            }'
-
-      - name: Notify deployment
-        if: always()
+      - name: Trigger deployment workflow
+        id: trigger-deploy
         uses: actions/github-script@v7
         with:
           script: |
-            const status = '${{ steps.deploy-app.outcome }}' === 'success' ? '✅' : '❌';
-            const version = '${{ steps.version.outputs.version }}';
-            const url = '${{ steps.deploy-app.outputs.url }}';
-
-            await github.rest.repos.createDeploymentStatus({
+            const result = await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              deployment_id: context.payload.deployment.id,
-              state: '${{ steps.deploy-app.outcome }}',
-              environment_url: url,
-              description: `Deployed version ${version}`
+              workflow_id: 'deploy.yml',
+              ref: 'main'
             });
+            
+            console.log('✅ Deployment workflow triggered successfully');
+            core.setOutput('triggered', 'true');
+            
+            return result;
 
-      - name: Rollback on failure
-        if: failure() && steps.deploy-ecs.outcome == 'failure'
-        run: |
-          echo "Deployment failed, initiating rollback..."
-          aws ecs update-service \
-            --cluster production-cluster \
-            --service app-service \
-            --force-new-deployment
-
-          kubectl rollout undo deployment/app
+      - name: Notify deployment trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'pending',
+              description: 'Deployment workflow triggered',
+              context: 'deployment/trigger'
+            });

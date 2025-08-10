@@ -21,7 +21,7 @@ This directory contains reusable composite actions that standardize common workf
 ```yaml
 - uses: ./.github/actions/setup
   with:
-    node-version: '18'        # Default: '18'
+    node-version: '22'        # Default: '22'
     pnpm-version: '10.14.0'   # Default: '10.14.0'
     cache-key-prefix: 'lint'  # Default: 'default'
 ```
@@ -45,7 +45,7 @@ This directory contains reusable composite actions that standardize common workf
 ```yaml
 - uses: ./.github/actions/build
   with:
-    node-version: '18'              # Default: '18'
+    node-version: '22'              # Default: '22'
     pnpm-version: '10.14.0'          # Default: '10.14.0'
     build-command: 'pnpm run build'  # Default: 'pnpm run build'
     cache-build-artifacts: 'true'    # Default: 'true'

@@ -4,7 +4,7 @@ inputs:
   node-version:
     description: 'Node.js version to use'
     required: false
-    default: '18'
+    default: '22'
   pnpm-version:
     description: 'pnpm version to use'
     required: false
@@ -34,7 +34,7 @@ runs:
         node-version: ${{ inputs.node-version }}
         pnpm-version: ${{ inputs.pnpm-version }}
         cache-key-prefix: 'build'
-    
+
     - name: Cache build artifacts
       id: cache-build
       if: inputs.cache-build-artifacts == 'true'
@@ -49,14 +49,14 @@ runs:
         restore-keys: |
           ${{ runner.os }}-build-node${{ inputs.node-version }}-
           ${{ runner.os }}-build-
-    
+
     - name: Build application
       if: steps.cache-build.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building application..."
         ${{ inputs.build-command }}
-    
+
     - name: Get build info
       id: build-info
       shell: bash
@@ -64,12 +64,4 @@ runs:
         # Detect build output directory
         if [ -d "dist" ]; then
           echo "path=dist" >> $GITHUB_OUTPUT
-        elif [ -d ".next" ]; then
-          echo "path=.next" >> $GITHUB_OUTPUT
-        elif [ -d "build" ]; then
-          echo "path=build" >> $GITHUB_OUTPUT
-        elif [ -d "out" ]; then
-          echo "path=out" >> $GITHUB_OUTPUT
-        else
-          echo "path=." >> $GITHUB_OUTPUT
         fi
