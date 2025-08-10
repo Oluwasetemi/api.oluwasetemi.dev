@@ -238,6 +238,7 @@ jobs:
     permissions:
       contents: read
       actions: write  # For triggering workflow
+      statuses: write  # For creating commit status
 
     outputs:
       deployment-triggered: ${{ steps.trigger-deploy.outputs.triggered }}
