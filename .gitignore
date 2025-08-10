@@ -33,3 +33,4 @@ dist/
 prod.db.backup
 *.db-shm
 *.db-wal
+coverage
