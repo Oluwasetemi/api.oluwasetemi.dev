@@ -1,0 +1,75 @@
+name: 'Build Application'
+description: 'Build application with optimized caching'
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  pnpm-version:
+    description: 'pnpm version to use'
+    required: false
+    default: '10.14.0'
+  build-command:
+    description: 'Build command to run'
+    required: false
+    default: 'pnpm run build'
+  cache-build-artifacts:
+    description: 'Whether to cache build artifacts'
+    required: false
+    default: 'true'
+outputs:
+  build-cache-hit:
+    description: 'Whether the build cache was hit'
+    value: ${{ steps.cache-build.outputs.cache-hit }}
+  build-output-path:
+    description: 'Path to build output'
+    value: ${{ steps.build-info.outputs.path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup environment
+      uses: ./.github/actions/setup
+      with:
+        node-version: ${{ inputs.node-version }}
+        pnpm-version: ${{ inputs.pnpm-version }}
+        cache-key-prefix: 'build'
+    
+    - name: Cache build artifacts
+      id: cache-build
+      if: inputs.cache-build-artifacts == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          dist
+          .next
+          build
+          out
+        key: ${{ runner.os }}-build-node${{ inputs.node-version }}-${{ hashFiles('**/pnpm-lock.yaml', 'src/**/*', '!src/**/*.test.*') }}
+        restore-keys: |
+          ${{ runner.os }}-build-node${{ inputs.node-version }}-
+          ${{ runner.os }}-build-
+    
+    - name: Build application
+      if: steps.cache-build.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        echo "Building application..."
+        ${{ inputs.build-command }}
+    
+    - name: Get build info
+      id: build-info
+      shell: bash
+      run: |
+        # Detect build output directory
+        if [ -d "dist" ]; then
+          echo "path=dist" >> $GITHUB_OUTPUT
+        elif [ -d ".next" ]; then
+          echo "path=.next" >> $GITHUB_OUTPUT
+        elif [ -d "build" ]; then
+          echo "path=build" >> $GITHUB_OUTPUT
+        elif [ -d "out" ]; then
+          echo "path=out" >> $GITHUB_OUTPUT
+        else
+          echo "path=." >> $GITHUB_OUTPUT
+        fi
