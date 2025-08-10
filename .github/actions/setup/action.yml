@@ -1,0 +1,66 @@
+name: 'Setup Environment'
+description: 'Common setup for Node.js and pnpm with caching'
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '22'
+  pnpm-version:
+    description: 'pnpm version to use'
+    required: false
+    default: '10.14.0'
+  cache-key-prefix:
+    description: 'Prefix for cache key to differentiate between jobs'
+    required: false
+    default: 'default'
+outputs:
+  pnpm-store-path:
+    description: 'The pnpm store path'
+    value: ${{ steps.pnpm-store.outputs.path }}
+  cache-hit:
+    description: 'Whether the cache was hit'
+    value: ${{ steps.cache-pnpm.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+
+    - name: Get pnpm store directory
+      id: pnpm-store
+      shell: bash
+      run: |
+        echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+    - name: Setup pnpm cache
+      id: cache-pnpm
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ steps.pnpm-store.outputs.path }}
+          ~/.pnpm-store
+        key: ${{ runner.os }}-pnpm-${{ inputs.cache-key-prefix }}-node${{ inputs.node-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-${{ inputs.cache-key-prefix }}-node${{ inputs.node-version }}-
+          ${{ runner.os }}-pnpm-${{ inputs.cache-key-prefix }}-
+          ${{ runner.os }}-pnpm-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [[ "${{ steps.cache-pnpm.outputs.cache-hit }}" != "true" ]]; then
+          echo "Cache miss - installing dependencies"
+          pnpm install --frozen-lockfile
+        else
+          echo "Cache hit - verifying dependencies"
+          pnpm install --frozen-lockfile --prefer-offline
+        fi
