@@ -44,6 +44,20 @@ const EnvSchema = z
     JWT_EXPIRES_IN: z.string().default("24h"),
     JWT_REFRESH_SECRET: z.string().min(32),
     JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+    // Better Auth configuration
+    BETTER_AUTH_URL: z.string().url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    // BETTER_AUTH_GOOGLE_CLIENT_ID: z.string().min(1),
+    // BETTER_AUTH_GOOGLE_CLIENT_SECRET: z.string().min(1),
+    // BETTER_AUTH_GOOGLE_REDIRECT_URI: z.string().url(),
+    // BETTER_AUTH_GOOGLE_POST_LOGOUT_REDIRECT_URI: z.string().url(),
+    // BETTER_AUTH_GITHUB_CLIENT_ID: z.string().min(1),
+    // BETTER_AUTH_GITHUB_CLIENT_SECRET: z.string().min(1),
+    // BETTER_AUTH_GITHUB_REDIRECT_URI: z.string().url(),
+    // BETTER_AUTH_GITHUB_POST_LOGOUT_REDIRECT_URI: z.string().url(),
+    // BETTER_AUTH_GITHUB_SCOPES: z.string().default(""),
+    // BETTER_AUTH_GITHUB_AUTHORIZATION_URL: z.string().url(),
+    // BETTER_AUTH_GITHUB_TOKEN_URL: z.string().url(),
   })
   .superRefine((input, ctx) => {
     // Validate JWT secrets are strong enough for production
