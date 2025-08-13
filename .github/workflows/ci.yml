@@ -197,7 +197,7 @@ jobs:
 
           # Better Authentication
           BETTER_AUTH_URL=http://localhost:9999
-          BETTER_AUTH_SECRET=deep-secret-key-for-testing
+          BETTER_AUTH_SECRET=deep-secret-key-for-testing-test-super-secret-jwt-key-32-characters-minimum-length-required
 
           RESEND_API_KEY=re_wey374mxnc874mnccdew23
           EOF
