@@ -202,6 +202,8 @@ Better Auth automatically handles:
 - User profile updates
 - Authentication state management
 
+Live Documentation for better-auth: [https://api.oluwasetemi.dev/api/auth/docs](https://api.oluwasetemi.dev/api/auth/docs)
+
 ## Code Tour
 
 Base hono app exported from [app.ts](./src/app.ts). Local development uses [@hono/node-server](https://hono.dev/docs/getting-started/nodejs) defined in [index.ts](./src/index.ts) - update this file or create a new entry point to use your preferred runtime.
@@ -266,6 +268,10 @@ All app routes are grouped together and exported into a single type as `AppType`
 | GET /analytics/counts   | Get aggregated analytics      |
 
 The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
+
+Use Altair GraphQL to run in production or any graphql playground. - [https://api.oluwasetemi.dev/graphql](https://api.oluwasetemi.dev/graphql)
+
+Live Documentation for whole API: [https://api.oluwasetemi.dev/reference](https://api.oluwasetemi.dev/reference)
 
 ### GraphQL Features
 

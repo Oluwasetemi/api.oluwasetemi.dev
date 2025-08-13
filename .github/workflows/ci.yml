@@ -181,25 +181,25 @@ jobs:
           PORT=9999
           LOG_LEVEL=silent
           DATABASE_URL=file:test.db
-          
+
           # Analytics settings
           ENABLE_ANALYTICS=false
           ANALYTICS_RETENTION_DAYS=30
-          
+
           # Rate limiting settings (disabled for testing)
           RATE_LIMIT_ENABLED=false
-          
+
           # JWT Authentication (for testing)
           JWT_SECRET=test-super-secret-jwt-key-32-characters-minimum-length-required
           JWT_EXPIRES_IN=1h
           JWT_REFRESH_SECRET=test-super-secret-refresh-jwt-key-32-characters-minimum-length
           JWT_REFRESH_EXPIRES_IN=24h
-          
+
           # Better Authentication
-          BETTER_AUTH_URL=http://localhost:4444
-          BETTER_AUTH_SECRET=4CUgWEO8F_uo8fBdFD7p4WXsicyzNq5H
-          
-          RESEND_API_KEY=re_DurG24S9_6YWoSimvDnfrhEEZuE3fWkWn
+          BETTER_AUTH_URL=http://localhost:9999
+          BETTER_AUTH_SECRET=deep-secret-key-for-testing
+
+          RESEND_API_KEY=re_wey374mxnc874mnccdew23
           EOF
 
       - name: Setup database schema
@@ -207,7 +207,7 @@ jobs:
 
       - name: Run tests with coverage
         id: run-tests
-        run: pnpm run test -- --coverage --run
+        run: pnpm run test:coverage
 
       - name: Generate coverage report
         id: coverage
