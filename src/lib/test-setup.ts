@@ -83,3 +83,43 @@ export async function cleanupTestDatabase(testDbPath?: string) {
     console.warn("Failed to cleanup leftover test databases:", error);
   }
 }
+
+export async function clearDatabase() {
+  // Ensure database is set up with migrations first
+  try {
+    execSync("pnpm drizzle-kit push", { stdio: "pipe" });
+  }
+  catch (error) {
+    console.warn("Failed to run migrations during clearDatabase:", error);
+  }
+
+  const testDb = drizzle({
+    connection: {
+      url: env.DATABASE_URL,
+    },
+    casing: "snake_case",
+    schema,
+  });
+
+  // Clear all tables in order due to foreign key constraints
+  try {
+    await testDb.delete(requests).run();
+  }
+  catch {
+    // Table might not exist, ignore
+  }
+
+  try {
+    await testDb.delete(tasks).run();
+  }
+  catch {
+    // Table might not exist, ignore
+  }
+
+  try {
+    await testDb.delete(users).run();
+  }
+  catch {
+    // Table might not exist, ignore
+  }
+}

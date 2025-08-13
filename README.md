@@ -36,6 +36,7 @@ This API includes comprehensive security measures and reliability improvements:
 - **Password security**: bcrypt hashing with environment-specific rounds (dev: 6, prod: 12)
 - **User management**: Email normalization, duplicate prevention, account activation, and last login tracking
 - **Multi-platform support**: Both REST API and GraphQL authentication endpoints
+- **Better Auth integration**: Modern authentication library with built-in endpoints and session management
 
 ### 🔒 Rate Limiting & Security
 
@@ -65,21 +66,27 @@ This API includes comprehensive security measures and reliability improvements:
 - **Comprehensive cleanup**: Automatic cleanup of test data and database files
 - **Multi-environment support**: Tests work across different runtime environments
 - **Analytics testing**: Full test coverage for request logging and aggregation
+- **Better Auth testing**: Complete test suite for Better Auth endpoints with authentication flows
+- **Improved coverage**: Enhanced test coverage with unit, integration, and error handling tests
 
 ### 🔧 Environment Variables
 
 Additional security and authentication-related environment variables:
 
-| Variable                     | Description                               | Default | Required |
-| ---------------------------- | ----------------------------------------- | ------- | -------- |
-| `JWT_SECRET`                 | Secret key for JWT access token signing   | -       | Yes      |
-| `JWT_REFRESH_SECRET`         | Secret key for JWT refresh token signing  | -       | Yes      |
-| `JWT_EXPIRES_IN`             | Access token expiration time              | `24h`   | No       |
-| `JWT_REFRESH_EXPIRES_IN`     | Refresh token expiration time             | `7d`    | No       |
-| `RATE_LIMIT_WINDOW_MS`       | Rate limit window in milliseconds         | `60000` | No       |
-| `RATE_LIMIT_MAX_REQUESTS`    | Max requests per window                   | `100`   | No       |
-| `RATE_LIMIT_TRUST_PROXY`     | Trust proxy headers for IP extraction     | `false` | No       |
-| `RATE_LIMIT_TRUSTED_PROXIES` | Comma-separated list of trusted proxy IPs | -       | No       |
+| Variable                     | Description                               | Default  | Required |
+| ---------------------------- | ----------------------------------------- | -------- | -------- |
+| `JWT_SECRET`                 | Secret key for JWT access token signing   | -        | Yes      |
+| `JWT_REFRESH_SECRET`         | Secret key for JWT refresh token signing  | -        | Yes      |
+| `JWT_EXPIRES_IN`             | Access token expiration time              | `24h`    | No       |
+| `JWT_REFRESH_EXPIRES_IN`     | Refresh token expiration time             | `7d`     | No       |
+| `BETTER_AUTH_URL`            | Better Auth base URL                      | -        | Yes      |
+| `BETTER_AUTH_SECRET`         | Better Auth secret key (min 32 chars)     | -        | Yes      |
+| `RESEND_API_KEY`             | Resend API key for email functionality    | -        | Yes      |
+| `RATE_LIMIT_ENABLED`         | Enable/disable rate limiting              | `true`   | No       |
+| `RATE_LIMIT_WINDOW_MS`       | Rate limit window in milliseconds         | `900000` | No       |
+| `RATE_LIMIT_MAX_REQUESTS`    | Max requests per window                   | `100`    | No       |
+| `RATE_LIMIT_TRUST_PROXY`     | Trust proxy headers for IP extraction     | `false`  | No       |
+| `RATE_LIMIT_TRUSTED_PROXIES` | Comma-separated list of trusted proxy IPs | -        | No       |
 
 ### 🚀 Performance & Reliability
 
@@ -146,16 +153,23 @@ The following environment variables are supported:
 | `DATABASE_AUTH_TOKEN`                 | Database auth token (required in production) | -             | Production only |
 | `ENABLE_ANALYTICS`                    | Enable request analytics logging             | `false`       | No              |
 | `ANALYTICS_RETENTION_DAYS`            | Days to retain analytics data                | `30`          | No              |
-| `RATE_LIMIT_WINDOW_MS`                | Rate limit window in milliseconds            | `60000`       | No              |
+| **Rate Limiting**                     |                                              |               |                 |
+| `RATE_LIMIT_ENABLED`                  | Enable/disable rate limiting                 | `true`        | No              |
+| `RATE_LIMIT_WINDOW_MS`                | Rate limit window in milliseconds            | `900000`      | No              |
 | `RATE_LIMIT_MAX_REQUESTS`             | Max requests per window                      | `100`         | No              |
 | `RATE_LIMIT_TRUST_PROXY`              | Trust proxy headers for IP extraction        | `false`       | No              |
 | `RATE_LIMIT_TRUSTED_PROXIES`          | Comma-separated list of trusted proxy IPs    | -             | No              |
+| `RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS` | Skip counting successful requests (2xx, 3xx) | `false`       | No              |
+| `RATE_LIMIT_SKIP_FAILED_REQUESTS`     | Skip counting failed requests (4xx, 5xx)     | `false`       | No              |
+| **JWT Authentication**                |                                              |               |                 |
 | `JWT_SECRET`                          | Secret key for JWT access token signing      | -             | Yes             |
 | `JWT_REFRESH_SECRET`                  | Secret key for JWT refresh token signing     | -             | Yes             |
 | `JWT_EXPIRES_IN`                      | Access token expiration time                 | `24h`         | No              |
 | `JWT_REFRESH_EXPIRES_IN`              | Refresh token expiration time                | `7d`          | No              |
-| `RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS` | Skip counting successful requests (2xx, 3xx) | `false`       | No              |
-| `RATE_LIMIT_SKIP_FAILED_REQUESTS`     | Skip counting failed requests (4xx, 5xx)     | `false`       | No              |
+| **Better Auth**                       |                                              |               |                 |
+| `BETTER_AUTH_URL`                     | Better Auth base URL                         | -             | Yes             |
+| `BETTER_AUTH_SECRET`                  | Better Auth secret key (min 32 chars)        | -             | Yes             |
+| `RESEND_API_KEY`                      | Resend API key for email functionality       | -             | Yes             |
 
 ### Analytics Configuration
 
@@ -172,6 +186,21 @@ Analytics data is automatically cleaned up after the retention period specified 
 #### Opt-out
 
 To disable analytics completely, set `ENABLE_ANALYTICS=false` or omit the variable from your environment.
+
+### Better Auth Configuration
+
+Better Auth provides modern authentication with built-in session management and security features:
+
+- **BETTER_AUTH_URL**: The base URL for your application (e.g., `http://localhost:4444`)
+- **BETTER_AUTH_SECRET**: A secure secret key (minimum 32 characters) used for session encryption and signing
+- **RESEND_API_KEY**: API key for Resend email service, used for password reset emails and other transactional emails
+
+Better Auth automatically handles:
+
+- Session management with secure cookies
+- Password reset workflows
+- User profile updates
+- Authentication state management
 
 ## Code Tour
 
@@ -192,12 +221,27 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ### Authentication Endpoints
 
+#### Legacy JWT Authentication
+
 | Path                | Description                                |
 | ------------------- | ------------------------------------------ |
 | POST /auth/register | Register a new user account                |
 | POST /auth/login    | Login with email and password              |
 | POST /auth/refresh  | Refresh access token using refresh token   |
 | GET /auth/me        | Get current authenticated user (protected) |
+
+#### Better Auth Endpoints
+
+| Path                           | Description                      |
+| ------------------------------ | -------------------------------- |
+| POST /api/auth/sign-up/email   | Register with email and password |
+| POST /api/auth/sign-in/email   | Login with email and password    |
+| POST /api/auth/sign-out        | Sign out and clear session       |
+| GET /api/auth/get-session      | Get current session information  |
+| POST /api/auth/update-user     | Update user profile (protected)  |
+| POST /api/auth/change-password | Change user password (protected) |
+| POST /api/auth/forget-password | Request password reset email     |
+| GET /api/auth/reference        | Better Auth API reference        |
 
 ### Core API Endpoints
 

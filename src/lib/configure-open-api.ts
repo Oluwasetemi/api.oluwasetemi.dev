@@ -9,7 +9,8 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     openapi: "3.0.0",
     info: {
       version: packageJSON.version,
-      title: "Tasks API",
+      title: "API.OLUWASETEMI.DEV",
+      description: "List of APIs for learning, teaching, and for fun. I have tasks(todos), analytics, authentication(standalone and better-auth) and more in the pipeline - products, posts, etc.",
     },
   });
 
