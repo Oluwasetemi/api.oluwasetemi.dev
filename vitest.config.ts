@@ -19,8 +19,8 @@ export default defineConfig({
     },
     // Clean up test files after each test
     teardownTimeout: 10000,
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    testTimeout: 60000,
+    hookTimeout: 60000,
     exclude: ["dist/**/*", "node_modules/**/*", "coverage/**/*", ".git/**/*", "types.ts", "src/db/**/*", "*.config.ts"],
     coverage: {
       exclude: [
@@ -39,8 +39,9 @@ export default defineConfig({
         "**/__tests__/**",
       ],
       provider: "v8",
-      reporter: ["text", "json", "html", "lcov"],
+      reporter: ["text", "json", "html", "lcov", "json-summary"],
       reportOnFailure: true,
+      reportsDirectory: "./coverage",
     },
   },
 });

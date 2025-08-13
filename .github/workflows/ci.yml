@@ -214,21 +214,27 @@ jobs:
         if: always() && steps.run-tests.outcome != 'cancelled'
         run: |
           # Check if coverage directory exists
-          if [ -d "coverage" ]; then
-            echo "coverage_exists=true" >> "$GITHUB_OUTPUT"
-            # Try to extract coverage percentage if coverage-summary.json exists
-            if [ -f "coverage/coverage-summary.json" ]; then
-              coverage=$(jq -r '.total.lines.pct // "0"' coverage/coverage-summary.json 2>/dev/null || echo "0")
-              echo "percentage=$coverage" >> "$GITHUB_OUTPUT"
-              echo "Code coverage: $coverage%"
-            else
-              echo "percentage=0" >> "$GITHUB_OUTPUT"
-              echo "Coverage summary not found"
-            fi
+          # Correct path to the coverage directory
+          COVERAGE_DIR="src/coverage"
+
+          # Check if the correct directory exists
+          if [ -d "$COVERAGE_DIR" ]; then
+              echo "coverage_exists=true" >> "$GITHUB_OUTPUT"
+
+              # Try to extract coverage percentage from the correct path
+              if [ -f "$COVERAGE_DIR/coverage-summary.json" ]; then
+                # Use jq to parse the JSON file at the correct location
+                coverage=$(jq -r '.total.lines.pct // "0"' "$COVERAGE_DIR/coverage-summary.json" 2>/dev/null || echo "0")
+                echo "percentage=$coverage" >> "$GITHUB_OUTPUT"
+                echo "Code coverage: $coverage%"
+              else
+                echo "percentage=0" >> "$GITHUB_OUTPUT"
+                echo "Coverage summary not found in $COVERAGE_DIR"
+              fi
           else
-            echo "coverage_exists=false" >> "$GITHUB_OUTPUT"
-            echo "percentage=0" >> "$GITHUB_OUTPUT"
-            echo "No coverage data generated"
+              echo "coverage_exists=false" >> "$GITHUB_OUTPUT"
+              echo "percentage=0" >> "$GITHUB_OUTPUT"
+              echo "No coverage data generated"
           fi
 
       - name: Upload coverage artifact
@@ -237,15 +243,15 @@ jobs:
         with:
           name: coverage-node-${{ matrix.node-version }}
           path: |
-            coverage/
-            !coverage/tmp/
+            src/coverage/
+            !src/coverage/tmp/
           retention-days: 7
 
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.coverage_exists == 'true' && matrix.node-version == '22'
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage/lcov.info
+          files: ./src/coverage/lcov.info
           flags: unittests
           name: codecov-node-${{ matrix.node-version }}
           fail_ci_if_error: false
