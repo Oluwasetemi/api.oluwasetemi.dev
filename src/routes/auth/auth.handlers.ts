@@ -10,11 +10,11 @@ import { AuthService } from "@/lib/auth";
 import type { LoginRoute, MeRoute, RefreshRoute, RegisterRoute } from "./auth.routes";
 
 export const register: AppRouteHandler<RegisterRoute> = async (c) => {
-  const { email, password, name, imageUrl } = c.req.valid("json");
+  const { email, password, name, image } = c.req.valid("json");
 
   const normalizedEmail = AuthService.normalizeEmail(email);
 
-  const passwordValidation = AuthService.validatePassword(password);
+  const passwordValidation = AuthService.validatePassword(password || "");
   if (!passwordValidation.isValid) {
     throw new HTTPException(HttpStatusCodes.UNPROCESSABLE_ENTITY, {
       message: `Password validation failed: ${passwordValidation.errors.join(", ")}`,
@@ -28,21 +28,22 @@ export const register: AppRouteHandler<RegisterRoute> = async (c) => {
     });
   }
 
-  const hashedPassword = await AuthService.hashPassword(password);
+  const hashedPassword = await AuthService.hashPassword(password || "");
 
   const [newUser] = await db
     .insert(users)
     .values({
       email: normalizedEmail,
       password: hashedPassword,
-      name: name || null,
-      imageUrl: imageUrl || null,
+      name,
+      image: image || null,
     })
     .returning({
       id: users.id,
       email: users.email,
       name: users.name,
-      imageUrl: users.imageUrl,
+      image: users.image,
+      emailVerified: users.emailVerified,
       isActive: users.isActive,
       lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt,
@@ -53,7 +54,7 @@ export const register: AppRouteHandler<RegisterRoute> = async (c) => {
     userId: newUser.id,
     email: newUser.email,
     name: newUser.name,
-    imageUrl: newUser.imageUrl,
+    image: newUser.image,
     isActive: newUser.isActive,
   };
   const accessToken = AuthService.generateAccessToken(tokenPayload);
@@ -63,7 +64,10 @@ export const register: AppRouteHandler<RegisterRoute> = async (c) => {
 
   return c.json(
     {
-      user: newUser,
+      user: {
+        ...newUser,
+        imageUrl: newUser.image, // Map image to imageUrl for API consistency
+      },
       accessToken,
       refreshToken,
     },
@@ -84,7 +88,7 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
     );
   }
 
-  const isValid = await AuthService.verifyPassword(password, user.password);
+  const isValid = await AuthService.verifyPassword(password, user.password || "");
   if (!isValid) {
     return c.json(
       { message: "Invalid credentials" },
@@ -96,7 +100,7 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
     userId: user.id,
     email: user.email,
     name: user.name,
-    imageUrl: user.imageUrl,
+    image: user.image,
     isActive: user.isActive,
   };
   const accessToken = AuthService.generateAccessToken(tokenPayload);
@@ -109,9 +113,7 @@ export const login: AppRouteHandler<LoginRoute> = async (c) => {
   return c.json({
     user: {
       ...userWithoutPassword,
-      lastLoginAt: userWithoutPassword.lastLoginAt ? new Date(userWithoutPassword.lastLoginAt) : null,
-      createdAt: userWithoutPassword.createdAt ? new Date(userWithoutPassword.createdAt) : null,
-      updatedAt: userWithoutPassword.updatedAt ? new Date(userWithoutPassword.updatedAt) : null,
+      imageUrl: userWithoutPassword.image, // Map image to imageUrl for API consistency
     },
     accessToken,
     refreshToken,
@@ -136,7 +138,7 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
       userId: user.id,
       email: user.email,
       name: user.name,
-      imageUrl: user.imageUrl,
+      image: user.image,
       isActive: user.isActive,
     };
     const newAccessToken = AuthService.generateAccessToken(tokenPayload);
@@ -157,5 +159,8 @@ export const refresh: AppRouteHandler<RefreshRoute> = async (c) => {
 
 export const me: AppRouteHandler<MeRoute> = async (c) => {
   const user = c.get("user");
-  return c.json(user, HttpStatusCodes.OK);
+  return c.json({
+    ...user,
+    imageUrl: user.image, // Map image to imageUrl for API consistency
+  }, HttpStatusCodes.OK);
 };

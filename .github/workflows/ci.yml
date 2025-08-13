@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 # Workflow triggers
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering
@@ -173,30 +173,68 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache-key-prefix: 'test'
 
+      - name: Create test environment
+        run: |
+          cp .env.example .env.test || true
+          cat > .env.test << EOF
+          NODE_ENV=test
+          PORT=9999
+          LOG_LEVEL=silent
+          DATABASE_URL=file:test.db
+
+          # Analytics settings
+          ENABLE_ANALYTICS=false
+          ANALYTICS_RETENTION_DAYS=30
+
+          # Rate limiting settings (disabled for testing)
+          RATE_LIMIT_ENABLED=false
+
+          # JWT Authentication (for testing)
+          JWT_SECRET=test-super-secret-jwt-key-32-characters-minimum-length-required
+          JWT_EXPIRES_IN=1h
+          JWT_REFRESH_SECRET=test-super-secret-refresh-jwt-key-32-characters-minimum-length
+          JWT_REFRESH_EXPIRES_IN=24h
+
+          # Better Authentication
+          BETTER_AUTH_URL=http://localhost:9999
+          BETTER_AUTH_SECRET=deep-secret-key-for-testing-test-super-secret-jwt-key-32-characters-minimum-length-required
+
+          RESEND_API_KEY=re_test_mock_api_key_for_testing_only
+          EOF
+
+      - name: Setup database schema
+        run: pnpm drizzle-kit push
+
       - name: Run tests with coverage
         id: run-tests
-        run: pnpm run test -- --coverage --run
+        run: pnpm run test:coverage
 
       - name: Generate coverage report
         id: coverage
-        if: success()
+        if: always() && steps.run-tests.outcome != 'cancelled'
         run: |
           # Check if coverage directory exists
-          if [ -d "coverage" ]; then
-            echo "coverage_exists=true" >> "$GITHUB_OUTPUT"
-            # Try to extract coverage percentage if coverage-summary.json exists
-            if [ -f "coverage/coverage-summary.json" ]; then
-              coverage=$(jq -r '.total.lines.pct // "0"' coverage/coverage-summary.json 2>/dev/null || echo "0")
-              echo "percentage=$coverage" >> "$GITHUB_OUTPUT"
-              echo "Code coverage: $coverage%"
-            else
-              echo "percentage=0" >> "$GITHUB_OUTPUT"
-              echo "Coverage summary not found"
-            fi
+          # Correct path to the coverage directory
+          COVERAGE_DIR="src/coverage"
+
+          # Check if the correct directory exists
+          if [ -d "$COVERAGE_DIR" ]; then
+              echo "coverage_exists=true" >> "$GITHUB_OUTPUT"
+
+              # Try to extract coverage percentage from the correct path
+              if [ -f "$COVERAGE_DIR/coverage-summary.json" ]; then
+                # Use jq to parse the JSON file at the correct location
+                coverage=$(jq -r '.total.lines.pct // "0"' "$COVERAGE_DIR/coverage-summary.json" 2>/dev/null || echo "0")
+                echo "percentage=$coverage" >> "$GITHUB_OUTPUT"
+                echo "Code coverage: $coverage%"
+              else
+                echo "percentage=0" >> "$GITHUB_OUTPUT"
+                echo "Coverage summary not found in $COVERAGE_DIR"
+              fi
           else
-            echo "coverage_exists=false" >> "$GITHUB_OUTPUT"
-            echo "percentage=0" >> "$GITHUB_OUTPUT"
-            echo "No coverage data generated"
+              echo "coverage_exists=false" >> "$GITHUB_OUTPUT"
+              echo "percentage=0" >> "$GITHUB_OUTPUT"
+              echo "No coverage data generated"
           fi
 
       - name: Upload coverage artifact
@@ -205,15 +243,15 @@ jobs:
         with:
           name: coverage-node-${{ matrix.node-version }}
           path: |
-            coverage/
-            !coverage/tmp/
+            src/coverage/
+            !src/coverage/tmp/
           retention-days: 7
 
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.coverage_exists == 'true' && matrix.node-version == '22'
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage/lcov.info
+          files: ./src/coverage/lcov.info
           flags: unittests
           name: codecov-node-${{ matrix.node-version }}
           fail_ci_if_error: false

@@ -7,7 +7,6 @@ import {
   expect,
   it,
 } from "vitest";
-import { ZodIssueCode } from "zod";
 
 import env from "@/env";
 import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
@@ -265,7 +264,7 @@ describe("tasks routes", () => {
     if (response.status === 422) {
       const json = await response.json();
       expect(json.error.issues[0].path[0]).toBe("name");
-      expect(json.error.issues[0].code).toBe(ZodIssueCode.too_small);
+      expect(json.error.issues[0].code).toBe("too_small");
     }
   });
 

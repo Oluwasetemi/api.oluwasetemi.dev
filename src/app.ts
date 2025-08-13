@@ -2,15 +2,43 @@ import configureOpenAPI from "@/lib/configure-open-api";
 import createApp from "@/lib/create-app";
 import analytics from "@/routes/analytics/analytics.index";
 import auth from "@/routes/auth/auth.index";
+import betterAuth from "@/routes/better-auth/better-auth.index";
 import graphql from "@/routes/graphql/graphql.index";
 import index from "@/routes/index.route";
 import tasks from "@/routes/tasks/tasks.index";
+
+import { sendEmail } from "./lib/email";
 
 const app = createApp();
 
 configureOpenAPI(app);
 
-const routes = [index, tasks, graphql, analytics, auth] as const;
+app.get("/health", async (c) => {
+  return c.json({ message: "OK" });
+});
+
+app.get("/email/test", async (c) => {
+  const data = await sendEmail({
+    to: "setemiojo@gmail.com",
+    subject: "Hello world",
+    text: "Hello world",
+    html: "<h1>Hello world</h1>",
+  });
+  return c.json(data);
+});
+
+app.post("/email", async (c) => {
+  const { to, subject, text, html } = await c.req.json();
+  const data = await sendEmail({
+    to,
+    subject,
+    text,
+    html,
+  });
+  return c.json(data);
+});
+
+const routes = [index, tasks, graphql, analytics, auth, betterAuth] as const;
 
 routes.forEach((route) => {
   app.route("/", route);

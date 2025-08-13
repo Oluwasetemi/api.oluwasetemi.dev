@@ -541,13 +541,13 @@ describe("graphql route", () => {
     describe("register mutation", () => {
       it("should register a new user", async () => {
         const mutation = `
-          mutation RegisterUser($email: String!, $password: String!, $name: String, $imageUrl: String) {
-            register(email: $email, password: $password, name: $name, imageUrl: $imageUrl) {
+          mutation RegisterUser($email: String!, $password: String!, $name: String, $image: String) {
+            register(email: $email, password: $password, name: $name, image: $image) {
               user {
                 id
                 email
                 name
-                imageUrl
+                image
                 isActive
                 createdAt
                 updatedAt
@@ -562,7 +562,7 @@ describe("graphql route", () => {
           email: generateUniqueEmail("graphql-test"),
           password: "Password123!",
           name: "GraphQL Test User",
-          imageUrl: "https://example.com/avatar.jpg",
+          image: "https://example.com/avatar.jpg",
         };
 
         const res = await app.request("/graphql", {
@@ -588,7 +588,7 @@ describe("graphql route", () => {
           expect(user.id).toBeDefined();
           expect(user.email).toBe(variables.email);
           expect(user.name).toBe(variables.name);
-          expect(user.imageUrl).toBe(variables.imageUrl);
+          expect(user.image).toBe(variables.image);
           expect(user.isActive).toBe(true);
           expect(user.createdAt).toBeDefined();
           expect(user.updatedAt).toBeDefined();
@@ -710,7 +710,7 @@ describe("graphql route", () => {
                 id
                 email
                 name
-                imageUrl
+                image
                 isActive
                 lastLoginAt
               }
@@ -783,7 +783,7 @@ describe("graphql route", () => {
               id
               email
               name
-              imageUrl
+              image
               isActive
             }
           }

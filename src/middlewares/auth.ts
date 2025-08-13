@@ -10,12 +10,13 @@ export type AuthVariables = {
   user: {
     id: string;
     email: string;
-    name: string | null;
-    imageUrl: string | null;
+    name: string;
+    image: string | null;
+    emailVerified: boolean;
     isActive: boolean;
     lastLoginAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: Date | null;
+    updatedAt: Date | null;
   };
 };
 

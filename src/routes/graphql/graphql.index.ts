@@ -30,7 +30,7 @@ const typeDefs = `
   }
   type Mutation {
     sayHello(input: String!): String!
-    register(email: String!, password: String!, name: String, imageUrl: String): AuthResponse!
+    register(email: String!, password: String!, name: String, image: String): AuthResponse!
     login(email: String!, password: String!): AuthResponse!
     refreshToken(refreshToken: String!): TokenResponse!
   }
@@ -38,7 +38,7 @@ const typeDefs = `
     id: ID!
     email: String!
     name: String
-    imageUrl: String
+    image: String
     isActive: Boolean!
     lastLoginAt: String
     createdAt: String!
@@ -86,11 +86,11 @@ const resolvers = {
     sayHello: async (_: any, { input }: { input: string }) => {
       return `Hello, ${input}!`;
     },
-    register: async (_: any, { email, password, name, imageUrl }: {
+    register: async (_: any, { email, password, name, image }: {
       email: string;
       password: string;
       name?: string;
-      imageUrl?: string;
+      image?: string;
     }) => {
       const normalizedEmail = AuthService.normalizeEmail(email);
 
@@ -111,14 +111,14 @@ const resolvers = {
         .values({
           email: normalizedEmail,
           password: hashedPassword,
-          name: name || null,
-          imageUrl: imageUrl || null,
+          name: name || "",
+          image: image || null,
         })
         .returning({
           id: users.id,
           email: users.email,
           name: users.name,
-          imageUrl: users.imageUrl,
+          image: users.image,
           isActive: users.isActive,
           lastLoginAt: users.lastLoginAt,
           createdAt: users.createdAt,
@@ -129,7 +129,7 @@ const resolvers = {
         userId: newUser.id,
         email: newUser.email,
         name: newUser.name,
-        imageUrl: newUser.imageUrl,
+        image: newUser.image,
         isActive: newUser.isActive,
       };
       const accessToken = AuthService.generateAccessToken(tokenPayload);
@@ -156,7 +156,7 @@ const resolvers = {
         throw new Error("Invalid credentials");
       }
 
-      const isValid = await AuthService.verifyPassword(password, user.password);
+      const isValid = await AuthService.verifyPassword(password, user.password || "");
       if (!isValid) {
         throw new Error("Invalid credentials");
       }
@@ -172,7 +172,7 @@ const resolvers = {
         userId: updatedUser.id,
         email: updatedUser.email,
         name: updatedUser.name,
-        imageUrl: updatedUser.imageUrl,
+        image: updatedUser.image,
         isActive: updatedUser.isActive,
       };
       const accessToken = AuthService.generateAccessToken(tokenPayload);
@@ -197,7 +197,7 @@ const resolvers = {
           userId: user.id,
           email: user.email,
           name: user.name,
-          imageUrl: user.imageUrl,
+          image: user.image,
           isActive: user.isActive,
         };
         const newAccessToken = AuthService.generateAccessToken(tokenPayload);

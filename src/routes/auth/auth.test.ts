@@ -72,7 +72,7 @@ describe("auth API", () => {
         email: generateUniqueEmail("test"),
         password: "Password123!",
         name: "Test User",
-        imageUrl: "https://example.com/avatar.jpg",
+        image: "https://example.com/avatar.jpg",
       };
 
       const response = await client.auth.register.$post({
@@ -87,7 +87,7 @@ describe("auth API", () => {
       expect(data).toHaveProperty("refreshToken");
       expect(data.user.email).toBe(userData.email);
       expect(data.user.name).toBe(userData.name);
-      expect(data.user.imageUrl).toBe(userData.imageUrl);
+      expect(data.user.imageUrl).toBe(userData.image);
       expect(data.user).not.toHaveProperty("password");
     });
 
@@ -96,7 +96,7 @@ describe("auth API", () => {
         email: generateUniqueEmail("duplicate"),
         password: "Password123!",
         name: "Test User",
-        imageUrl: "https://example.com/avatar2.jpg",
+        image: "https://example.com/avatar2.jpg",
       };
 
       // Register first user
@@ -116,12 +116,12 @@ describe("auth API", () => {
       expect(response.status).toBe(409); // Conflict
     });
 
-    it("should validate imageUrl format", async () => {
+    it("should validate image format", async () => {
       const userData = {
         email: generateUniqueEmail("invalidurl"),
         password: "Password123!",
         name: "Test User",
-        imageUrl: "not-a-valid-url",
+        image: "not-a-valid-url",
       };
 
       const response = await app.request("/auth/register", {
@@ -140,7 +140,7 @@ describe("auth API", () => {
         email: generateUniqueEmail("login"),
         password: "Password123!",
         name: "Login User",
-        imageUrl: "https://example.com/login-avatar.jpg",
+        image: "https://example.com/login-avatar.jpg",
       };
 
       // Register user first
@@ -189,7 +189,7 @@ describe("auth API", () => {
         email: generateUniqueEmail("profile"),
         password: "Password123!",
         name: "Profile User",
-        imageUrl: "https://example.com/profile-avatar.jpg",
+        image: "https://example.com/profile-avatar.jpg",
       };
 
       // Register and get token
@@ -231,7 +231,7 @@ describe("auth API", () => {
         email: generateUniqueEmail("refresh"),
         password: "Password123!",
         name: "Refresh User",
-        imageUrl: "https://example.com/refresh-avatar.jpg",
+        image: "https://example.com/refresh-avatar.jpg",
       };
 
       // Register and get tokens

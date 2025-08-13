@@ -5,19 +5,20 @@ import { createMessageObjectSchema } from "stoker/openapi/schemas";
 
 import { insertUsersSchema, selectUsersSchema } from "@/db/schema";
 
+// Create a user schema without password for responses
+const userResponseSchema = selectUsersSchema.omit({ password: true });
+
 const tags = ["Auth"];
 
-const UserSchema = selectUsersSchema.omit({ password: true });
-
 const LoginSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
 const RegisterSchema = insertUsersSchema;
 
 const AuthResponseSchema = z.object({
-  user: UserSchema,
+  user: userResponseSchema,
   accessToken: z.string(),
   refreshToken: z.string(),
 });
@@ -35,6 +36,7 @@ export const register = createRoute({
   path: "/auth/register",
   method: "post",
   tags,
+  description: "Register a new user",
   summary: "Register a new user",
   request: {
     body: jsonContentRequired(RegisterSchema, "User registration data"),
@@ -50,6 +52,7 @@ export const login = createRoute({
   path: "/auth/login",
   method: "post",
   tags,
+  description: "Login a user",
   summary: "Login user",
   request: {
     body: jsonContentRequired(LoginSchema, "User login credentials"),
@@ -65,6 +68,7 @@ export const refresh = createRoute({
   path: "/auth/refresh",
   method: "post",
   tags,
+  description: "Refresh access token",
   summary: "Refresh access token",
   request: {
     body: jsonContentRequired(RefreshSchema, "Refresh token"),
@@ -80,9 +84,10 @@ export const me = createRoute({
   path: "/auth/me",
   method: "get",
   tags,
+  description: "Get current user profile",
   summary: "Get current user profile",
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(UserSchema, "Current user profile"),
+    [HttpStatusCodes.OK]: jsonContent(userResponseSchema, "Current user profile"),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(createMessageObjectSchema("Authentication required"), "Authentication required"),
   },
 });
