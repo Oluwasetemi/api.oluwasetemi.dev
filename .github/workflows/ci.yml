@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 # Workflow triggers
 on:
   push:
-    branches: ['**']
+    branches: [main, develop]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering
@@ -199,7 +199,7 @@ jobs:
           BETTER_AUTH_URL=http://localhost:9999
           BETTER_AUTH_SECRET=deep-secret-key-for-testing-test-super-secret-jwt-key-32-characters-minimum-length-required
 
-          RESEND_API_KEY=re_wey374mxnc874mnccdew23
+          RESEND_API_KEY=re_test_mock_api_key_for_testing_only
           EOF
 
       - name: Setup database schema

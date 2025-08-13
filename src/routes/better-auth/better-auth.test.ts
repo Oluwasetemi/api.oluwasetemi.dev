@@ -1,10 +1,19 @@
 import { testClient } from "hono/testing";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "@/lib/create-app";
+// Get the mocked function for test assertions
+import { sendEmail } from "@/lib/email";
 import { clearDatabase } from "@/lib/test-setup";
 
 import betterAuthRoutes from "./better-auth.index";
+
+// Mock email sending in test environment and CI
+// This prevents actual emails from being sent during testing
+vi.mock("@/lib/email", () => ({
+  sendEmail: vi.fn().mockResolvedValue({ id: "mock-email-id" }),
+}));
+const mockSendEmail = vi.mocked(sendEmail);
 
 // Create test app
 const app = createRouter();
@@ -14,6 +23,12 @@ const client = testClient(app) as any;
 describe("better Auth Integration", () => {
   beforeEach(async () => {
     await clearDatabase();
+    mockSendEmail.mockClear();
+  });
+
+  it("should have email service properly mocked", () => {
+    expect(vi.isMockFunction(mockSendEmail)).toBe(true);
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   describe("pOST /api/auth/sign-up/email", () => {
@@ -35,6 +50,17 @@ describe("better Auth Integration", () => {
       expect(data.user.email).toBe(userData.email);
       expect(data.user.name).toBe(userData.name);
       expect(data.user.emailVerified).toBe(false);
+
+      // Verify email verification email was sent (mocked)
+      // Note: Better Auth may send verification email on signup if configured
+      if (mockSendEmail.mock.calls.length > 0) {
+        expect(mockSendEmail).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: "john@example.com",
+            subject: expect.stringContaining("Verify"),
+          }),
+        );
+      }
     });
 
     it("should reject registration with invalid email", async () => {
@@ -430,6 +456,16 @@ describe("better Auth Integration", () => {
       const data = await response.json();
       expect(data).toHaveProperty("status");
       // Better Auth returns minimal response for password reset
+
+      // Verify that email was sent (mocked)
+      expect(mockSendEmail).toHaveBeenCalledOnce();
+      expect(mockSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "john@example.com",
+          subject: "Reset your password",
+          text: expect.stringContaining("Click the link to reset your password"),
+        }),
+      );
     });
 
     it("should handle password reset for non-existent user", async () => {
