@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { z } from "zod/v4";
 
 import { asc, desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
@@ -213,7 +213,11 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
     ...(user ? { owner: user.id } : {}),
   };
 
-  const inserted = await db.insert(tasks).values(taskToInsert).returning().get();
+  const inserted = await db.insert(tasks).values({
+    ...taskToInsert,
+    priority: taskToInsert.priority && typeof taskToInsert.priority === "string" ? taskToInsert.priority : "MEDIUM",
+    status: taskToInsert.status && typeof taskToInsert.status === "string" ? taskToInsert.status : "TODO",
+  }).returning().get();
   return c.json(inserted, HttpStatusCodes.OK);
 };
 
@@ -252,7 +256,9 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
   const { id } = c.req.valid("param");
   const updates = c.req.valid("json");
 
-  if (Object.keys(updates).length === 0) {
+  const hasValidUpdates = Object.values(updates).some(value => value !== undefined && value !== null);
+
+  if (!hasValidUpdates) {
     return c.json(
       {
         success: false,
@@ -309,9 +315,32 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     }
   }
 
+  // Filter out any invalid enum values and keep only string values
+  const cleanUpdates: any = { ...updates };
+
+  // Clean priority field
+  if (updates.priority !== undefined) {
+    if (typeof updates.priority === "string" && ["LOW", "MEDIUM", "HIGH"].includes(updates.priority)) {
+      cleanUpdates.priority = updates.priority;
+    }
+    else {
+      delete cleanUpdates.priority;
+    }
+  }
+
+  // Clean status field
+  if (updates.status !== undefined) {
+    if (typeof updates.status === "string" && ["TODO", "IN_PROGRESS", "DONE", "CANCELLED"].includes(updates.status)) {
+      cleanUpdates.status = updates.status;
+    }
+    else {
+      delete cleanUpdates.status;
+    }
+  }
+
   const task = await db
     .update(tasks)
-    .set(updates)
+    .set(cleanUpdates)
     .where(eq(tasks.id, id))
     .returning()
     .get();

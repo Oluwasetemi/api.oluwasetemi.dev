@@ -3,7 +3,7 @@ import type { JWTPayload } from "@/lib/auth";
 import { AuthService } from "@/lib/auth";
 
 export function timestampToISOString(timestamp: Date | number | null): string | null {
-  if (!timestamp)
+  if (timestamp === null || timestamp === undefined)
     return null;
   if (timestamp instanceof Date) {
     return timestamp.toISOString();

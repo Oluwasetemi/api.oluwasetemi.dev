@@ -2,7 +2,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { generateUUID } from "@/utils/uuid";
 
@@ -67,7 +67,10 @@ export const insertTasksSchema = createInsertSchema(tasks, {
     updatedAt: true,
   });
 
-export const patchTasksSchema = insertTasksSchema.partial();
+export const patchTasksSchema = insertTasksSchema.partial().refine(
+  data => Object.keys(data).length > 0,
+  { message: "No updates provided", path: [] },
+);
 
 // Requests table for analytics
 export const requests = sqliteTable("requests", {
@@ -106,17 +109,18 @@ export const insertRequestsSchema = createInsertSchema(requests, {
 
 export const patchRequestsSchema = insertRequestsSchema.partial();
 
-// Users table for authentication
+// Users table for authentication - Compatible with Better Auth and existing schema
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => generateUUID()),
   email: text().notNull().unique(),
-  password: text().notNull(),
-  name: text(),
-  imageUrl: text("image_url"),
+  name: text().notNull(),
+  password: text("password"),
+  image: text("image_url"),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
   isActive: integer({ mode: "boolean" }).notNull().default(true),
   lastLoginAt: integer({ mode: "timestamp" }),
-  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 }, table => [
@@ -128,19 +132,65 @@ export const selectUsersSchema = createSelectSchema(users);
 
 export const insertUsersSchema = createInsertSchema(users, {
   email: schema => schema.email.email().min(1).max(255),
-  password: schema => schema.password.min(8).max(128),
-  name: schema => schema.name.optional().nullable().transform(val => val || null),
-  imageUrl: schema => schema.imageUrl.optional().nullable().refine(val => !val || z.string().url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
+  name: schema => schema.name.min(1).max(255),
+  image: schema => schema.image.optional().nullable().refine(val => !val || z.string().url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
 })
   .required({
     email: true,
-    password: true,
+    name: true,
   })
   .omit({
     id: true,
     createdAt: true,
     updatedAt: true,
-    lastLoginAt: true,
   });
 
 export const patchUsersSchema = insertUsersSchema.partial();
+
+export const session = sqliteTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+});
+
+export const account = sqliteTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: integer("access_token_expires_at", {
+    mode: "timestamp",
+  }),
+  refreshTokenExpiresAt: integer("refresh_token_expires_at", {
+    mode: "timestamp",
+  }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const verification = sqliteTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+});

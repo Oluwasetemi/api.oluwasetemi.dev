@@ -10,6 +10,8 @@ const router = createRouter().openapi(
     tags: ["Index"],
     method: "get",
     path: "/",
+    summary: "Get the API status",
+    description: "Get the API status",
     responses: {
       [HttpStatusCodes.OK]: jsonContent(
         createMessageObjectSchema("API by OLUWASETEMI"),

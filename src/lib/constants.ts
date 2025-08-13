@@ -2,10 +2,10 @@ import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import { createMessageObjectSchema } from "stoker/openapi/schemas";
 
 export const ZOD_ERROR_MESSAGES = {
-  REQUIRED: "Required",
+  REQUIRED: "Invalid input: expected string, received undefined",
   EXPECTED_NUMBER: "Expected number, received nan",
   NO_UPDATES: "No updates provided",
-  INVALID_UUID: "Invalid uuid",
+  INVALID_UUID: "Invalid UUID",
 };
 
 export const ZOD_ERROR_CODES = {
