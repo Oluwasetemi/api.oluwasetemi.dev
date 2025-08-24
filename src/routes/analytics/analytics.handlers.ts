@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { z } from "zod/v4";
 
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";

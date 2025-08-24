@@ -4,7 +4,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import { createErrorSchema } from "stoker/openapi/schemas";
 import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 
-import { insertTasksSchema, patchTasksSchema, PriorityEnum, selectTasksSchema, StatusEnum } from "@/db/schema";
+import { insertTasksSchema, patchTasksSchema, selectTasksSchema } from "@/db/schema";
 import { notFoundSchema } from "@/lib/constants";
 
 const tags = ["Tasks"];
@@ -18,8 +18,8 @@ export const list = createRoute({
       all: z.coerce.boolean().optional().default(false),
       page: z.coerce.number().int().min(1).default(1),
       limit: z.coerce.number().int().min(1).max(100).default(10),
-      status: StatusEnum.optional(),
-      priority: PriorityEnum.optional(),
+      status: z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]).optional(),
+      priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
       search: z.string().optional(),
       sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
     }),
