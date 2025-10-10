@@ -97,7 +97,6 @@ export const getOne = createRoute({
   method: "get",
   tags,
   request: {
-    // This is not working as expected, it should be a string
     params: IdUUIDParamsSchema,
   },
   responses: {
