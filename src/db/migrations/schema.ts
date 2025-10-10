@@ -22,11 +22,11 @@ export const tasks = sqliteTable("tasks", {
 },
 (table) => [
 	index("idx_tasks_parent_id").on(table.parentId),
-	foreignKey(() => ({
+	foreignKey({
 			columns: [table.parentId],
 			foreignColumns: [table.id],
 			name: "tasks_parent_id_tasks_id_fk"
-		})),
+		}),
 ]);
 
 export const requests = sqliteTable("requests", {
@@ -103,4 +103,3 @@ export const verification = sqliteTable("verification", {
 	createdAt: integer("created_at"),
 	updatedAt: integer("updated_at"),
 });
-
