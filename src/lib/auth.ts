@@ -249,6 +249,10 @@ export const auth = betterAuth({
       verification,
     },
   }),
+  changeEmail: {
+    enabled: true,
+    autoVerify: true,
+  },
   emailAndPassword: {
     enabled: true,
     hashPassword: async (password: string) => {
@@ -266,6 +270,7 @@ export const auth = betterAuth({
       });
     },
     sendResetPassword: async ({ user, token, url }) => {
+      console.log({ user, token, url });
       await sendEmail({
         to: user.email,
         subject: "Reset your password",

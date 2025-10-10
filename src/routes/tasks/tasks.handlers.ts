@@ -3,8 +3,6 @@ import type { z } from "zod/v4";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
-import { createErrorSchema } from "stoker/openapi/schemas";
-import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 
 import type { selectTasksSchema } from "@/db/schema";
 import type { AppRouteHandler } from "@/lib/types";
@@ -13,14 +11,7 @@ import db from "@/db";
 import { tasks } from "@/db/schema";
 import { notFoundSchema, ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
 
-import type {
-  CreateRoute,
-  GetOneRoute,
-  ListChildrenRoute,
-  ListRoute,
-  PatchRoute,
-  RemoveRoute,
-} from "./tasks.routes";
+import type { CreateRoute, GetOneRoute, ListChildrenRoute, ListRoute, PatchRoute, RemoveRoute } from "./tasks.routes";
 
 type Task = z.infer<typeof selectTasksSchema>;
 
@@ -222,18 +213,7 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 };
 
 export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
-  const result = IdUUIDParamsSchema.safeParse(c.req.param());
-  if (!result.success) {
-    return c.json(
-      createErrorSchema(IdUUIDParamsSchema).parse({
-        success: false,
-        error: result.error,
-      }),
-      HttpStatusCodes.UNPROCESSABLE_ENTITY,
-    );
-  }
-
-  const { id } = result.data;
+  const { id } = c.req.valid("param");
   const task = await db.query.tasks.findFirst({
     where(fields, operators) {
       return operators.eq(fields.id, id);
