@@ -64,7 +64,10 @@ export const register: AppRouteHandler<RegisterRoute> = async (c) => {
 
   return c.json(
     {
-      user: newUser,
+      user: {
+        ...newUser,
+        imageUrl: newUser.image, // Map image to imageUrl for API consistency
+      },
       accessToken,
       refreshToken,
     },
