@@ -21,16 +21,11 @@ async function main() {
 
   console.log("🌱 Starting to seed 500 todos...");
 
-  // Pre-generate 500 valid UUIDs using crypto.randomUUID()
-  const validUUIDs = Array.from({ length: 500 }, () => crypto.randomUUID());
-
-  // Using drizzle-seed with pre-generated valid UUIDs
   await seed(db as any, { tasks }).refine(f => ({
     tasks: {
       count: 500,
       columns: {
-        // Use pre-generated valid UUID v4 values
-        id: f.valuesFromArray({ values: validUUIDs, isUnique: true }),
+        id: f.uuid(),
         name: f.weightedRandom([
           {
             weight: 0.3,
@@ -223,10 +218,7 @@ async function main() {
           { weight: 0.9, value: f.default({ defaultValue: false }) },
           { weight: 0.1, value: f.default({ defaultValue: true }) },
         ]),
-        isDefault: f.weightedRandom([
-          { weight: 0.95, value: f.default({ defaultValue: false }) },
-          { weight: 0.05, value: f.default({ defaultValue: true }) },
-        ]),
+        is_default: f.default({ defaultValue: true }),
         owner: f.weightedRandom([
           {
             weight: 0.4,
