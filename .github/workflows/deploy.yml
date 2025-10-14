@@ -9,7 +9,7 @@ on:
 # Global environment variables available to all jobs
 env:
   NODE_VERSION: '22'  # Align with ci.yml minimum supported version
-  PNPM_VERSION: '10.14.0'
+  PNPM_VERSION: '10.18.3'
 
 # Concurrency settings to prevent multiple deployments
 concurrency:
@@ -446,7 +446,7 @@ jobs:
           script: |
             const deploymentUrl = 'https://api.oluwasetemi.dev';
             const commit = context.sha.substring(0, 7);
-            
+
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,

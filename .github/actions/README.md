@@ -22,7 +22,7 @@ This directory contains reusable composite actions that standardize common workf
 - uses: ./.github/actions/setup
   with:
     node-version: '22'        # Default: '22'
-    pnpm-version: '10.14.0'   # Default: '10.14.0'
+    pnpm-version: '10.18.3'   # Default: '10.18.3'
     cache-key-prefix: 'lint'  # Default: 'default'
 ```
 
@@ -46,7 +46,7 @@ This directory contains reusable composite actions that standardize common workf
 - uses: ./.github/actions/build
   with:
     node-version: '22'              # Default: '22'
-    pnpm-version: '10.14.0'          # Default: '10.14.0'
+    pnpm-version: '10.18.3'          # Default: '10.18.3'
     build-command: 'pnpm run build'  # Default: 'pnpm run build'
     cache-build-artifacts: 'true'    # Default: 'true'
 ```
