@@ -194,3 +194,262 @@ export const verification = sqliteTable("verification", {
     () => new Date(),
   ),
 });
+
+// Products table
+export const products = sqliteTable("products", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  name: text().notNull(),
+  description: text(),
+  price: integer({ mode: "number" }).notNull(),
+  compareAtPrice: integer("compare_at_price", { mode: "number" }),
+  sku: text(),
+  barcode: text(),
+  quantity: integer({ mode: "number" }).notNull().default(0),
+  category: text(),
+  tags: text(),
+  images: text().notNull().default("[]"), // JSON array of image URLs
+  featured: integer({ mode: "boolean" }).notNull().default(false),
+  published: integer({ mode: "boolean" }).notNull().default(true),
+  owner: text().references(() => users.id, { onDelete: "set null" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_products_category").on(table.category),
+  index("idx_products_owner").on(table.owner),
+  index("idx_products_published").on(table.published),
+]);
+
+export const selectProductsSchema = createSelectSchema(products);
+
+export const insertProductsSchema = createInsertSchema(products, {
+  name: schema => schema.name.min(1).max(500),
+  description: schema => schema.description.optional().nullable(),
+  price: schema => schema.price.min(0),
+  compareAtPrice: schema => schema.compareAtPrice.optional().nullable(),
+  sku: schema => schema.sku.optional().nullable(),
+  barcode: schema => schema.barcode.optional().nullable(),
+  quantity: schema => schema.quantity.min(0),
+  category: schema => schema.category.optional().nullable(),
+  tags: schema => schema.tags.optional().nullable(),
+  images: schema => schema.images.optional(),
+})
+  .required({
+    name: true,
+    price: true,
+  })
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const patchProductsSchema = insertProductsSchema.partial();
+
+// Posts table
+export const posts = sqliteTable("posts", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  title: text().notNull(),
+  slug: text().notNull().unique(),
+  content: text().notNull(),
+  excerpt: text(),
+  featuredImage: text("featured_image"),
+  status: text({ enum: ["DRAFT", "PUBLISHED", "ARCHIVED"] }).notNull().default("DRAFT"),
+  category: text(),
+  tags: text(),
+  viewCount: integer("view_count", { mode: "number" }).notNull().default(0),
+  publishedAt: integer({ mode: "timestamp" }),
+  author: text().references(() => users.id, { onDelete: "set null" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_posts_slug").on(table.slug),
+  index("idx_posts_author").on(table.author),
+  index("idx_posts_status").on(table.status),
+  index("idx_posts_published_at").on(table.publishedAt),
+]);
+
+export const selectPostsSchema = createSelectSchema(posts);
+
+export const insertPostsSchema = createInsertSchema(posts, {
+  title: schema => schema.title.min(1).max(500),
+  slug: schema => schema.slug.min(1).max(500).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: "Slug must be lowercase alphanumeric with hyphens" }),
+  content: schema => schema.content.min(1),
+  excerpt: schema => schema.excerpt.optional().nullable(),
+  featuredImage: schema => schema.featuredImage.optional().nullable(),
+  category: schema => schema.category.optional().nullable(),
+  tags: schema => schema.tags.optional().nullable(),
+  publishedAt: schema => schema.publishedAt.optional().nullable(),
+})
+  .required({
+    title: true,
+    slug: true,
+    content: true,
+  })
+  .omit({
+    id: true,
+    viewCount: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const patchPostsSchema = insertPostsSchema.partial();
+
+// Webhook Subscriptions table
+export const webhookSubscriptions = sqliteTable("webhook_subscriptions", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  url: text().notNull(),
+  events: text().notNull().default("[]"), // JSON array of event types
+  secret: text().notNull(), // HMAC secret for signature
+  active: integer({ mode: "boolean" }).notNull().default(true),
+  maxRetries: integer("max_retries", { mode: "number" }).notNull().default(6),
+  retryBackoff: text("retry_backoff").notNull().default("exponential"), // exponential or linear
+  owner: text().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_webhook_subscriptions_owner").on(table.owner),
+  index("idx_webhook_subscriptions_active").on(table.active),
+]);
+
+export const selectWebhookSubscriptionsSchema = createSelectSchema(webhookSubscriptions);
+
+export const insertWebhookSubscriptionsSchema = createInsertSchema(webhookSubscriptions, {
+  url: schema => schema.url.url().min(1).max(2048),
+  events: schema => schema.events.refine((val) => {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) && parsed.every(e => typeof e === "string");
+    }
+    catch {
+      return false;
+    }
+  }, { message: "Events must be a valid JSON array of strings" }),
+  secret: schema => schema.secret.min(32).max(256),
+  maxRetries: schema => schema.maxRetries.min(0).max(10),
+  retryBackoff: schema => schema.retryBackoff.refine(val => ["exponential", "linear"].includes(val), {
+    message: "Retry backoff must be 'exponential' or 'linear'",
+  }),
+})
+  .required({
+    url: true,
+    events: true,
+  })
+  .omit({
+    id: true,
+    secret: true, // Auto-generated
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const patchWebhookSubscriptionsSchema = insertWebhookSubscriptionsSchema.partial();
+
+// Webhook Events table (delivery history)
+export const webhookEvents = sqliteTable("webhook_events", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  subscriptionId: text("subscription_id").notNull().references(() => webhookSubscriptions.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  payload: text().notNull(), // JSON payload
+  status: text({ enum: ["pending", "delivered", "failed"] }).notNull().default("pending"),
+  attempts: integer({ mode: "number" }).notNull().default(0),
+  lastAttempt: integer("last_attempt", { mode: "timestamp" }),
+  nextRetry: integer("next_retry", { mode: "timestamp" }),
+  responseCode: integer("response_code", { mode: "number" }),
+  responseBody: text("response_body"),
+  errorMessage: text("error_message"),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_webhook_events_subscription_id").on(table.subscriptionId),
+  index("idx_webhook_events_status").on(table.status),
+  index("idx_webhook_events_next_retry").on(table.nextRetry),
+  index("idx_webhook_events_created_at").on(table.createdAt),
+]);
+
+export const selectWebhookEventsSchema = createSelectSchema(webhookEvents);
+
+export const insertWebhookEventsSchema = createInsertSchema(webhookEvents, {
+  eventType: schema => schema.eventType.min(1).max(100),
+  payload: schema => schema.payload.refine((val) => {
+    try {
+      JSON.parse(val);
+      return true;
+    }
+    catch {
+      return false;
+    }
+  }, { message: "Payload must be valid JSON" }),
+  attempts: schema => schema.attempts.min(0),
+  responseCode: schema => schema.responseCode.optional().nullable().refine(val => !val || (val >= 100 && val <= 599), {
+    message: "Response code must be between 100 and 599",
+  }),
+})
+  .required({
+    subscriptionId: true,
+    eventType: true,
+    payload: true,
+  })
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const patchWebhookEventsSchema = insertWebhookEventsSchema.partial();
+
+// Webhook Incoming Logs table (for receiving webhooks from external services)
+export const webhookIncomingLogs = sqliteTable("webhook_incoming_logs", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  provider: text().notNull(), // e.g., "github", "stripe", "generic"
+  eventId: text("event_id").notNull().unique(), // For idempotency
+  eventType: text("event_type").notNull(),
+  payload: text().notNull(), // JSON payload
+  signature: text(),
+  verified: integer({ mode: "boolean" }).notNull().default(false),
+  processed: integer({ mode: "boolean" }).notNull().default(false),
+  processedAt: integer("processed_at", { mode: "timestamp" }),
+  errorMessage: text("error_message"),
+  receivedAt: integer("received_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+}, table => [
+  index("idx_webhook_incoming_logs_provider").on(table.provider),
+  index("idx_webhook_incoming_logs_event_id").on(table.eventId),
+  index("idx_webhook_incoming_logs_processed").on(table.processed),
+  index("idx_webhook_incoming_logs_received_at").on(table.receivedAt),
+]);
+
+export const selectWebhookIncomingLogsSchema = createSelectSchema(webhookIncomingLogs);
+
+export const insertWebhookIncomingLogsSchema = createInsertSchema(webhookIncomingLogs, {
+  provider: schema => schema.provider.min(1).max(100),
+  eventId: schema => schema.eventId.min(1).max(255),
+  eventType: schema => schema.eventType.min(1).max(100),
+  payload: schema => schema.payload.refine((val) => {
+    try {
+      JSON.parse(val);
+      return true;
+    }
+    catch {
+      return false;
+    }
+  }, { message: "Payload must be valid JSON" }),
+  signature: schema => schema.signature.optional().nullable(),
+})
+  .required({
+    provider: true,
+    eventId: true,
+    eventType: true,
+    payload: true,
+  })
+  .omit({
+    id: true,
+    receivedAt: true,
+  });
+
+export const patchWebhookIncomingLogsSchema = insertWebhookIncomingLogsSchema.partial();
