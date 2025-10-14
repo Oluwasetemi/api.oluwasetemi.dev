@@ -15,8 +15,8 @@ expand(
 
 const EnvSchema = z
   .object({
-    NODE_ENV: z.string().prefault("development"),
-    PORT: z.coerce.number().prefault(4444),
+    NODE_ENV: z.string().default("development"),
+    PORT: z.coerce.number().default(4444),
     LOG_LEVEL: z.enum([
       "fatal",
       "error",
@@ -27,23 +27,23 @@ const EnvSchema = z
       "silent",
     ]),
     DATABASE_URL: z.string().min(1),
-    ENABLE_ANALYTICS: z.coerce.boolean().prefault(false),
-    ANALYTICS_RETENTION_DAYS: z.coerce.number().prefault(30),
+    ENABLE_ANALYTICS: z.coerce.boolean().default(false),
+    ANALYTICS_RETENTION_DAYS: z.coerce.number().default(30),
     // Rate limiting configuration
-    RATE_LIMIT_ENABLED: z.coerce.boolean().prefault(true),
-    RATE_LIMIT_WINDOW_MS: z.coerce.number().prefault(15 * 60 * 1000), // 15 minutes
-    RATE_LIMIT_MAX_REQUESTS: z.coerce.number().prefault(100), // requests per window
-    RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: z.coerce.boolean().prefault(false),
-    RATE_LIMIT_SKIP_FAILED_REQUESTS: z.coerce.boolean().prefault(false),
+    RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000), // 15 minutes
+    RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100), // requests per window
+    RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: z.coerce.boolean().default(false),
+    RATE_LIMIT_SKIP_FAILED_REQUESTS: z.coerce.boolean().default(false),
     // Security: Control whether to trust proxy headers for IP detection
-    RATE_LIMIT_TRUST_PROXY: z.coerce.boolean().prefault(false),
+    RATE_LIMIT_TRUST_PROXY: z.coerce.boolean().default(false),
     // Comma-separated list of trusted proxy IPs (when TRUST_PROXY is true)
-    RATE_LIMIT_TRUSTED_PROXIES: z.string().prefault(""),
+    RATE_LIMIT_TRUSTED_PROXIES: z.string().default(""),
     // Authentication JWT configuration
     JWT_SECRET: z.string().min(32),
-    JWT_EXPIRES_IN: z.string().prefault("24h"),
+    JWT_EXPIRES_IN: z.string().default("24h"),
     JWT_REFRESH_SECRET: z.string().min(32),
-    JWT_REFRESH_EXPIRES_IN: z.string().prefault("7d"),
+    JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
     // Better Auth configuration
     BETTER_AUTH_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32),
