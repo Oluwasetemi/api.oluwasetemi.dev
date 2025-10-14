@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GraphQL Subscription Tester</title>
+    <meta name="description" content="Test GraphQL subscriptions with this interactive tool" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        color: #e06c75;
+        margin-bottom: 20px;
+      }
+
+      .status {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+
+      .status.connected {
+        background: #2d5a2d;
+        color: #98c379;
+      }
+
+      .status.disconnected {
+        background: #5a2d2d;
+        color: #e06c75;
+      }
+
+      .status.connecting {
+        background: #5a4d2d;
+        color: #e5c07b;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .panel {
+        background: #252526;
+        border: 1px solid #3e3e42;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      h2 {
+        color: #61afef;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 150px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border: 1px solid #3e3e42;
+        border-radius: 5px;
+        padding: 10px;
+        font-family: "Monaco", "Courier New", monospace;
+        font-size: 13px;
+        resize: vertical;
+      }
+
+      button {
+        background: #0e639c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-right: 10px;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background: #1177bb;
+      }
+
+      button:disabled {
+        background: #3e3e42;
+        cursor: not-allowed;
+      }
+
+      button.danger {
+        background: #c24038;
+      }
+
+      button.danger:hover {
+        background: #d25a52;
+      }
+
+      .events {
+        background: #1e1e1e;
+        border: 1px solid #3e3e42;
+        border-radius: 5px;
+        padding: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .event {
+        background: #252526;
+        border-left: 3px solid #98c379;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 3px;
+        font-family: "Monaco", "Courier New", monospace;
+        font-size: 12px;
+      }
+
+      .event.error {
+        border-left-color: #e06c75;
+      }
+
+      .event-time {
+        color: #5c6370;
+        font-size: 11px;
+        margin-bottom: 5px;
+      }
+
+      .event-data {
+        color: #98c379;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .quick-queries {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .quick-query {
+        background: #2d2d30;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 1px solid #3e3e42;
+        transition: all 0.2s;
+      }
+
+      .quick-query:hover {
+        border-color: #61afef;
+        background: #323234;
+      }
+
+      .quick-query h3 {
+        color: #c678dd;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+
+      .quick-query p {
+        color: #5c6370;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>🔌 GraphQL Subscription Tester</h1>
+
+      <div id="status" class="status disconnected">⚫ Disconnected</div>
+
+      <div class="grid">
+        <div class="panel">
+          <h2>Subscription Query</h2>
+          <textarea id="query" placeholder="Enter GraphQL subscription query...">
+subscription ProductCreated {
+  productCreated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+  }
+}
+subscription ProductUpdated {
+  productUpdated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+    updatedAt
+  }
+}
+subscription ProductDeleted {
+  productDeleted {
+    id
+  }
+}
+subscription TaskCreated {
+  taskCreated {
+    id
+    name
+    description
+    status
+    priority
+    createdAt
+  }
+}
+subscription TaskUpdated {
+  taskUpdated {
+    id
+    name
+    status
+    priority
+    updatedAt
+  }
+}
+subscription TaskDeleted {
+  taskDeleted {
+    id
+  }
+}
+subscription PostCreated {
+  postCreated {
+    id
+    title
+    slug
+    content
+    status
+    createdAt
+  }
+}
+subscription PostUpdated {
+  postUpdated {
+    id
+    title
+    slug
+    content
+    status
+    updatedAt
+  }
+}
+
+subscription PostDeleted {
+  postDeleted {
+    id
+  }
+}
+subscription PostPublished {
+  postPublished {
+    id
+    title
+    slug
+    status
+    createdAt
+  }
+}</textarea
+          >
+          <button id="subscribe" onclick="subscribe()">▶️ Subscribe</button>
+          <button id="unsubscribe" onclick="unsubscribe()" disabled class="danger">⏹️ Unsubscribe</button>
+          <button onclick="clearEvents()">🗑️ Clear Events</button>
+
+          <div class="quick-queries">
+            <div class="quick-query" onclick="loadQuery('productCreated')">
+              <h3>Product Created</h3>
+              <p>Listen for new products</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('productUpdated')">
+              <h3>Product Updated</h3>
+              <p>Listen for product updates</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('taskCreated')">
+              <h3>Task Created</h3>
+              <p>Listen for new tasks</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('postPublished')">
+              <h3>Post Published</h3>
+              <p>Listen for published posts</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>📨 Events (Real-time)</h2>
+          <div id="events" class="events">
+            <div style="color: #5c6370; text-align: center; padding: 20px">
+              No events yet. Subscribe to start receiving updates.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      let subscriptionId = null;
+      let operationName = "ProductCreated";
+
+      const queries = {
+        productCreated: `subscription {
+  productCreated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+  }
+}`,
+        productUpdated: `subscription {
+  productUpdated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+    updatedAt
+  }
+}`,
+        taskCreated: `subscription {
+  taskCreated {
+    id
+    name
+    description
+    status
+    priority
+    createdAt
+  }
+}`,
+        postPublished: `subscription {
+  postPublished {
+    id
+    title
+    slug
+    content
+    status
+    createdAt
+  }
+}`,
+      };
+
+      const displayQuerieTextArea = document.getElementById("query");
+
+      function loadQuery(type) {
+        displayQuerieTextArea.value = queries[type];
+
+        operationName = type.charAt(0).toUpperCase() + type.slice(1) || "ProductCreated";
+      }
+
+      function updateStatus(status, message) {
+        const statusEl = document.getElementById("status");
+        statusEl.className = `status ${status}`;
+        statusEl.textContent = message;
+      }
+
+      function addEvent(data, isError = false) {
+        const eventsEl = document.getElementById("events");
+        if (eventsEl.children[0]?.style) {
+          eventsEl.innerHTML = "";
+        }
+
+        const event = document.createElement("div");
+        event.className = `event ${isError ? "error" : ""}`;
+
+        const time = document.createElement("div");
+        time.className = "event-time";
+        time.textContent = new Date().toLocaleTimeString();
+
+        const dataEl = document.createElement("div");
+        dataEl.className = "event-data";
+        dataEl.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+
+        event.appendChild(time);
+        event.appendChild(dataEl);
+        eventsEl.insertBefore(event, eventsEl.firstChild);
+      }
+
+      function clearEvents() {
+        document.getElementById("events").innerHTML =
+          '<div style="color: #5c6370; text-align: center; padding: 20px;">Events cleared.</div>';
+      }
+
+      function connect() {
+        return new Promise((resolve, reject) => {
+          ws = new WebSocket("ws://localhost:4444/graphql", "graphql-transport-ws");
+
+          ws.onopen = () => {
+            updateStatus("connecting", "🟡 Connecting...");
+            ws.send(JSON.stringify({ type: "connection_init", payload: {} }));
+          };
+
+          ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+
+            switch (message.type) {
+              case "connection_ack":
+                updateStatus("connected", "🟢 Connected");
+                addEvent("✅ Connection established");
+                resolve();
+                break;
+
+              case "next":
+                addEvent(message.payload);
+                break;
+
+              case "error":
+                addEvent(`❌ Error: ${JSON.stringify(message.payload)}`, true);
+                break;
+
+              case "complete":
+                addEvent("✓ Subscription completed");
+                break;
+            }
+          };
+
+          ws.onerror = (error) => {
+            updateStatus("disconnected", "⚫ Error");
+            addEvent(`❌ WebSocket error: ${error.message || "Unknown error"}`, true);
+            reject(error);
+          };
+
+          ws.onclose = () => {
+            updateStatus("disconnected", "⚫ Disconnected");
+            addEvent("🔌 Connection closed");
+            document.getElementById("subscribe").disabled = false;
+            document.getElementById("unsubscribe").disabled = true;
+          };
+        });
+      }
+
+      async function subscribe() {
+        try {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            await connect();
+          }
+
+          const query = displayQuerieTextArea.value;
+          subscriptionId = Math.random().toString(36).substr(2, 9);
+
+          //
+          ws.send(
+            JSON.stringify({
+              id: subscriptionId,
+              type: "subscribe",
+              payload: { query, operationName: operationName === "ProductCreated" ? operationName : null },
+            }),
+          );
+
+          addEvent(`🎧 Subscribed with ID: ${subscriptionId}`);
+          document.getElementById("subscribe").disabled = true;
+          document.getElementById("unsubscribe").disabled = false;
+        } catch (error) {
+          addEvent(`❌ Failed to subscribe: ${error.message}`, true);
+        }
+      }
+
+      function unsubscribe() {
+        if (ws && subscriptionId) {
+          ws.send(
+            JSON.stringify({
+              id: subscriptionId,
+              type: "complete",
+            }),
+          );
+          addEvent(`⏹️ Unsubscribed from ${subscriptionId}`);
+          subscriptionId = null;
+          document.getElementById("subscribe").disabled = false;
+          document.getElementById("unsubscribe").disabled = true;
+        }
+      }
+
+      // Auto-connect on load
+      window.addEventListener("load", () => {
+        addEvent('💡 Click "Subscribe" to start listening for events');
+        addEvent("💡 Use the REST API to trigger events (create/update products, tasks, or posts)");
+      });
+    </script>
+  </body>
+</html>
