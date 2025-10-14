@@ -10,10 +10,13 @@ import type { AppRouteHandler } from "@/lib/types";
 import db from "@/db";
 import { tasks } from "@/db/schema";
 import { notFoundSchema, ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/constants";
+import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
+import { emitWebhookEvent } from "@/lib/webhook-service";
+import { wsManager } from "@/routes/websockets/websocket.manager";
 
 import type { CreateRoute, GetOneRoute, ListChildrenRoute, ListRoute, PatchRoute, RemoveRoute } from "./tasks.routes";
 
-type Task = z.infer<typeof selectTasksSchema>;
+export type Task = z.infer<typeof selectTasksSchema>;
 
 export const list: AppRouteHandler<ListRoute> = async (c) => {
   const { all, page, limit, status, priority, search, sort = "DESC" } = c.req.valid("query");
@@ -209,6 +212,20 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
     priority: taskToInsert.priority && typeof taskToInsert.priority === "string" ? taskToInsert.priority : "MEDIUM",
     status: taskToInsert.status && typeof taskToInsert.status === "string" ? taskToInsert.status : "TODO",
   }).returning().get();
+
+  // Broadcast task creation to WebSocket clients
+  wsManager.broadcast("tasks", {
+    type: "task.created",
+    data: inserted,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Publish to GraphQL subscriptions
+  pubsub.publish(SUBSCRIPTION_EVENTS.TASK_CREATED, { taskCreated: inserted });
+
+  // Emit webhook event
+  emitWebhookEvent("task.created", inserted).catch(console.error);
+
   return c.json(inserted, HttpStatusCodes.OK);
 };
 
@@ -334,6 +351,26 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     );
   }
 
+  // Broadcast task update to WebSocket clients
+  wsManager.broadcast("tasks", {
+    type: "task.updated",
+    data: task,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Also broadcast to specific task channel
+  wsManager.broadcast(`task:${task.id}`, {
+    type: "task.updated",
+    data: task,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Publish to GraphQL subscriptions
+  pubsub.publish(SUBSCRIPTION_EVENTS.TASK_UPDATED, { taskUpdated: task });
+
+  // Emit webhook event
+  emitWebhookEvent("task.updated", task).catch(console.error);
+
   return c.json(task, HttpStatusCodes.OK);
 };
 
@@ -381,6 +418,26 @@ export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
       HttpStatusCodes.NOT_FOUND,
     );
   }
+
+  // Broadcast task deletion to WebSocket clients
+  wsManager.broadcast("tasks", {
+    type: "task.deleted",
+    data: { id },
+    timestamp: new Date().toISOString(),
+  });
+
+  // Also broadcast to specific task channel
+  wsManager.broadcast(`task:${id}`, {
+    type: "task.deleted",
+    data: { id },
+    timestamp: new Date().toISOString(),
+  });
+
+  // Publish to GraphQL subscriptions
+  pubsub.publish(SUBSCRIPTION_EVENTS.TASK_DELETED, { taskDeleted: { id } });
+
+  // Emit webhook event
+  emitWebhookEvent("task.deleted", { id }).catch(console.error);
 
   return c.body(null, HttpStatusCodes.NO_CONTENT);
 };
