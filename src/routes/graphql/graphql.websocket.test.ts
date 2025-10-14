@@ -4,6 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createGraphQLWebSocketHandler } from "./graphql.websocket";
 
+// Mock CloseEvent for Node.js environment
+class MockCloseEvent extends Event {
+  code: number;
+  reason: string;
+  wasClean: boolean;
+
+  constructor(type: string, options?: { code?: number; reason?: string; wasClean?: boolean }) {
+    super(type);
+    this.code = options?.code ?? 1000;
+    this.reason = options?.reason ?? "";
+    this.wasClean = options?.wasClean ?? true;
+  }
+}
+
+// Make CloseEvent available globally for tests
+globalThis.CloseEvent = MockCloseEvent as any;
+
 describe("graphQL WebSocket Handler", () => {
   describe("createGraphQLWebSocketHandler", () => {
     it("should return handler with all required methods", () => {
