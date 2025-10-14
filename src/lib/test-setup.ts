@@ -1,4 +1,5 @@
-import { drizzle } from "drizzle-orm/libsql";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,11 +20,9 @@ export async function setupTestDatabase() {
     // Run migrations
     execSync("pnpm drizzle-kit push", { stdio: "pipe" });
 
-    // Create a new database connection for this test
-    const testDb = drizzle({
-      connection: {
-        url: `file:${testDbPath}`,
-      },
+    // Create a new database connection for this test using better-sqlite3
+    const sqlite = new Database(testDbPath);
+    const testDb = drizzle(sqlite, {
       casing: "snake_case",
       schema,
     });
@@ -93,10 +92,17 @@ export async function clearDatabase() {
     console.warn("Failed to run migrations during clearDatabase:", error);
   }
 
-  const testDb = drizzle({
-    connection: {
-      url: env.DATABASE_URL,
-    },
+  // Get database path from environment
+  let dbPath: string;
+  if (env.DATABASE_URL.startsWith("file:")) {
+    dbPath = env.DATABASE_URL.replace("file:", "");
+  }
+  else {
+    dbPath = env.DATABASE_URL;
+  }
+
+  const sqlite = new Database(dbPath);
+  const testDb = drizzle(sqlite, {
     casing: "snake_case",
     schema,
   });

@@ -31,6 +31,7 @@ const ApiLandingPage: FC = () => {
             color: white;
             margin-bottom: 40px;
             padding: 40px 20px;
+            position: relative;
           }
 
           .header h1 {
@@ -54,6 +55,37 @@ const ApiLandingPage: FC = () => {
             font-size: 0.9rem;
             font-weight: 600;
             margin-top: 15px;
+          }
+
+          .visitor-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            span:first-child {
+              font-weight: 100;
+            }
+          }
+
+          .visitor-counter .count {
+            font-size: 1.2rem;
+            font-weight: 700;
+          }
+
+          .visitor-counter .label {
+            opacity: 0.9;
+          }
+
+          .visitor-counter.connected {
+          }
+
+          .visitor-counter.disconnected {
           }
 
           .grid {
@@ -165,16 +197,130 @@ const ApiLandingPage: FC = () => {
             .grid {
               grid-template-columns: 1fr;
             }
+            .visitor-counter {
+              position: static;
+              margin-bottom: 20px;
+              justify-content: center;
+            }
           }
         `;
+
+  const scripts = `
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = protocol + '//' + window.location.host + '/ws/visitors';
+
+      let ws = null;
+      let reconnectAttempts = 0;
+      const maxReconnectAttempts = 5;
+      const reconnectDelay = 2000;
+
+      let visitorCounter = null;
+      let visitorCount = null;
+
+      function getElements() {
+        visitorCounter = document.getElementById('visitor-counter');
+        visitorCount = document.getElementById('visitor-count');
+      }
+
+      function updateVisitorCount(count) {
+        // Ensure we have the latest element references
+        if (!visitorCount) {
+          getElements();
+        }
+        if (visitorCount) {
+          visitorCount.textContent = count;
+        } else {
+          console.warn('visitor-count element not found');
+        }
+      }
+
+      function setConnectionStatus(connected) {
+        // Ensure we have the latest element references
+        if (!visitorCounter) {
+          getElements();
+        }
+        if (visitorCounter) {
+          visitorCounter.classList.remove('connected', 'disconnected');
+          visitorCounter.classList.add(connected ? 'connected' : 'disconnected');
+        } else {
+          console.warn('visitor-counter element not found');
+        }
+      }
+
+      function connect() {
+        try {
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = function() {
+            reconnectAttempts = 0;
+            setConnectionStatus(true);
+
+            // Request initial visitor count
+            ws.send(JSON.stringify({ type: 'request_count' }));
+          };
+
+          ws.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+
+              if (data.type === 'visitor_count') {
+                updateVisitorCount(data.count);
+              }
+            } catch (error) {
+              console.error('[Visitor Counter] Error parsing message:', error);
+            }
+          };
+
+          ws.onclose = function() {
+            setConnectionStatus(false);
+            updateVisitorCount('-');
+
+            // Attempt to reconnect
+            if (reconnectAttempts < maxReconnectAttempts) {
+              reconnectAttempts++;
+              setTimeout(connect, reconnectDelay);
+            }
+          };
+
+          ws.onerror = function(error) {
+            console.error('[Visitor Counter] WebSocket error:', error);
+          };
+        } catch (error) {
+          console.error('[Visitor Counter] Error connecting:', error);
+        }
+      }
+
+      // Connect when page loads
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          getElements();
+          connect();
+        });
+      } else {
+        getElements();
+        connect();
+      }
+
+      // Clean up on page unload
+      window.addEventListener('beforeunload', function() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      });
+  `;
 
   return (
     <Layout
       title="API Documentation - api.oluwasetemi.dev"
       styles={styles}
+      scripts={scripts}
     >
       <div class="container">
         <div class="header">
+          <div class="visitor-counter" id="visitor-counter">
+            <span class="label">X</span>
+            <span class="count" id="visitor-count"></span>
+          </div>
           <h1>API Documentation</h1>
           <p>api.oluwasetemi.dev</p>
           <span class="status-badge"> 🟢 API Online</span>

@@ -8,6 +8,7 @@ import { createGraphQLWebSocketHandler } from "@/routes/graphql/graphql.websocke
 import { createPostsChannel } from "./channels/posts.channel";
 import { createProductsChannel } from "./channels/products.channel";
 import { createTasksChannel } from "./channels/tasks.channel";
+import { createVisitorsChannel } from "./channels/visitors.channel";
 import wsPostsClient from "./websocket-posts.client";
 import wsProductsClient from "./websocket-products.client";
 import wsClient from "./websocket-tasks.client";
@@ -110,6 +111,15 @@ app.get(
     }
 
     return createPostsChannel(connectionId, userId);
+  }),
+);
+
+// WebSocket route for visitor counter (no authentication required)
+app.get(
+  "/ws/visitors",
+  upgradeWebSocket(() => {
+    const connectionId = crypto.randomUUID();
+    return createVisitorsChannel(connectionId);
   }),
 );
 
