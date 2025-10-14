@@ -206,6 +206,13 @@ const ApiLandingPage: FC = () => {
                 </a>
               </li>
               <li class="link-item">
+                <a href="/api/auth/docs">
+                  <span class="link-icon"></span>
+                  Better Auth Docs
+                  <span class="badge badge-get">VIEW</span>
+                </a>
+              </li>
+              <li class="link-item">
                 <a href="/health">
                   <span class="link-icon"></span>
                   Health Check

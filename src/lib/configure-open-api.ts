@@ -24,6 +24,10 @@ export default function configureOpenAPI(app: AppOpenAPI) {
         targetKey: "js",
         clientKey: "axios",
       },
+      sources: [
+        { url: "/doc", title: "Main API" },
+        { url: "/api/auth/open-api/generate-schema", title: "Better Auth" },
+      ],
     }),
   );
 }
