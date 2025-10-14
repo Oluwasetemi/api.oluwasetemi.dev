@@ -478,7 +478,7 @@ const ApiLandingPage: FC = () => {
                 </a>
               </li>
               <li class="link-item">
-                <a href="/analytics/summary">
+                <a href="/analytics/counts">
                   <span class="link-icon"></span>
                   Summary
                   <span class="badge badge-get">GET</span>
