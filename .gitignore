@@ -34,3 +34,5 @@ prod.db.backup
 *.db-shm
 *.db-wal
 coverage
+.claude
+.playwright-mcp
