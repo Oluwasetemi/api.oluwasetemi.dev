@@ -33,23 +33,19 @@ Use `pnpm test` with file patterns:
 ### 🔌 Real-time WebSocket System (Latest)
 
 - **WebSocket Infrastructure**: Complete real-time communication system with Hono WebSocket support
-
   - **WebSocket Routes**: Multiple WebSocket endpoints for different data types
-
     - `/ws/tasks` - Real-time task updates with GraphQL subscription integration
     - `/ws/products` - Product change notifications with live data streaming
     - `/ws/posts` - Post lifecycle events (created, updated, deleted, published)
     - `/ws/analytics` - Live analytics data with real-time metrics
 
   - **GraphQL Subscription Integration**: Seamless integration between WebSocket and GraphQL
-
     - Real-time task updates: `taskCreated`, `taskUpdated`, `taskDeleted`
     - Product change notifications: `productCreated`, `productUpdated`, `productDeleted`
     - Post lifecycle events: `postCreated`, `postUpdated`, `postDeleted`, `postPublished`
     - Automatic data synchronization between WebSocket and GraphQL subscriptions
 
   - **WebSocket Test Clients**: Interactive HTML clients for testing WebSocket functionality
-
     - `/ws/client` - General WebSocket test client with connection management
     - `/ws/client/tasks` - Task-specific WebSocket client with real-time updates
     - `/ws/client/products` - Product WebSocket client with live data streaming
@@ -64,9 +60,7 @@ Use `pnpm test` with file patterns:
 ### 🪝 Advanced Webhook System (Latest)
 
 - **Outgoing Webhook Service**: Complete webhook delivery system with retry logic and security
-
   - **Webhook Subscriptions**: RESTful API for managing webhook subscriptions
-
     - `POST /webhooks/subscriptions` - Create new webhook subscriptions
     - `GET /webhooks/subscriptions` - List all webhook subscriptions with pagination
     - `GET /webhooks/subscriptions/{id}` - Get specific webhook subscription details
@@ -74,14 +68,12 @@ Use `pnpm test` with file patterns:
     - `DELETE /webhooks/subscriptions/{id}` - Delete webhook subscriptions
 
   - **Event-Driven Architecture**: Automatic webhook delivery on data changes
-
     - Task events: `task.created`, `task.updated`, `task.deleted`
     - Product events: `product.created`, `product.updated`, `product.deleted`
     - Post events: `post.created`, `post.updated`, `post.deleted`, `post.published`
     - Automatic payload generation and delivery with retry logic
 
   - **Security Features**: HMAC-SHA256 signature verification for webhook authenticity
-
     - `generateWebhookSignature()` - Creates secure signatures using Web Crypto API
     - Signature validation on webhook delivery
     - Configurable secret keys per subscription
@@ -94,16 +86,13 @@ Use `pnpm test` with file patterns:
     - Webhook log storage for audit trails and debugging
 
 - **Incoming Webhook Receivers**: Support for receiving webhooks from external services
-
   - **Generic Webhook Receiver**: `/webhooks/incoming/{provider}` - Universal webhook endpoint
-
     - Supports any provider with configurable event ID and type sources
     - HMAC-SHA256 signature verification for security
     - Flexible header mapping for different webhook formats
     - Automatic payload parsing and validation
 
   - **Provider-Specific Receivers**: Specialized endpoints for popular services
-
     - **GitHub Webhooks**: `/webhooks/github` - GitHub event processing
       - Event ID from `X-GitHub-Delivery` header
       - Event type from `X-GitHub-Event` header
@@ -122,16 +111,13 @@ Use `pnpm test` with file patterns:
 ### 🎨 Reusable Layout System (Latest)
 
 - **Layout Component**: Centralized HTML structure and styling system
-
   - **Unified Layout**: `src/lib/layout.tsx` - Reusable layout component for all pages
-
     - Consistent HTML structure with proper meta tags
     - Google Fonts integration with IBM Plex Serif
     - SEO optimization with configurable meta tags
     - Custom styles and scripts injection support
 
   - **Page Integration**: All rendered pages now use the Layout component
-
     - `src/routes/index/index.page.tsx` - API documentation page
     - `src/routes/websockets/websocket.client.tsx` - WebSocket test client
     - `src/routes/websockets/websocket-posts.client.tsx` - Posts WebSocket client
@@ -146,7 +132,6 @@ Use `pnpm test` with file patterns:
 ### Security Fixes (Previous)
 
 - **Rate Limiter Security**: Fixed critical IP extraction vulnerability in `src/middlewares/rate-limiter.ts`
-
   - Corrected improper use of `c.env?.incoming?.socket?.remoteAddress` (Hono-specific issue)
   - Added multi-runtime support for Node.js, Cloudflare Workers, Deno, and Bun
   - Implemented proper proxy chain validation to prevent header spoofing attacks
@@ -159,7 +144,6 @@ Use `pnpm test` with file patterns:
 ### GraphQL Enhancements
 
 - **Real-time Subscriptions**: Enhanced GraphQL with WebSocket integration
-
   - Task subscriptions: `taskCreated`, `taskUpdated`, `taskDeleted`
   - Product subscriptions: `productCreated`, `productUpdated`, `productDeleted`
   - Post subscriptions: `postCreated`, `postUpdated`, `postDeleted`, `postPublished`
@@ -180,7 +164,6 @@ Use `pnpm test` with file patterns:
 ### Better Auth Integration (Latest)
 
 - **Modern Authentication System**: Successfully integrated Better Auth library with existing JWT system
-
   - Maintains backward compatibility with existing JWT endpoints (`/auth/*`)
   - Added Better Auth endpoints at `/api/auth/*` with built-in session management
   - Cookie-based session management with secure defaults
@@ -188,7 +171,6 @@ Use `pnpm test` with file patterns:
   - Proper user field mapping (`image_url` column mapped to `image` field)
 
 - **Better Auth Endpoints**: Complete authentication flow with modern patterns
-
   - `POST /api/auth/sign-up/email` - User registration with Better Auth validation
   - `POST /api/auth/sign-in/email` - Login with automatic session creation
   - `POST /api/auth/sign-out` - Secure session termination
@@ -199,7 +181,6 @@ Use `pnpm test` with file patterns:
   - `GET /api/auth/reference` - Auto-generated API documentation
 
 - **Database Schema Compatibility**: Enhanced user schema for dual auth support
-
   - Better Auth requires specific schema structure with account/session tables
   - Maintained existing `users` table structure with compatibility mappings
   - Added `password` field back for legacy auth compatibility
@@ -208,7 +189,6 @@ Use `pnpm test` with file patterns:
 ### JWT Authentication System (Legacy - Still Supported)
 
 - **Comprehensive Authentication**: Complete JWT-based authentication system
-
   - Access tokens (24h) and refresh tokens (7d) with secure payload structure
   - Password validation with complexity requirements (uppercase, lowercase, digits, special chars)
   - Email normalization and duplicate prevention with unique constraints
@@ -216,7 +196,6 @@ Use `pnpm test` with file patterns:
   - Last login tracking and user activation status management
 
 - **GraphQL Authentication Integration**: Complete GraphQL auth implementation
-
   - `register(email, password, name?, image?)` - User registration with validation
   - `login(email, password)` - User authentication with credential verification
   - `refreshToken(refreshToken)` - Token refresh with user validation
@@ -224,7 +203,6 @@ Use `pnpm test` with file patterns:
   - Updated field naming from `imageUrl` to `image` for consistency
 
 - **REST API Authentication Routes**: OpenAPI-documented authentication endpoints
-
   - `POST /auth/register` - User registration with comprehensive validation
   - `POST /auth/login` - User login with credential verification
   - `POST /auth/refresh` - Token refresh endpoint
@@ -234,9 +212,7 @@ Use `pnpm test` with file patterns:
 ### Test Coverage Improvements (Latest)
 
 - **Comprehensive Test Suite**: Significantly improved test coverage from ~61% baseline
-
   - **Better Auth Tests**: 24 comprehensive tests covering all Better Auth endpoints
-
     - User registration with validation and error cases
     - Login/logout flows with session management
     - Profile updates and password changes
@@ -244,7 +220,6 @@ Use `pnpm test` with file patterns:
     - Rate limiting and malformed request handling
 
   - **AuthService Unit Tests**: 36 tests for JWT authentication utilities
-
     - Password validation with complexity requirements
     - Password hashing and verification with bcrypt
     - JWT token generation, verification, and type validation
@@ -252,7 +227,6 @@ Use `pnpm test` with file patterns:
     - Bearer token extraction and parsing
 
   - **Error Handler Tests**: 14 tests for comprehensive error handling
-
     - HTTP exception handling with proper status codes
     - Generic error handling with environment-aware responses
     - Security measures (no sensitive data exposure in production)
@@ -265,7 +239,6 @@ Use `pnpm test` with file patterns:
     - Analytics handlers with filtering and pagination
 
 - **Test Infrastructure Enhancements**
-
   - **Database Setup**: Proper database migrations in test environment
   - **Test Isolation**: Each test suite gets clean database state
   - **Error Resolution**: Fixed import/export issues and function availability

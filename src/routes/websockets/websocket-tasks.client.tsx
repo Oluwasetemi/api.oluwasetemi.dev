@@ -187,9 +187,9 @@ const WebSocketTestClient: FC = () => {
           ⚪ Disconnected
         </div>
         <div class="controls">
-          <button id="connectBtn" onclick="connect()">Connect</button>
-          <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
-          <button onclick="clearMessages()">Clear Messages</button>
+          <button type="button" id="connectBtn" onclick="connect()">Connect</button>
+          <button type="button" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+          <button type="button" onclick="clearMessages()">Clear Messages</button>
         </div>
       </div>
 
@@ -215,8 +215,8 @@ const WebSocketTestClient: FC = () => {
         <h2>Subscribe to Task</h2>
         <div class="controls">
           <input type="text" id="taskId" placeholder="Enter task ID" />
-          <button onclick="subscribeToTask()">Subscribe</button>
-          <button onclick="unsubscribeFromTask()">Unsubscribe</button>
+          <button type="button" onclick="subscribeToTask()">Subscribe</button>
+          <button type="button" onclick="unsubscribeFromTask()">Unsubscribe</button>
         </div>
       </div>
 

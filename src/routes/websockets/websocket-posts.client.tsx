@@ -187,9 +187,9 @@ const WebSocketPostsClient: FC = () => {
           ⚪ Disconnected
         </div>
         <div class="controls">
-          <button id="connectBtn" onclick="connect()">Connect</button>
-          <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
-          <button onclick="clearMessages()">Clear Messages</button>
+          <button type="button" id="connectBtn" onclick="connect()">Connect</button>
+          <button type="button" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+          <button type="button" onclick="clearMessages()">Clear Messages</button>
         </div>
       </div>
 
@@ -215,8 +215,8 @@ const WebSocketPostsClient: FC = () => {
         <h2>Subscribe to Post</h2>
         <div class="controls">
           <input type="text" id="postId" placeholder="Enter post ID" />
-          <button onclick="subscribeToPost()">Subscribe</button>
-          <button onclick="unsubscribeFromPost()">Unsubscribe</button>
+          <button type="button" onclick="subscribeToPost()">Subscribe</button>
+          <button type="button" onclick="unsubscribeFromPost()">Unsubscribe</button>
         </div>
       </div>
 

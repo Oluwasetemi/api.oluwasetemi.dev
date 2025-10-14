@@ -1,6 +1,6 @@
-import antfu from "@antfu/eslint-config";
+import setemiojo from "@setemiojo/eslint-config";
 
-export default antfu(
+export default setemiojo(
   {
     type: "app",
     typescript: true,
@@ -10,10 +10,11 @@ export default antfu(
       semi: true,
       quotes: "double",
     },
-    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", ".claude"],
+    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", ".claude", "coverage/**"],
   },
   {
     rules: {
+      "react-refresh/only-export-components": "off",
       "ts/no-redeclare": "off",
       "ts/consistent-type-definitions": ["error", "type"],
       "no-console": ["warn"],

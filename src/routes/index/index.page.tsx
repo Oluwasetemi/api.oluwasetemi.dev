@@ -491,7 +491,7 @@ const ApiLandingPage: FC = () => {
         <div class="footer">
           <p>Built with Hono, Drizzle ORM, and TypeScript</p>
           <p>
-            <a href="https://github.com/Oluwasetemi/api.oluwasetemi.dev" target="_blank">
+            <a href="https://github.com/Oluwasetemi/api.oluwasetemi.dev" target="_blank" rel="noreferrer noopener">
               View on GitHub →
             </a>
           </p>

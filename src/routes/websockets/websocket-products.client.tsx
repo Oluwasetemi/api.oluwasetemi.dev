@@ -187,9 +187,9 @@ const WebSocketProductsClient: FC = () => {
           ⚪ Disconnected
         </div>
         <div class="controls">
-          <button id="connectBtn" onclick="connect()">Connect</button>
-          <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
-          <button onclick="clearMessages()">Clear Messages</button>
+          <button type="button" id="connectBtn" onclick="connect()">Connect</button>
+          <button type="button" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+          <button type="button" onclick="clearMessages()">Clear Messages</button>
         </div>
       </div>
 
@@ -215,8 +215,8 @@ const WebSocketProductsClient: FC = () => {
         <h2>Subscribe to Product</h2>
         <div class="controls">
           <input type="text" id="productId" placeholder="Enter product ID" />
-          <button onclick="subscribeToProduct()">Subscribe</button>
-          <button onclick="unsubscribeFromProduct()">Unsubscribe</button>
+          <button type="button" onclick="subscribeToProduct()">Subscribe</button>
+          <button type="button" onclick="unsubscribeFromProduct()">Unsubscribe</button>
         </div>
       </div>
 

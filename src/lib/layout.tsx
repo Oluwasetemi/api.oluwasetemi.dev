@@ -12,6 +12,10 @@ export type LayoutProps = {
   links?: Array<{ rel: string; href: string; crossOrigin?: string }>;
 };
 
+// Stable default arrays to prevent infinite re-renders
+const DEFAULT_META: Array<{ name?: string; property?: string; content: string }> = [];
+const DEFAULT_LINKS: Array<{ rel: string; href: string; crossOrigin?: string }> = [];
+
 export const Layout: FC<LayoutProps> = (props) => {
   const {
     title,
@@ -21,8 +25,8 @@ export const Layout: FC<LayoutProps> = (props) => {
     children,
     styles,
     scripts,
-    meta = [],
-    links = [],
+    meta = DEFAULT_META,
+    links = DEFAULT_LINKS,
   } = props;
 
   return (
@@ -41,9 +45,9 @@ export const Layout: FC<LayoutProps> = (props) => {
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
 
         {/* Additional meta tags */}
-        {meta.map((metaTag, index) => (
+        {meta.map(metaTag => (
           <meta
-            key={index}
+            key={crypto.randomUUID()}
             {...(metaTag.name ? { name: metaTag.name } : {})}
             {...(metaTag.property ? { property: metaTag.property } : {})}
             content={metaTag.content}
@@ -51,9 +55,9 @@ export const Layout: FC<LayoutProps> = (props) => {
         ))}
 
         {/* Additional links */}
-        {links.map((link, index) => (
+        {links.map(link => (
           <link
-            key={index}
+            key={crypto.randomUUID()}
             rel={link.rel}
             href={link.href}
             {...(link.crossOrigin ? { crossOrigin: link.crossOrigin } : {})}
