@@ -1,5 +1,4 @@
-import { sqliteTable, AnySQLiteColumn, index, foreignKey, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
-  import { sql } from "drizzle-orm"
+import { sqliteTable, index, foreignKey, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 export const tasks = sqliteTable("tasks", {
 	id: text().primaryKey().notNull(),
@@ -22,11 +21,11 @@ export const tasks = sqliteTable("tasks", {
 },
 (table) => [
 	index("idx_tasks_parent_id").on(table.parentId),
-	foreignKey({
+	foreignKey(({
 			columns: [table.parentId],
 			foreignColumns: [table.id],
 			name: "tasks_parent_id_tasks_id_fk"
-		}),
+		})),
 ]);
 
 export const requests = sqliteTable("requests", {
@@ -50,8 +49,8 @@ export const requests = sqliteTable("requests", {
 export const users = sqliteTable("users", {
 	id: text().primaryKey().notNull(),
 	email: text().notNull(),
-	password: text().notNull(),
-	name: text(),
+	password: text(),
+	name: text().notNull(),
 	isActive: integer("is_active").default(1).notNull(),
 	lastLoginAt: integer("last_login_at"),
 	createdAt: integer("created_at"),
@@ -77,16 +76,16 @@ export const account = sqliteTable("account", {
 	refreshTokenExpiresAt: integer("refresh_token_expires_at"),
 	scope: text(),
 	password: text(),
-	createdAt: integer("created_at").notNull(),
-	updatedAt: integer("updated_at").notNull(),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
 });
 
 export const session = sqliteTable("session", {
 	id: text().primaryKey().notNull(),
 	expiresAt: integer("expires_at").notNull(),
 	token: text().notNull(),
-	createdAt: integer("created_at").notNull(),
-	updatedAt: integer("updated_at").notNull(),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
 	ipAddress: text("ip_address"),
 	userAgent: text("user_agent"),
 	userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" } ),
@@ -103,3 +102,111 @@ export const verification = sqliteTable("verification", {
 	createdAt: integer("created_at"),
 	updatedAt: integer("updated_at"),
 });
+
+export const posts = sqliteTable("posts", {
+	id: text().primaryKey().notNull(),
+	title: text().notNull(),
+	slug: text().notNull(),
+	content: text().notNull(),
+	excerpt: text(),
+	featuredImage: text("featured_image"),
+	status: text().default("DRAFT").notNull(),
+	category: text(),
+	tags: text(),
+	viewCount: integer("view_count").default(0).notNull(),
+	publishedAt: integer("published_at"),
+	author: text().references(() => users.id, { onDelete: "set null" } ),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
+},
+(table) => [
+	index("idx_posts_published_at").on(table.publishedAt),
+	index("idx_posts_status").on(table.status),
+	index("idx_posts_author").on(table.author),
+	index("idx_posts_slug").on(table.slug),
+	uniqueIndex("posts_slug_unique").on(table.slug),
+]);
+
+export const products = sqliteTable("products", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	description: text(),
+	price: integer().notNull(),
+	compareAtPrice: integer("compare_at_price"),
+	sku: text(),
+	barcode: text(),
+	quantity: integer().default(0).notNull(),
+	category: text(),
+	tags: text(),
+	images: text().default("[]").notNull(),
+	featured: integer().default(0).notNull(),
+	published: integer().default(1).notNull(),
+	owner: text().references(() => users.id, { onDelete: "set null" } ),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
+},
+(table) => [
+	index("idx_products_published").on(table.published),
+	index("idx_products_owner").on(table.owner),
+	index("idx_products_category").on(table.category),
+]);
+
+export const webhookEvents = sqliteTable("webhook_events", {
+	id: text().primaryKey().notNull(),
+	subscriptionId: text("subscription_id").notNull().references(() => webhookSubscriptions.id, { onDelete: "cascade" } ),
+	eventType: text("event_type").notNull(),
+	payload: text().notNull(),
+	status: text().default("pending").notNull(),
+	attempts: integer().default(0).notNull(),
+	lastAttempt: integer("last_attempt"),
+	nextRetry: integer("next_retry"),
+	responseCode: integer("response_code"),
+	responseBody: text("response_body"),
+	errorMessage: text("error_message"),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
+},
+(table) => [
+	index("idx_webhook_events_created_at").on(table.createdAt),
+	index("idx_webhook_events_next_retry").on(table.nextRetry),
+	index("idx_webhook_events_status").on(table.status),
+	index("idx_webhook_events_subscription_id").on(table.subscriptionId),
+]);
+
+export const webhookIncomingLogs = sqliteTable("webhook_incoming_logs", {
+	id: text().primaryKey().notNull(),
+	provider: text().notNull(),
+	eventId: text("event_id").notNull(),
+	eventType: text("event_type").notNull(),
+	payload: text().notNull(),
+	signature: text(),
+	verified: integer().default(0).notNull(),
+	processed: integer().default(0).notNull(),
+	processedAt: integer("processed_at"),
+	errorMessage: text("error_message"),
+	receivedAt: integer("received_at"),
+},
+(table) => [
+	index("idx_webhook_incoming_logs_received_at").on(table.receivedAt),
+	index("idx_webhook_incoming_logs_processed").on(table.processed),
+	index("idx_webhook_incoming_logs_event_id").on(table.eventId),
+	index("idx_webhook_incoming_logs_provider").on(table.provider),
+	uniqueIndex("webhook_incoming_logs_event_id_unique").on(table.eventId),
+]);
+
+export const webhookSubscriptions = sqliteTable("webhook_subscriptions", {
+	id: text().primaryKey().notNull(),
+	url: text().notNull(),
+	events: text().default("[]").notNull(),
+	secret: text().notNull(),
+	active: integer().default(1).notNull(),
+	maxRetries: integer("max_retries").default(6).notNull(),
+	retryBackoff: text("retry_backoff").default("exponential").notNull(),
+	owner: text().references(() => users.id, { onDelete: "cascade" } ),
+	createdAt: integer("created_at"),
+	updatedAt: integer("updated_at"),
+},
+(table) => [
+	index("idx_webhook_subscriptions_active").on(table.active),
+	index("idx_webhook_subscriptions_owner").on(table.owner),
+]);
