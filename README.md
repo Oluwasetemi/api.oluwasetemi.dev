@@ -17,6 +17,12 @@ Think of this as a personal api repository.
 - Documented / type-safe routes with [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
 - Interactive API documentation with [scalar](https://scalar.com/#api-docs) / [@scalar/hono-api-reference](https://github.com/scalar/scalar/tree/main/packages/hono-api-reference)
 - **JWT Authentication** with access/refresh tokens, password validation, and user management
+- **Better Auth Integration** with modern session management and security features
+- **Real-time WebSocket Support** with channel-based messaging for tasks, products, and posts
+- **GraphQL Subscriptions** with WebSocket transport for real-time data updates
+- **Webhook System** with retry logic, signature verification, and event tracking
+- **Reusable Layout Component** for consistent JSX page rendering
+- **Products & Posts APIs** with full CRUD operations and real-time updates
 - Convenience methods / helpers to reduce boilerplate with [stoker](https://www.npmjs.com/package/stoker)
 - Type-safe schemas and environment variables with [zod](https://zod.dev/)
 - Single source of truth database schemas with [drizzle](https://orm.drizzle.team/docs/overview) and [drizzle-zod](https://orm.drizzle.team/docs/zod)
@@ -55,10 +61,12 @@ This API includes comprehensive security measures and reliability improvements:
 ### 📊 Enhanced GraphQL
 
 - **Authentication integration**: Complete GraphQL auth mutations and queries (`register`, `login`, `refreshToken`, `me`)
+- **Real-time subscriptions**: WebSocket-based subscriptions for tasks, products, and posts with event-driven updates
 - **Custom queries and mutations**: Extended auto-generated schema with custom resolvers
 - **Analytics integration**: GraphQL endpoint for `countRequests` with filtering and grouping
 - **Type-safe operations**: Full TypeScript support with proper error handling
 - **Development playground**: Interactive GraphQL playground in development mode
+- **Subscription testing**: Built-in subscription tester for real-time event validation
 
 ### 🧪 Robust Testing
 
@@ -88,12 +96,31 @@ Additional security and authentication-related environment variables:
 | `RATE_LIMIT_TRUST_PROXY`     | Trust proxy headers for IP extraction     | `false`  | No       |
 | `RATE_LIMIT_TRUSTED_PROXIES` | Comma-separated list of trusted proxy IPs | -        | No       |
 
+### 🔌 Real-time WebSocket System
+
+- **Channel-based messaging**: Organized WebSocket channels for tasks, products, and posts
+- **Connection management**: Automatic connection tracking, user association, and cleanup
+- **Event broadcasting**: Real-time notifications for CRUD operations across all entities
+- **Interactive test clients**: Built-in WebSocket test clients for each channel type
+- **Connection statistics**: Real-time monitoring of active connections and message counts
+- **Authentication support**: Optional user authentication for WebSocket connections
+
+### 🪝 Advanced Webhook System
+
+- **Outgoing webhooks**: Configurable webhook subscriptions with retry logic and exponential backoff
+- **Signature verification**: HMAC-SHA256 signature generation and validation for webhook security
+- **Event tracking**: Complete webhook event history with delivery status and retry attempts
+- **Incoming webhook receivers**: Ready-to-use endpoints for GitHub, Stripe, and custom webhooks
+- **Retry mechanisms**: Configurable retry strategies (linear and exponential backoff)
+- **Webhook testing**: Built-in webhook testing and validation tools
+
 ### 🚀 Performance & Reliability
 
 - **Non-blocking analytics**: Request logging doesn't impact response times
 - **Efficient database operations**: Optimized queries with proper indexing
 - **Memory-safe operations**: Proper cleanup and resource management
 - **Cross-platform compatibility**: Works reliably across different deployment environments
+- **Real-time efficiency**: Optimized WebSocket message handling and connection management
 
 ## Setup
 
@@ -247,25 +274,79 @@ All app routes are grouped together and exported into a single type as `AppType`
 
 ### Core API Endpoints
 
-| Path                     | Description              |
-| ------------------------ | ------------------------ |
-| GET /doc                 | Open API Specification   |
-| GET /reference           | Scalar API Documentation |
-| GET /tasks               | List all tasks           |
-| POST /tasks              | Create a task            |
-| GET /tasks/{id}          | Get one task by id       |
-| GET /tasks/{id}/Children | Get one task by id       |
-| PATCH /tasks/{id}        | Patch one task by id     |
-| DELETE /tasks/{id}       | Delete one task by id    |
+| Path           | Description                    |
+| -------------- | ------------------------------ |
+| GET /doc       | Open API Specification         |
+| GET /reference | Scalar API Documentation       |
+| GET /          | API Documentation Landing Page |
+
+### Tasks API
+
+| Path                     | Description        |
+| ------------------------ | ------------------ |
+| GET /tasks               | List all tasks     |
+| POST /tasks              | Create a task      |
+| GET /tasks/{id}          | Get one task by id |
+| GET /tasks/{id}/children | Get task children  |
+| PATCH /tasks/{id}        | Update a task      |
+| DELETE /tasks/{id}       | Delete a task      |
+
+### Products API
+
+| Path                  | Description           |
+| --------------------- | --------------------- |
+| GET /products         | List all products     |
+| POST /products        | Create a product      |
+| GET /products/{id}    | Get one product by id |
+| PATCH /products/{id}  | Update a product      |
+| DELETE /products/{id} | Delete a product      |
+
+### Posts API
+
+| Path                   | Description        |
+| ---------------------- | ------------------ |
+| GET /posts             | List all posts     |
+| POST /posts            | Create a post      |
+| GET /posts/{id}        | Get one post by id |
+| GET /posts/slug/{slug} | Get post by slug   |
+| PATCH /posts/{id}      | Update a post      |
+| DELETE /posts/{id}     | Delete a post      |
+
+### WebSocket Endpoints
+
+| Path                    | Description                    |
+| ----------------------- | ------------------------------ |
+| WS /ws/tasks            | WebSocket channel for tasks    |
+| WS /ws/products         | WebSocket channel for products |
+| WS /ws/posts            | WebSocket channel for posts    |
+| GET /ws/client          | Tasks WebSocket test client    |
+| GET /ws/client/products | Products WebSocket test client |
+| GET /ws/client/posts    | Posts WebSocket test client    |
+| GET /ws/stats           | WebSocket connection stats     |
+| GET /ws/health          | WebSocket health check         |
+
+### Webhook Endpoints
+
+| Path                             | Description                 |
+| -------------------------------- | --------------------------- |
+| GET /webhooks/subscriptions      | List webhook subscriptions  |
+| POST /webhooks/subscriptions     | Create webhook subscription |
+| GET /webhooks/events             | List webhook events         |
+| POST /webhooks/events/{id}/retry | Retry webhook event         |
+| POST /webhooks/github            | GitHub webhook receiver     |
+| POST /webhooks/stripe            | Stripe webhook receiver     |
+| POST /webhooks/test              | Test webhook endpoint       |
 
 ### GraphQL & Analytics
 
-| Path                    | Description                   |
-| ----------------------- | ----------------------------- |
-| GET /graphql            | GraphQL endpoint              |
-| GET /playground         | GraphQL Playground (dev only) |
-| GET /analytics/requests | List request analytics        |
-| GET /analytics/counts   | Get aggregated analytics      |
+| Path                     | Description                     |
+| ------------------------ | ------------------------------- |
+| POST /graphql            | GraphQL endpoint                |
+| WS /graphql              | GraphQL WebSocket subscriptions |
+| GET /playground          | GraphQL Playground (dev only)   |
+| GET /subscription-tester | GraphQL subscription tester     |
+| GET /analytics/requests  | List request analytics          |
+| GET /analytics/summary   | Get analytics summary           |
 
 The `/graphql` endpoint exposes the existing database schema via GraphQL so you can query and mutate tasks using standard GraphQL syntax.
 
@@ -277,9 +358,11 @@ Live Documentation for whole API: [https://api.oluwasetemi.dev/reference](https:
 
 - **Auto-generated schema**: Database tables are automatically exposed as GraphQL types
 - **Authentication support**: Complete auth mutations (`register`, `login`, `refreshToken`) and queries (`me`)
+- **Real-time subscriptions**: WebSocket-based subscriptions for real-time data updates
 - **Custom queries**: Additional queries like `countRequests` for analytics with filtering and grouping
 - **Type safety**: Full TypeScript integration with proper type checking
 - **Development playground**: Interactive GraphQL playground available at `/playground` in development mode
+- **Subscription testing**: Built-in subscription tester for validating real-time events
 
 ### GraphQL Authentication
 
@@ -361,6 +444,141 @@ To use protected queries, include the JWT token in the Authorization header:
 Authorization: Bearer your-jwt-token-here
 ```
 
+#### Real-time Subscriptions
+
+The GraphQL endpoint supports real-time subscriptions via WebSocket for tasks, products, and posts:
+
+**Task Subscriptions:**
+
+```graphql
+subscription {
+  taskCreated {
+    id
+    name
+    description
+    status
+    priority
+    createdAt
+  }
+}
+
+subscription {
+  taskUpdated {
+    id
+    name
+    status
+    priority
+    updatedAt
+  }
+}
+
+subscription {
+  taskDeleted {
+    id
+  }
+}
+```
+
+**Product Subscriptions:**
+
+```graphql
+subscription {
+  productCreated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+  }
+}
+
+subscription {
+  productUpdated {
+    id
+    name
+    description
+    price
+    sku
+    createdAt
+    updatedAt
+  }
+}
+
+subscription {
+  productDeleted {
+    id
+  }
+}
+```
+
+**Post Subscriptions:**
+
+```graphql
+subscription {
+  postCreated {
+    id
+    title
+    slug
+    content
+    status
+    createdAt
+  }
+}
+
+subscription {
+  postUpdated {
+    id
+    title
+    slug
+    content
+    status
+    updatedAt
+  }
+}
+
+subscription {
+  postDeleted {
+    id
+  }
+}
+
+subscription {
+  postPublished {
+    id
+    title
+    slug
+    status
+    createdAt
+  }
+}
+```
+
+**WebSocket Connection:**
+
+To use subscriptions, connect to the WebSocket endpoint:
+
+```javascript
+const ws = new WebSocket("ws://localhost:4444/graphql");
+
+// Send connection init
+ws.send(JSON.stringify({
+  type: "connection_init",
+  payload: {
+    Authorization: "Bearer your-jwt-token-here"
+  }
+}));
+
+// Subscribe to events
+ws.send(JSON.stringify({
+  type: "subscribe",
+  id: "1",
+  payload: {
+    query: "subscription { taskCreated { id name status } }"
+  }
+}));
+```
+
 #### Custom Queries
 
 **countRequests**: Get request analytics with optional filtering and grouping
@@ -438,10 +656,183 @@ http :4444/analytics/counts groupBy==path
 http :4444/analytics/counts groupBy==method
 ```
 
+### WebSocket Usage
+
+The API provides real-time WebSocket channels for tasks, products, and posts. Each channel broadcasts events when entities are created, updated, or deleted.
+
+**Connecting to WebSocket Channels:**
+
+```javascript
+// Tasks channel
+const tasksWS = new WebSocket("ws://localhost:4444/ws/tasks");
+
+// Products channel
+const productsWS = new WebSocket("ws://localhost:4444/ws/products");
+
+// Posts channel
+const postsWS = new WebSocket("ws://localhost:4444/ws/posts");
+```
+
+**Message Format:**
+
+```javascript
+// Subscribe to specific entity
+ws.send(JSON.stringify({
+  type: "subscribe",
+  taskId: "task-uuid-here"
+}));
+
+// Unsubscribe from entity
+ws.send(JSON.stringify({
+  type: "unsubscribe",
+  taskId: "task-uuid-here"
+}));
+```
+
+**Event Messages:**
+
+```json
+// Received when entity is created/updated/deleted
+{
+  "type": "task_created", // or task_updated, task_deleted
+  "data": {
+    "id": "uuid",
+    "name": "Task name"
+    // ... other task fields
+  }
+}
+```
+
+### Webhook System
+
+The webhook system allows you to receive real-time notifications when entities are created, updated, or deleted.
+
+**Creating a Webhook Subscription:**
+
+```bash
+http POST :4444/webhooks/subscriptions \
+  url="https://your-app.com/webhook" \
+  events:='["task.created", "task.updated", "task.deleted"]' \
+  secret="your-webhook-secret" \
+  retryPolicy:='{"maxAttempts": 5, "backoff": "exponential"}'
+```
+
+**Webhook Payload:**
+
+```json
+{
+  "id": "webhook-event-uuid",
+  "event": "task.created",
+  "data": {
+    "id": "task-uuid",
+    "name": "Task name",
+    "status": "pending"
+  },
+  "timestamp": "2024-01-01T00:00:00Z",
+  "attempt": 1
+}
+```
+
+**Signature Verification:**
+
+```javascript
+const crypto = require("node:crypto");
+
+function verifyWebhookSignature(payload, signature, secret) {
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
+
+  return signature === expectedSignature;
+}
+```
+
+### Incoming Webhook Receivers
+
+The API provides dedicated endpoints for receiving webhooks from external services with automatic logging and idempotency handling.
+
+**Generic Webhook Receiver:**
+
+```bash
+# Send webhook to any provider
+http POST :4444/webhooks/incoming/github \
+  X-Webhook-Id:="unique-event-id" \
+  X-Webhook-Event:="push" \
+  X-Webhook-Signature:="sha256=signature" \
+  body:='{"event": "data"}'
+```
+
+**GitHub Webhook Receiver:**
+
+```bash
+# GitHub webhook (automatically extracts GitHub headers)
+http POST :4444/webhooks/github \
+  X-Hub-Signature-256:="sha256=signature" \
+  X-GitHub-Delivery:="unique-delivery-id" \
+  X-GitHub-Event:="push" \
+  body:='{"ref": "refs/heads/main", "commits": []}'
+```
+
+**Stripe Webhook Receiver:**
+
+```bash
+# Stripe webhook (automatically extracts event ID and type from payload)
+http POST :4444/webhooks/stripe \
+  Stripe-Signature:="t=timestamp,v1=signature" \
+  body:='{"id": "evt_123", "type": "payment_intent.succeeded", "data": {}}'
+```
+
+**Webhook Response:**
+
+All incoming webhooks return a consistent response format:
+
+```json
+{
+  "success": true,
+  "message": "Webhook received",
+  "id": "webhook-log-uuid"
+}
+```
+
+**Features:**
+
+- **Automatic logging**: All incoming webhooks are stored in the database with full payload and headers
+- **Idempotency**: Duplicate events are detected and skipped using event IDs
+- **Provider-specific handling**: Automatic extraction of event metadata based on provider
+- **Signature storage**: Webhook signatures are preserved for later verification
+- **Event tracking**: Each webhook is assigned a unique ID for tracking and debugging
+
+**Supported Providers:**
+
+| Provider | Endpoint                        | Event ID Source     | Event Type Source | Signature Header      |
+| -------- | ------------------------------- | ------------------- | ----------------- | --------------------- |
+| GitHub   | `/webhooks/github`              | `X-GitHub-Delivery` | `X-GitHub-Event`  | `X-Hub-Signature-256` |
+| Stripe   | `/webhooks/stripe`              | `payload.id`        | `payload.type`    | `Stripe-Signature`    |
+| Generic  | `/webhooks/incoming/{provider}` | `X-Webhook-Id`      | `X-Webhook-Event` | `X-Webhook-Signature` |
+
+**Webhook Log Schema:**
+
+```json
+{
+  "id": "uuid",
+  "provider": "github|stripe|custom",
+  "eventId": "unique-event-identifier",
+  "eventType": "event.type",
+  "payload": "raw-webhook-body",
+  "signature": "webhook-signature",
+  "verified": false,
+  "processed": false,
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
 ### Performance Considerations
 
 - Analytics logging adds minimal overhead (~1-2ms per request)
 - Database writes are non-blocking and don't affect response times
+- WebSocket connections are efficiently managed with automatic cleanup
+- Webhook delivery uses exponential backoff to prevent overwhelming endpoints
 - Consider the retention period based on your storage capacity
 - For high-traffic applications, consider using a separate analytics database
 - The analytics middleware can be disabled per-route if needed

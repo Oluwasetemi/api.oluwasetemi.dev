@@ -1,0 +1,40 @@
+# GraphQL Subscription Queries for websocat
+# Copy and paste these into your websocat terminal
+
+# 1. Initialize connection (always send this first)
+{"type":"connection_init","payload":{}}
+
+# 2. Subscribe to product created events
+{"id":"product-created","type":"subscribe","payload":{"query":"subscription { productCreated { id name price sku createdAt } }"}}
+
+# 3. Subscribe to product updated events
+{"id":"product-updated","type":"subscribe","payload":{"query":"subscription { productUpdated { id name price sku updatedAt } }"}}
+
+# 4. Subscribe to product deleted events
+{"id":"product-deleted","type":"subscribe","payload":{"query":"subscription { productDeleted { id } }"}}
+
+# 5. Subscribe to task created events
+{"id":"task-created","type":"subscribe","payload":{"query":"subscription { taskCreated { id name description status priority createdAt } }"}}
+
+# 6. Subscribe to task updated events
+{"id":"task-updated","type":"subscribe","payload":{"query":"subscription { taskUpdated { id name status priority updatedAt } }"}}
+
+# 7. Subscribe to task deleted events
+{"id":"task-deleted","type":"subscribe","payload":{"query":"subscription { taskDeleted { id } }"}}
+
+# 8. Subscribe to post created events
+{"id":"post-created","type":"subscribe","payload":{"query":"subscription { postCreated { id title slug content status createdAt } }"}}
+
+# 9. Subscribe to post updated events
+{"id":"post-updated","type":"subscribe","payload":{"query":"subscription { postUpdated { id title slug status content updatedAt } }"}}
+
+# 10. Subscribe to post published events
+{"id":"post-published","type":"subscribe","payload":{"query":"subscription { postPublished { id title slug status createdAt } }"}}
+
+# 11. Subscribe to post deleted events
+{"id":"post-deleted","type":"subscribe","payload":{"query":"subscription { postDeleted { id } }"}}
+
+# Unsubscribe examples (replace ID with your subscription ID)
+{"id":"product-created","type":"complete"}
+{"id":"task-created","type":"complete"}
+{"id":"post-published","type":"complete"}

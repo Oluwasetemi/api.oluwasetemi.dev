@@ -28,9 +28,122 @@ Use `pnpm test` with file patterns:
 - `pnpm test tasks.test.ts` - Run specific test file
 - `pnpm test --reporter=verbose` - Run with detailed output
 
-## Recent Updates & Security Improvements
+## Recent Updates & New Features
 
-### Security Fixes (Latest)
+### 🔌 Real-time WebSocket System (Latest)
+
+- **WebSocket Infrastructure**: Complete real-time communication system with Hono WebSocket support
+
+  - **WebSocket Routes**: Multiple WebSocket endpoints for different data types
+
+    - `/ws/tasks` - Real-time task updates with GraphQL subscription integration
+    - `/ws/products` - Product change notifications with live data streaming
+    - `/ws/posts` - Post lifecycle events (created, updated, deleted, published)
+    - `/ws/analytics` - Live analytics data with real-time metrics
+
+  - **GraphQL Subscription Integration**: Seamless integration between WebSocket and GraphQL
+
+    - Real-time task updates: `taskCreated`, `taskUpdated`, `taskDeleted`
+    - Product change notifications: `productCreated`, `productUpdated`, `productDeleted`
+    - Post lifecycle events: `postCreated`, `postUpdated`, `postDeleted`, `postPublished`
+    - Automatic data synchronization between WebSocket and GraphQL subscriptions
+
+  - **WebSocket Test Clients**: Interactive HTML clients for testing WebSocket functionality
+
+    - `/ws/client` - General WebSocket test client with connection management
+    - `/ws/client/tasks` - Task-specific WebSocket client with real-time updates
+    - `/ws/client/products` - Product WebSocket client with live data streaming
+    - `/ws/client/posts` - Post WebSocket client with lifecycle event tracking
+
+  - **Connection Management**: Robust WebSocket connection handling
+    - Automatic reconnection with exponential backoff
+    - Connection status monitoring and error handling
+    - Message queuing and delivery confirmation
+    - Statistics tracking (messages sent/received, connection time)
+
+### 🪝 Advanced Webhook System (Latest)
+
+- **Outgoing Webhook Service**: Complete webhook delivery system with retry logic and security
+
+  - **Webhook Subscriptions**: RESTful API for managing webhook subscriptions
+
+    - `POST /webhooks/subscriptions` - Create new webhook subscriptions
+    - `GET /webhooks/subscriptions` - List all webhook subscriptions with pagination
+    - `GET /webhooks/subscriptions/{id}` - Get specific webhook subscription details
+    - `PUT /webhooks/subscriptions/{id}` - Update webhook subscription settings
+    - `DELETE /webhooks/subscriptions/{id}` - Delete webhook subscriptions
+
+  - **Event-Driven Architecture**: Automatic webhook delivery on data changes
+
+    - Task events: `task.created`, `task.updated`, `task.deleted`
+    - Product events: `product.created`, `product.updated`, `product.deleted`
+    - Post events: `post.created`, `post.updated`, `post.deleted`, `post.published`
+    - Automatic payload generation and delivery with retry logic
+
+  - **Security Features**: HMAC-SHA256 signature verification for webhook authenticity
+
+    - `generateWebhookSignature()` - Creates secure signatures using Web Crypto API
+    - Signature validation on webhook delivery
+    - Configurable secret keys per subscription
+    - Protection against replay attacks and tampering
+
+  - **Delivery Management**: Robust webhook delivery with comprehensive error handling
+    - Automatic retry logic with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s)
+    - Maximum 6 retry attempts with configurable timeouts
+    - Delivery status tracking (pending, delivered, failed)
+    - Webhook log storage for audit trails and debugging
+
+- **Incoming Webhook Receivers**: Support for receiving webhooks from external services
+
+  - **Generic Webhook Receiver**: `/webhooks/incoming/{provider}` - Universal webhook endpoint
+
+    - Supports any provider with configurable event ID and type sources
+    - HMAC-SHA256 signature verification for security
+    - Flexible header mapping for different webhook formats
+    - Automatic payload parsing and validation
+
+  - **Provider-Specific Receivers**: Specialized endpoints for popular services
+
+    - **GitHub Webhooks**: `/webhooks/github` - GitHub event processing
+      - Event ID from `X-GitHub-Delivery` header
+      - Event type from `X-GitHub-Event` header
+      - Signature verification with `X-Hub-Signature-256`
+    - **Stripe Webhooks**: `/webhooks/stripe` - Stripe payment event processing
+      - Event ID from `payload.id` field
+      - Event type from `payload.type` field
+      - Signature verification with `Stripe-Signature` header
+
+  - **Webhook Logging**: Comprehensive logging and audit trail
+    - All incoming webhooks logged with full payload and headers
+    - Delivery status tracking and error logging
+    - Support for multiple providers with unified logging format
+    - Automatic cleanup of old webhook logs
+
+### 🎨 Reusable Layout System (Latest)
+
+- **Layout Component**: Centralized HTML structure and styling system
+
+  - **Unified Layout**: `src/lib/layout.tsx` - Reusable layout component for all pages
+
+    - Consistent HTML structure with proper meta tags
+    - Google Fonts integration with IBM Plex Serif
+    - SEO optimization with configurable meta tags
+    - Custom styles and scripts injection support
+
+  - **Page Integration**: All rendered pages now use the Layout component
+
+    - `src/routes/index/index.page.tsx` - API documentation page
+    - `src/routes/websockets/websocket.client.tsx` - WebSocket test client
+    - `src/routes/websockets/websocket-posts.client.tsx` - Posts WebSocket client
+    - `src/routes/websockets/websocket-products.client.tsx` - Products WebSocket client
+
+  - **Design Consistency**: Unified styling and branding across all pages
+    - Consistent color scheme and typography
+    - Responsive design with mobile-first approach
+    - Modern UI with clean, professional appearance
+    - Accessibility improvements with proper semantic HTML
+
+### Security Fixes (Previous)
 
 - **Rate Limiter Security**: Fixed critical IP extraction vulnerability in `src/middlewares/rate-limiter.ts`
 
@@ -44,6 +157,13 @@ Use `pnpm test` with file patterns:
   - Previously produced malformed headers like `content-Security-Policy`
 
 ### GraphQL Enhancements
+
+- **Real-time Subscriptions**: Enhanced GraphQL with WebSocket integration
+
+  - Task subscriptions: `taskCreated`, `taskUpdated`, `taskDeleted`
+  - Product subscriptions: `productCreated`, `productUpdated`, `productDeleted`
+  - Post subscriptions: `postCreated`, `postUpdated`, `postDeleted`, `postPublished`
+  - WebSocket transport for real-time data updates
 
 - **Custom Queries**: Added `countRequests` query for analytics with filtering and grouping
   - Supports filtering by `from`, `to`, `path`, `method`
@@ -182,6 +302,20 @@ Security headers configuration:
 
 - `SECURITY_HEADERS_ENABLED` - Enable security headers middleware (default: true)
 
+WebSocket configuration:
+
+- `WEBSOCKET_ENABLED` - Enable WebSocket support (default: true)
+- `WEBSOCKET_HEARTBEAT_INTERVAL` - Heartbeat interval in milliseconds (default: 30000)
+- `WEBSOCKET_MAX_CONNECTIONS` - Maximum concurrent WebSocket connections (default: 1000)
+
+Webhook configuration:
+
+- `WEBHOOK_ENABLED` - Enable webhook system (default: true)
+- `WEBHOOK_MAX_RETRIES` - Maximum webhook delivery retry attempts (default: 6)
+- `WEBHOOK_RETRY_DELAYS` - Comma-separated retry delays in milliseconds (default: "1000,2000,4000,8000,16000,30000")
+- `WEBHOOK_TIMEOUT_MS` - Webhook delivery timeout in milliseconds (default: 10000)
+- `WEBHOOK_LOG_RETENTION_DAYS` - Days to retain webhook logs (default: 30)
+
 ## Architecture Overview
 
 ### Application Structure
@@ -208,10 +342,13 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 
 - **OpenAPI Integration**: Routes use `@hono/zod-openapi` for type-safe API documentation
 - **GraphQL**: Auto-generated from Drizzle schema using `drizzle-graphql` with custom resolvers
+- **Real-time WebSocket System**: Complete WebSocket infrastructure with GraphQL subscription integration
+- **Advanced Webhook System**: Outgoing webhook delivery with retry logic and incoming webhook receivers
 - **JWT Authentication**: Complete authentication system with REST and GraphQL support
 - **Analytics**: Optional request logging when `ENABLE_ANALYTICS=true`
 - **Rate Limiting**: Configurable rate limiting with multi-runtime IP extraction
 - **Security Headers**: Comprehensive security headers with proper formatting
+- **Reusable Layout System**: Centralized HTML structure and styling for all rendered pages
 - **Type Safety**: All schemas defined with Zod, shared between validation and TypeScript types
 
 ### Database Schema
@@ -222,7 +359,19 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 - **Tasks**: Hierarchical task system with parent-child relationships and user ownership
   - Owner field references users table for proper access control
   - JSON storage for flexible child task relationships
+- **Products**: E-commerce product management with comprehensive metadata
+  - SKU tracking, pricing, inventory management
+  - Rich product descriptions and categorization
+- **Posts**: Content management system with publishing workflow
+  - Draft/published status management
+  - SEO-friendly slug generation and content versioning
 - **Requests**: Analytics table for request logging with automatic cleanup
+- **WebhookSubscriptions**: Webhook subscription management with event filtering
+  - URL, events, secret key, and delivery configuration
+  - Active/inactive status and retry settings
+- **WebhookLogs**: Comprehensive webhook delivery logging and audit trail
+  - Delivery status, response codes, and error tracking
+  - Automatic cleanup based on retention policy
 
 ### Testing Configuration
 
@@ -251,6 +400,8 @@ Each feature follows this structure (see `src/routes/tasks/` as reference):
 - Analytics: `ENABLE_ANALYTICS`, `ANALYTICS_RETENTION_DAYS`
 - Rate Limiting: `RATE_LIMIT_ENABLED`, `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_TRUST_PROXY`, `RATE_LIMIT_TRUSTED_PROXIES`, `RATE_LIMIT_SKIP_SUCCESSFUL`, `RATE_LIMIT_SKIP_FAILED`
 - Security: `SECURITY_HEADERS_ENABLED`
+- WebSocket: `WEBSOCKET_ENABLED`, `WEBSOCKET_HEARTBEAT_INTERVAL`, `WEBSOCKET_MAX_CONNECTIONS`
+- Webhook: `WEBHOOK_ENABLED`, `WEBHOOK_MAX_RETRIES`, `WEBHOOK_RETRY_DELAYS`, `WEBHOOK_TIMEOUT_MS`, `WEBHOOK_LOG_RETENTION_DAYS`
 
 ### Type Export Pattern
 
