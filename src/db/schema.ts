@@ -251,7 +251,7 @@ export const patchProductsSchema = insertProductsSchema.partial();
 export const posts = sqliteTable("posts", {
   id: text("id").primaryKey().$defaultFn(() => generateUUID()),
   title: text().notNull(),
-  slug: text().notNull().unique(),
+  slug: text().unique(), // Made optional - will be auto-generated from title if not provided
   content: text().notNull(),
   excerpt: text(),
   featuredImage: text("featured_image"),
@@ -276,7 +276,10 @@ export const selectPostsSchema = createSelectSchema(posts);
 
 export const insertPostsSchema = createInsertSchema(posts, {
   title: schema => schema.title.min(1).max(500),
-  slug: schema => schema.slug.min(1).max(500).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: "Slug must be lowercase alphanumeric with hyphens" }),
+  slug: schema => schema.slug.optional().refine(
+    val => !val || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val),
+    { message: "Slug must be lowercase alphanumeric with hyphens" },
+  ),
   content: schema => schema.content.min(1),
   excerpt: schema => schema.excerpt.optional().nullable(),
   featuredImage: schema => schema.featuredImage.optional().nullable(),
@@ -286,7 +289,6 @@ export const insertPostsSchema = createInsertSchema(posts, {
 })
   .required({
     title: true,
-    slug: true,
     content: true,
   })
   .omit({

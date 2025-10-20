@@ -8,6 +8,7 @@ import { createTestApp } from "@/lib/create-app";
 import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 import { cleanupTestDatabase, setupTestDatabase } from "@/lib/test-setup";
 import * as webhookService from "@/lib/webhook-service";
+import { generateSlugFromTitle } from "@/utils/slug";
 
 import router from "./posts.index";
 
@@ -525,6 +526,207 @@ describe("posts API with webhooks", () => {
       });
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe("slug Auto-generation and Fallback", () => {
+    it("should auto-generate slug from title when slug not provided", async () => {
+      const postData = {
+        title: "My Awesome Test Post",
+        content: "Test content",
+      };
+
+      const res = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.slug).toBe("my-awesome-test-post");
+    });
+
+    it("should use custom slug when provided", async () => {
+      const postData = {
+        title: "Another Test Post",
+        slug: "custom-slug",
+        content: "Test content",
+      };
+
+      const res = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.slug).toBe("custom-slug");
+    });
+
+    it("should append -1 when duplicate slug exists", async () => {
+      // Use unique title for this test to avoid conflicts with other tests
+      const uniqueTitle = `Duplicate Title Test ${Date.now()}`;
+      const expectedBaseSlug = generateSlugFromTitle(uniqueTitle);
+
+      // Create first post
+      const postData1 = {
+        title: uniqueTitle,
+        content: "First content",
+      };
+
+      const res1 = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData1),
+      });
+
+      const json1 = await res1.json();
+      expect(json1.slug).toBe(expectedBaseSlug);
+
+      // Create second post with same title
+      const postData2 = {
+        title: uniqueTitle,
+        content: "Second content",
+      };
+
+      const res2 = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData2),
+      });
+
+      const json2 = await res2.json();
+      // Should have a numeric suffix appended (e.g., -1, -2, etc.)
+      expect(json2.slug).toMatch(new RegExp(`^${expectedBaseSlug}-\\d+$`));
+      expect(json2.slug).not.toBe(json1.slug); // Must be different from first post
+    });
+
+    it("should fetch post by slug via GET /posts/{id}", async () => {
+      // Create a post with known slug
+      const postData = {
+        title: "Slug Fetch Test",
+        slug: "slug-fetch-test",
+        content: "Test content",
+      };
+
+      const createRes = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      const createdPost = await createRes.json();
+
+      // Fetch by slug using GET /posts/{id}
+      const res = await app.request("/posts/slug-fetch-test", {
+        method: "GET",
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.id).toBe(createdPost.id);
+      expect(json.slug).toBe("slug-fetch-test");
+    });
+
+    it("should fetch post by UUID via GET /posts/{id}", async () => {
+      // Create a post
+      const postData = {
+        title: "UUID Fetch Test",
+        content: "Test content",
+      };
+
+      const createRes = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      const createdPost = await createRes.json();
+
+      // Fetch by UUID
+      const res = await app.request(`/posts/${createdPost.id}`, {
+        method: "GET",
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.id).toBe(createdPost.id);
+    });
+
+    it("should regenerate slug when title is updated without providing slug", async () => {
+      // Create a post
+      const postData = {
+        title: "Original Title",
+        content: "Test content",
+      };
+
+      const createRes = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      const createdPost = await createRes.json();
+      expect(createdPost.slug).toBe("original-title");
+
+      // Update title without providing slug
+      const updateRes = await app.request(`/posts/${createdPost.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify({
+          title: "Updated Title",
+        }),
+      });
+
+      expect(updateRes.status).toBe(200);
+      const updatedPost = await updateRes.json();
+      expect(updatedPost.slug).toBe("updated-title");
+    });
+
+    it("should handle special characters in title when generating slug", async () => {
+      const postData = {
+        title: "Test@#$ Post & Special!!! Characters???",
+        content: "Test content",
+      };
+
+      const res = await app.request("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userAccessToken}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.slug).toBe("test-post-special-characters");
     });
   });
 });
