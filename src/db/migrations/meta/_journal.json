@@ -57,6 +57,13 @@
       "when": 1760194931427,
       "tag": "0007_lying_mimic",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1760988832395,
+      "tag": "0008_rich_blue_shield",
+      "breakpoints": true
     }
   ]
 }

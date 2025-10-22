@@ -13,6 +13,7 @@ import { notFoundSchema, ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from "@/lib/const
 import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 import { emitWebhookEvent } from "@/lib/webhook-service";
 import { wsManager } from "@/routes/websockets/websocket.manager";
+import { ensureUniqueSlug, generateSlugFromTitle } from "@/utils/slug";
 
 import type { CreateRoute, GetBySlugRoute, GetOneRoute, ListRoute, PatchRoute, RemoveRoute } from "./posts.routes";
 
@@ -96,8 +97,22 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 
   // Get authenticated user if available and set as author
   const user = c.get("user");
+
+  // Generate or validate slug
+  let finalSlug: string;
+  if (postData.slug) {
+    // User provided slug - ensure it's unique
+    finalSlug = await ensureUniqueSlug(postData.slug);
+  }
+  else {
+    // Generate slug from title
+    const baseSlug = generateSlugFromTitle(postData.title);
+    finalSlug = await ensureUniqueSlug(baseSlug);
+  }
+
   const postToInsert = {
     ...postData,
+    slug: finalSlug,
     ...(user ? { author: user.id } : {}),
   };
 
@@ -134,11 +149,22 @@ export const create: AppRouteHandler<CreateRoute> = async (c) => {
 
 export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
   const { id } = c.req.valid("param");
-  const post = await db.query.posts.findFirst({
+
+  // First, try to find by ID (UUID)
+  let post = await db.query.posts.findFirst({
     where(fields, operators) {
       return operators.eq(fields.id, id);
     },
   });
+
+  // If not found by ID, try by slug (fallback for user-friendly URLs)
+  if (!post) {
+    post = await db.query.posts.findFirst({
+      where(fields, operators) {
+        return operators.eq(fields.slug, id);
+      },
+    });
+  }
 
   if (!post) {
     return c.json(
@@ -149,10 +175,10 @@ export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
     );
   }
 
-  // Increment view count
+  // Increment view count (use post.id, not the param which might be slug)
   await db.update(posts)
     .set({ viewCount: post.viewCount + 1 })
-    .where(eq(posts.id, id));
+    .where(eq(posts.id, post.id));
 
   return c.json({ ...post, viewCount: post.viewCount + 1 }, HttpStatusCodes.OK);
 };
@@ -251,8 +277,18 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
   // Copy all valid update fields
   if (updates.title !== undefined)
     updateData.title = updates.title;
-  if (updates.slug !== undefined)
-    updateData.slug = updates.slug;
+
+  // Handle slug - regenerate if title changed but slug not provided
+  if (updates.slug !== undefined && updates.slug !== null) {
+    // User provided new slug - ensure it's unique
+    updateData.slug = await ensureUniqueSlug(updates.slug, id);
+  }
+  else if (updates.title !== undefined && updates.title !== existingPost.title) {
+    // Title changed but no slug provided - regenerate from new title
+    const baseSlug = generateSlugFromTitle(updates.title);
+    updateData.slug = await ensureUniqueSlug(baseSlug, id);
+  }
+
   if (updates.content !== undefined)
     updateData.content = updates.content;
   if (updates.excerpt !== undefined)

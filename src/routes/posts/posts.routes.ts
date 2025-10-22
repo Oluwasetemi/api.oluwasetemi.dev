@@ -50,6 +50,7 @@ export const create = createRoute({
   path: "/posts",
   method: "post",
   tags,
+  description: "Create a new post. The slug field is optional - if not provided, it will be auto-generated from the title. If a duplicate slug exists, a numeric suffix (-1, -2, etc.) will be appended.",
   request: {
     body: jsonContentRequired(insertPostsSchema, "The post to create"),
   },
@@ -66,14 +67,21 @@ export const getOne = createRoute({
   path: "/posts/{id}",
   method: "get",
   tags,
+  description: "Get a post by ID or slug. First attempts to find by UUID, then falls back to slug if not found. This allows both /posts/{uuid} and /posts/{slug} to work.",
   request: {
-    params: IdUUIDParamsSchema,
+    params: z.object({
+      // Accept either UUID or slug format
+      id: z.string().min(1).max(500).openapi({
+        description: "Post ID (UUID) or slug. Examples: '123e4567-e89b-12d3-a456-426614174000' or 'my-post-slug'",
+        example: "123e4567-e89b-12d3-a456-426614174000",
+      }),
+    }),
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(selectPostsSchema, "The requested post"),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Post not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      createErrorSchema(IdUUIDParamsSchema),
+      createErrorSchema(z.object({ id: z.string() })),
       "Invalid id error",
     ),
   },
@@ -102,6 +110,7 @@ export const patch = createRoute({
   path: "/posts/{id}",
   method: "patch",
   tags,
+  description: "Update a post. If the title is changed without providing a new slug, the slug will be auto-regenerated from the new title. Duplicate slugs will have numeric suffixes appended.",
   request: {
     params: IdUUIDParamsSchema,
     body: jsonContentRequired(patchPostsSchema, "The post updates"),
