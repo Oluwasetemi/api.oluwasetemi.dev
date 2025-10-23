@@ -17,7 +17,7 @@ export const list = createRoute({
     query: z.object({
       all: z.coerce.boolean().optional().default(false),
       page: z.coerce.number().int().min(1).default(1),
-      limit: z.coerce.number().int().min(1).max(100).default(10),
+      limit: z.coerce.number().int().min(1).default(10),
       status: z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]).optional(),
       priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
       search: z.string().optional(),
