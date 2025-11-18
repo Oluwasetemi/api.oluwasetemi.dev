@@ -38,7 +38,10 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
           user = await getUserFromToken(authHeader);
         }
         catch (error) {
-          console.error("Auth error (continuing):", error instanceof Error ? error.message : String(error));
+          console.error(
+            "Auth error (continuing):",
+            error instanceof Error ? error.message : String(error),
+          );
           user = null;
         }
       }
@@ -84,23 +87,26 @@ if (env.NODE_ENV === "development") {
     `;
     return c.html(playgroundHTML);
   });
-
-  // Serve GraphQL Subscription Tester
-  router.get("/subscription-tester", async (c) => {
-    const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-
-    try {
-      const htmlPath = path.join(process.cwd(), "graphql-subscription-test.html");
-      const html = await fs.readFile(htmlPath, "utf-8");
-      return c.html(html);
-    }
-    catch (error) {
-      console.error("Error reading subscription tester HTML:", error);
-      return c.text("Subscription tester not found. Make sure graphql-subscription-test.html exists in the project root.", 404);
-    }
-  });
 }
+
+// Serve GraphQL Subscription Tester
+router.get("/subscription-tester", async (c) => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  try {
+    const htmlPath = path.join(process.cwd(), "graphql-subscription-test.html");
+    const html = await fs.readFile(htmlPath, "utf-8");
+    return c.html(html);
+  }
+  catch (error) {
+    console.error("Error reading subscription tester HTML:", error);
+    return c.text(
+      "Subscription tester not found. Make sure graphql-subscription-test.html exists in the project root.",
+      404,
+    );
+  }
+});
 
 async function getUserFromToken(authHeader: string) {
   try {

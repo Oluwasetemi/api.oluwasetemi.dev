@@ -5,6 +5,343 @@ import { Layout } from "@/lib/layout";
 
 const app = createRouter();
 
+// API Routes mapping with documentation URLs
+const apiRoutes = {
+  tasks: [
+    {
+      method: "GET",
+      path: "/tasks",
+      actions: ["middleware", "list"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/get/tasks",
+    },
+    {
+      method: "GET",
+      path: "/tasks/:id/children",
+      actions: ["middleware", "middleware", "listChildren"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/get/tasks/{id}/children",
+    },
+    {
+      method: "POST",
+      path: "/tasks",
+      actions: ["middleware", "create"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/post/tasks",
+    },
+    {
+      method: "GET",
+      path: "/tasks/:id",
+      actions: ["middleware", "getOne"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/get/tasks/{id}",
+    },
+    {
+      method: "PATCH",
+      path: "/tasks/:id",
+      actions: ["middleware", "middleware", "patch"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/patch/tasks/{id}",
+    },
+    {
+      method: "DELETE",
+      path: "/tasks/:id",
+      actions: ["middleware", "remove"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/delete/tasks/{id}",
+    },
+  ],
+  products: [
+    {
+      method: "GET",
+      path: "/products",
+      actions: ["middleware", "list"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/get/products",
+    },
+    {
+      method: "POST",
+      path: "/products",
+      actions: ["middleware", "create"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/post/products",
+    },
+    {
+      method: "GET",
+      path: "/products/:id",
+      actions: ["middleware", "getOne"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/get/products/{id}",
+    },
+    {
+      method: "PATCH",
+      path: "/products/:id",
+      actions: ["middleware", "middleware", "patch"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/patch/products/{id}",
+    },
+    {
+      method: "DELETE",
+      path: "/products/:id",
+      actions: ["middleware", "remove"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/delete/products/{id}",
+    },
+  ],
+  posts: [
+    {
+      method: "GET",
+      path: "/posts",
+      actions: ["middleware", "list"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/get/posts",
+    },
+    {
+      method: "POST",
+      path: "/posts",
+      actions: ["middleware", "create"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/post/posts",
+    },
+    {
+      method: "GET",
+      path: "/posts/:id",
+      actions: ["middleware", "getOne"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/get/posts/{id}",
+    },
+    {
+      method: "GET",
+      path: "/posts/slug/:slug",
+      actions: ["middleware", "getBySlug"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/get/posts/slug/{slug}",
+    },
+    {
+      method: "PATCH",
+      path: "/posts/:id",
+      actions: ["middleware", "middleware", "patch"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/patch/posts/{id}",
+    },
+    {
+      method: "DELETE",
+      path: "/posts/:id",
+      actions: ["middleware", "remove"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/delete/posts/{id}",
+    },
+  ],
+  auth: [
+    {
+      method: "POST",
+      path: "/auth/register",
+      actions: ["middleware", "register"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/auth/post/auth/register",
+    },
+    {
+      method: "POST",
+      path: "/auth/login",
+      actions: ["middleware", "login"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/auth/post/auth/login",
+    },
+    {
+      method: "POST",
+      path: "/auth/refresh",
+      actions: ["middleware", "refresh"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/auth/post/auth/refresh",
+    },
+    {
+      method: "GET",
+      path: "/auth/me",
+      actions: ["me"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/auth/get/auth/me",
+    },
+  ],
+  webhooks: [
+    {
+      method: "GET",
+      path: "/webhooks/subscriptions",
+      actions: ["middleware", "list"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/get/webhooks/subscriptions",
+    },
+    {
+      method: "POST",
+      path: "/webhooks/subscriptions",
+      actions: ["middleware", "create"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/post/webhooks/subscriptions",
+    },
+    {
+      method: "GET",
+      path: "/webhooks/subscriptions/:id",
+      actions: ["middleware", "getOne"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/get/webhooks/subscriptions/{id}",
+    },
+    {
+      method: "PATCH",
+      path: "/webhooks/subscriptions/:id",
+      actions: ["middleware", "middleware", "patch"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/patch/webhooks/subscriptions/{id}",
+    },
+    {
+      method: "DELETE",
+      path: "/webhooks/subscriptions/:id",
+      actions: ["middleware", "remove"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/delete/webhooks/subscriptions/{id}",
+    },
+    {
+      method: "POST",
+      path: "/webhooks/subscriptions/:id/test",
+      actions: ["middleware", "test"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/post/webhooks/subscriptions/{id}/test",
+    },
+    {
+      method: "GET",
+      path: "/webhooks/events",
+      actions: ["middleware", "listEvents"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/get/webhooks/events",
+    },
+    {
+      method: "POST",
+      path: "/webhooks/events/:id/retry",
+      actions: ["middleware", "retryEvent"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/webhooks/post/webhooks/events/{id}/retry",
+    },
+  ],
+  graphql: [
+    {
+      method: "ALL",
+      path: "/graphql",
+      actions: ["middleware", "handler"],
+      docsUrl: "https://api.oluwasetemi.dev/graphql",
+    },
+    {
+      method: "GET",
+      path: "/playground",
+      actions: ["playground"],
+      docsUrl: "https://api.oluwasetemi.dev/playground",
+    },
+    {
+      method: "GET",
+      path: "/subscription-tester",
+      actions: ["subscriptionTester"],
+      docsUrl: "https://api.oluwasetemi.dev/subscription-tester",
+    },
+  ],
+  analytics: [
+    {
+      method: "GET",
+      path: "/analytics/requests",
+      actions: ["middleware", "getRequests"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/analytics/get/analytics/requests",
+    },
+    {
+      method: "GET",
+      path: "/analytics/counts",
+      actions: ["middleware", "getCounts"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/analytics/get/analytics/counts",
+    },
+  ],
+  websocket: [
+    {
+      method: "GET",
+      path: "/ws/tasks",
+      actions: ["upgradeWebSocket"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/tasks",
+    },
+    {
+      method: "GET",
+      path: "/ws/products",
+      actions: ["upgradeWebSocket"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/products",
+    },
+    {
+      method: "GET",
+      path: "/ws/posts",
+      actions: ["upgradeWebSocket"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/posts",
+    },
+    {
+      method: "GET",
+      path: "/ws/client/tasks",
+      actions: ["client"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/tasks",
+    },
+    {
+      method: "GET",
+      path: "/ws/client/products",
+      actions: ["client"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/products",
+    },
+    {
+      method: "GET",
+      path: "/ws/client/posts",
+      actions: ["client"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/client/posts",
+    },
+    {
+      method: "GET",
+      path: "/ws/stats",
+      actions: ["stats"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/stats",
+    },
+    {
+      method: "GET",
+      path: "/ws/health",
+      actions: ["health"],
+      docsUrl: "https://api.oluwasetemi.dev/ws/health",
+    },
+  ],
+  root: [
+    {
+      method: "GET",
+      path: "/",
+      actions: ["handler"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/root/get/",
+    },
+  ],
+};
+
+// Helper function to get route description
+function getRouteDescription(path: string, method: string): string {
+  const descriptions: Record<string, string> = {
+    "GET /tasks": "List all tasks with pagination",
+    "POST /tasks": "Create a new task",
+    "GET /tasks/:id": "Get task by ID",
+    "PATCH /tasks/:id": "Update a task",
+    "DELETE /tasks/:id": "Delete a task",
+    "GET /tasks/:id/children": "Get child tasks",
+
+    "GET /products": "List all products",
+    "POST /products": "Create a new product",
+    "GET /products/:id": "Get product by ID",
+    "PATCH /products/:id": "Update a product",
+    "DELETE /products/:id": "Delete a product",
+
+    "GET /posts": "List all posts with filtering",
+    "POST /posts": "Create a new post (slug auto-generated)",
+    "GET /posts/:id": "Get post by ID or slug",
+    "GET /posts/slug/:slug": "Get post by slug",
+    "PATCH /posts/:id": "Update a post",
+    "DELETE /posts/:id": "Delete a post",
+
+    "POST /auth/register": "Register new user (JWT)",
+    "POST /auth/login": "Login user (JWT)",
+    "POST /auth/refresh": "Refresh access token",
+    "GET /auth/me": "Get current user",
+
+    "GET /webhooks/subscriptions": "List webhook subscriptions",
+    "POST /webhooks/subscriptions": "Create webhook subscription",
+    "GET /webhooks/subscriptions/:id": "Get subscription details",
+    "PATCH /webhooks/subscriptions/:id": "Update subscription",
+    "DELETE /webhooks/subscriptions/:id": "Delete subscription",
+    "POST /webhooks/subscriptions/:id/test": "Test webhook delivery",
+    "GET /webhooks/events": "List webhook events",
+    "POST /webhooks/events/:id/retry": "Retry failed webhook",
+
+    "ALL /graphql": "GraphQL endpoint",
+    "GET /playground": "GraphQL Playground (Dev only)",
+    "GET /subscription-tester": "GraphQL Subscription Tester",
+
+    "GET /analytics/requests": "Get request analytics",
+    "GET /analytics/counts": "Get analytics summary",
+
+    "GET /ws/tasks": "WebSocket for task updates",
+    "GET /ws/products": "WebSocket for product updates",
+    "GET /ws/posts": "WebSocket for post updates",
+    "GET /ws/client/tasks": "Tasks WebSocket Playground",
+    "GET /ws/client/products": "Products WebSocket Playground",
+    "GET /ws/client/posts": "Posts WebSocket Playground",
+    "GET /ws/stats": "WebSocket connection statistics",
+    "GET /ws/health": "WebSocket health check",
+  };
+
+  return descriptions[`${method} ${path}`] || `${method} ${path}`;
+}
+
 const ApiLandingPage: FC = () => {
   const styles = `
           * {
@@ -176,6 +513,7 @@ const ApiLandingPage: FC = () => {
           .badge-post { background: #dcfce7; color: #166534; }
           .badge-patch { background: #fef3c7; color: #92400e; }
           .badge-delete { background: #fee2e2; color: #991b1b; }
+          .badge-all { background: #f3e8ff; color: #6b21a8; }
           .badge-ws { background: #f3e8ff; color: #6b21a8; }
 
           .footer {
@@ -330,7 +668,7 @@ const ApiLandingPage: FC = () => {
           {/* Core Documentation */}
           <div class="card">
             <div class="card-header">
-              <span class="card-icon"></span>
+              <span class="card-icon">📚</span>
               <h2 class="card-title">Core Documentation</h2>
             </div>
             <p class="card-description">
@@ -339,28 +677,28 @@ const ApiLandingPage: FC = () => {
             <ul class="link-list">
               <li class="link-item">
                 <a href="/reference">
-                  <span class="link-icon"></span>
+                  <span class="link-icon">📖</span>
                   OpenAPI Reference
                   <span class="badge badge-get">VIEW</span>
                 </a>
               </li>
               <li class="link-item">
                 <a href="/doc">
-                  <span class="link-icon"></span>
+                  <span class="link-icon">📄</span>
                   OpenAPI JSON
                   <span class="badge badge-get">VIEW</span>
                 </a>
               </li>
               <li class="link-item">
                 <a href="/api/auth/docs">
-                  <span class="link-icon"></span>
+                  <span class="link-icon">🔐</span>
                   Better Auth Docs
                   <span class="badge badge-get">VIEW</span>
                 </a>
               </li>
               <li class="link-item">
                 <a href="/health">
-                  <span class="link-icon"></span>
+                  <span class="link-icon">💚</span>
                   Health Check
                   <span class="badge badge-get">GET</span>
                 </a>
@@ -368,270 +706,82 @@ const ApiLandingPage: FC = () => {
             </ul>
           </div>
 
-          {/* Tasks API */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Tasks API</h2>
-            </div>
-            <p class="card-description">
-              Task management with hierarchical relationships and real-time updates
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/tasks">
-                  <span class="link-icon"></span>
-                  List Tasks
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/tasks" onclick="event.preventDefault(); alert('POST /tasks with JSON body')">
-                  <span class="link-icon"></span>
-                  Create Task
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-            </ul>
-          </div>
+          {/* Dynamically render API routes */}
+          {Object.entries(apiRoutes).map(([category, routes]) => {
+            // Category metadata
+            const categoryMeta: Record<string, { icon: string; title: string; description: string }> = {
+              tasks: {
+                icon: "",
+                title: "Tasks API",
+                description: "Task management with hierarchical relationships and real-time updates",
+              },
+              products: {
+                icon: "",
+                title: "Products API",
+                description: "E-commerce product management with pricing and inventory",
+              },
+              posts: {
+                icon: "",
+                title: "Posts API",
+                description: "Blog posts and content management with auto-generated slugs",
+              },
+              auth: {
+                icon: "",
+                title: "Authentication",
+                description: "JWT-based and Better Auth authentication systems",
+              },
+              webhooks: {
+                icon: "",
+                title: "Webhooks",
+                description: "Outgoing webhooks with retry logic and incoming webhook receivers",
+              },
+              graphql: {
+                icon: "",
+                title: "GraphQL",
+                description: "GraphQL API with subscriptions and auto-generated schema",
+              },
+              analytics: {
+                icon: "",
+                title: "Analytics",
+                description: "Request analytics and usage statistics",
+              },
+              websocket: {
+                icon: "",
+                title: "WebSocket",
+                description: "Real-time bidirectional communication for tasks, products, and posts",
+              },
+            };
 
-          {/* Products API */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Products API</h2>
-            </div>
-            <p class="card-description">
-              E-commerce product management with pricing and inventory
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/products">
-                  <span class="link-icon"></span>
-                  List Products
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/products" onclick="event.preventDefault(); alert('POST /products with JSON body')">
-                  <span class="link-icon"></span>
-                  Create Product
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-            </ul>
-          </div>
+            const meta = categoryMeta[category];
+            if (!meta || category === "root")
+              return null;
 
-          {/* Posts API */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Posts API</h2>
-            </div>
-            <p class="card-description">
-              Blog posts and content management with publishing workflow
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/posts">
-                  <span class="link-icon"></span>
-                  List Posts
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/posts" onclick="event.preventDefault(); alert('POST /posts with JSON body')">
-                  <span class="link-icon"></span>
-                  Create Post
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-            </ul>
-          </div>
+            return (
+              <div class="card" key={category}>
+                <div class="card-header">
+                  <span class="card-icon">{meta.icon}</span>
+                  <h2 class="card-title">{meta.title}</h2>
+                </div>
+                <p class="card-description">{meta.description}</p>
+                <ul class="link-list">
+                  {routes.map((route) => {
+                    const badgeClass = `badge-${route.method.toLowerCase()}`;
+                    const description = getRouteDescription(route.path, route.method);
 
-          {/* Authentication */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Authentication</h2>
-            </div>
-            <p class="card-description">
-              JWT-based and Better Auth authentication systems
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/auth/register" onclick="event.preventDefault(); alert('POST /auth/register with email & password')">
-                  <span class="link-icon"></span>
-                  Register (JWT)
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/auth/login" onclick="event.preventDefault(); alert('POST /auth/login with credentials')">
-                  <span class="link-icon"></span>
-                  Login (JWT)
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/api/auth/docs">
-                  <span class="link-icon"></span>
-                  Better Auth Docs
-                  <span class="badge badge-get">VIEW</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Webhooks */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Webhooks</h2>
-            </div>
-            <p class="card-description">
-              Outgoing webhooks with retry logic and incoming webhook receivers
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/webhooks/subscriptions">
-                  <span class="link-icon"></span>
-                  Subscriptions
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/webhooks/events">
-                  <span class="link-icon"></span>
-                  Event History
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/webhooks/github" onclick="event.preventDefault(); alert('POST endpoint for receiving GitHub webhooks')">
-                  <span class="link-icon"></span>
-                  GitHub Receiver
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/webhooks/stripe" onclick="event.preventDefault(); alert('POST endpoint for receiving Stripe webhooks')">
-                  <span class="link-icon"></span>
-                  Stripe Receiver
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* WebSocket */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">WebSocket</h2>
-            </div>
-            <p class="card-description">
-              Real-time bidirectional communication for tasks, products, and posts
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/ws/client/tasks">
-                  <span class="link-icon"></span>
-                  Tasks Client
-                  <span class="badge badge-get">VIEW</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/ws/client/products">
-                  <span class="link-icon"></span>
-                  Products Client
-                  <span class="badge badge-get">VIEW</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/ws/client/posts">
-                  <span class="link-icon"></span>
-                  Posts Client
-                  <span class="badge badge-get">VIEW</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/ws/stats">
-                  <span class="link-icon"></span>
-                  Connection Stats
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/ws/health">
-                  <span class="link-icon"></span>
-                  WebSocket Health
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* GraphQL */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">GraphQL</h2>
-            </div>
-            <p class="card-description">
-              GraphQL API with subscriptions and auto-generated schema
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/graphql" onclick="event.preventDefault(); alert('POST /graphql with GraphQL query')">
-                  <span class="link-icon"></span>
-                  GraphQL Endpoint
-                  <span class="badge badge-post">POST</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/playground">
-                  <span class="link-icon"></span>
-                  GraphQL Playground
-                  <span class="badge badge-get">VIEW</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/subscription-tester">
-                  <span class="link-icon"></span>
-                  Subscription Tester
-                  <span class="badge badge-ws">TEST</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Analytics */}
-          <div class="card">
-            <div class="card-header">
-              <span class="card-icon"></span>
-              <h2 class="card-title">Analytics</h2>
-            </div>
-            <p class="card-description">
-              Request analytics and usage statistics
-            </p>
-            <ul class="link-list">
-              <li class="link-item">
-                <a href="/analytics/requests">
-                  <span class="link-icon"></span>
-                  Request Stats
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-              <li class="link-item">
-                <a href="/analytics/counts">
-                  <span class="link-icon"></span>
-                  Summary
-                  <span class="badge badge-get">GET</span>
-                </a>
-              </li>
-            </ul>
-          </div>
+                    return (
+                      <li class="link-item" key={`${route.method}-${route.path}`}>
+                        <a href={route.docsUrl} target="_blank" rel="noopener noreferrer">
+                          <span class="link-icon">→</span>
+                          {description}
+                          <span class={`badge ${badgeClass}`}>{route.method}</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </div>
 
         <div class="footer">
