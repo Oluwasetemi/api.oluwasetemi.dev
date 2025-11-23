@@ -127,6 +127,7 @@ export class AuthService {
 
   static async verifyAccessToken(token: string): Promise<JWTPayload> {
     try {
+      // First try to verify with access token secret
       const payload = await verify(token, env.JWT_SECRET);
 
       // Validate payload structure
@@ -144,6 +145,27 @@ export class AuthService {
     }
     catch (error) {
       if (error instanceof Error) {
+        // If it's already an "Invalid token type" error, rethrow it
+        if (error.message === "Invalid token type") {
+          throw error;
+        }
+
+        // Check if it's a signature mismatch - might be a refresh token
+        if (error.message.includes("signature")) {
+          try {
+            const payload = await verify(token, env.JWT_REFRESH_SECRET);
+            if (payload && typeof payload === "object" && (payload as JWTPayload).type === "refresh") {
+              throw new Error("Invalid token type");
+            }
+          }
+          catch (verifyError) {
+            // If verification with refresh secret succeeds and shows it's a refresh token, throw Invalid token type
+            if (verifyError instanceof Error && verifyError.message === "Invalid token type") {
+              throw verifyError;
+            }
+            // Otherwise, fall through to throw the original error
+          }
+        }
         throw new Error(`Access token verification failed: ${error.message}`);
       }
       throw error;
@@ -152,6 +174,7 @@ export class AuthService {
 
   static async verifyRefreshToken(token: string): Promise<JWTPayload> {
     try {
+      // First try to verify with refresh token secret
       const payload = await verify(token, env.JWT_REFRESH_SECRET);
 
       // Validate payload structure
@@ -169,6 +192,27 @@ export class AuthService {
     }
     catch (error) {
       if (error instanceof Error) {
+        // If it's already an "Invalid token type" error, rethrow it
+        if (error.message === "Invalid token type") {
+          throw error;
+        }
+
+        // Check if it's a signature mismatch - might be an access token
+        if (error.message.includes("signature")) {
+          try {
+            const payload = await verify(token, env.JWT_SECRET);
+            if (payload && typeof payload === "object" && (payload as JWTPayload).type === "access") {
+              throw new Error("Invalid token type");
+            }
+          }
+          catch (verifyError) {
+            // If verification with access secret succeeds and shows it's an access token, throw Invalid token type
+            if (verifyError instanceof Error && verifyError.message === "Invalid token type") {
+              throw verifyError;
+            }
+            // Otherwise, fall through to throw the original error
+          }
+        }
         throw new Error(`Refresh token verification failed: ${error.message}`);
       }
       throw error;
