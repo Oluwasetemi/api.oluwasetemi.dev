@@ -464,7 +464,9 @@ router.get("/sse/client", (c) => {
           lastEventTypeDiv.textContent = eventType;
 
           const eventItem = document.createElement('div');
-          const eventClass = 'event-' + (eventType.split('.')[1] || 'default');
+          const [entity, action] = eventType.split('.');
+          const key = action || entity || 'default';
+          const eventClass = 'event-' + key;
           eventItem.className = 'event-item ' + eventClass;
 
           // Safely construct DOM nodes to prevent XSS
