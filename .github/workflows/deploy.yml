@@ -9,7 +9,7 @@ on:
 # Global environment variables available to all jobs
 env:
   NODE_VERSION: '22'  # Align with ci.yml minimum supported version
-  PNPM_VERSION: '10.18.3'
+  PNPM_VERSION: '10.23.0'
 
 # Concurrency settings to prevent multiple deployments
 concurrency:
