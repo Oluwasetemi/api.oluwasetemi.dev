@@ -38,7 +38,7 @@ describe("webhook events API", () => {
       isActive: true,
     }).returning().get();
 
-    userAccessToken = AuthService.generateAccessToken({
+    userAccessToken = await AuthService.generateAccessToken({
       userId: user.id,
       email: user.email,
       name: user.name,

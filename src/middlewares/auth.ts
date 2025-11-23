@@ -31,7 +31,7 @@ export async function authMiddleware(c: Context, next: Next) {
       });
     }
 
-    const payload = AuthService.verifyAccessToken(token);
+    const payload = await AuthService.verifyAccessToken(token);
 
     // Check if user is active (cached from JWT)
     if (!payload.isActive) {

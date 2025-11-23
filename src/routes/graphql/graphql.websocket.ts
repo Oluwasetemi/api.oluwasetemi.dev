@@ -28,7 +28,7 @@ type SubscriptionContext = {
 
 async function getUserFromToken(token: string) {
   try {
-    const payload = AuthService.verifyAccessToken(token);
+    const payload = await AuthService.verifyAccessToken(token);
 
     if (!payload.isActive) {
       return null;

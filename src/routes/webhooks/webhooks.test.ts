@@ -44,7 +44,7 @@ describe("webhook subscriptions API", () => {
     userId = user.id;
 
     // Generate access token with complete payload
-    userAccessToken = AuthService.generateAccessToken({
+    userAccessToken = await AuthService.generateAccessToken({
       userId: user.id,
       email: user.email,
       name: user.name,
@@ -358,7 +358,7 @@ describe("webhook subscriptions API", () => {
         isActive: true,
       }).returning().get();
 
-      const otherUserToken = AuthService.generateAccessToken({
+      const otherUserToken = await AuthService.generateAccessToken({
         userId: user.id,
         email: user.email,
         name: user.name,
@@ -526,7 +526,7 @@ describe("webhook subscriptions API", () => {
         isActive: true,
       }).returning().get();
 
-      const otherUserToken = AuthService.generateAccessToken({
+      const otherUserToken = await AuthService.generateAccessToken({
         userId: user.id,
         email: user.email,
         name: user.name,

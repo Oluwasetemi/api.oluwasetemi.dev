@@ -275,6 +275,32 @@ const apiRoutes = {
       docsUrl: "https://api.oluwasetemi.dev/ws/health",
     },
   ],
+  sse: [
+    {
+      method: "GET",
+      path: "/sse/tasks",
+      actions: ["tasksStream"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/sse/get/sse/tasks",
+    },
+    {
+      method: "GET",
+      path: "/sse/products",
+      actions: ["productsStream"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/sse/get/sse/products",
+    },
+    {
+      method: "GET",
+      path: "/sse/posts",
+      actions: ["postsStream"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/sse/get/sse/posts",
+    },
+    {
+      method: "GET",
+      path: "/sse/client",
+      actions: ["client"],
+      docsUrl: "https://api.oluwasetemi.dev/sse/client",
+    },
+  ],
   root: [
     {
       method: "GET",
@@ -337,6 +363,11 @@ function getRouteDescription(path: string, method: string): string {
     "GET /ws/client/posts": "Posts WebSocket Playground",
     "GET /ws/stats": "WebSocket connection statistics",
     "GET /ws/health": "WebSocket health check",
+
+    "GET /sse/tasks": "Server-Sent Events for task updates",
+    "GET /sse/products": "Server-Sent Events for product updates",
+    "GET /sse/posts": "Server-Sent Events for post updates",
+    "GET /sse/client": "SSE Test Client Playground",
   };
 
   return descriptions[`${method} ${path}`] || `${method} ${path}`;
@@ -749,6 +780,11 @@ const ApiLandingPage: FC = () => {
                 icon: "",
                 title: "WebSocket",
                 description: "Real-time bidirectional communication for tasks, products, and posts",
+              },
+              sse: {
+                icon: "",
+                title: "Server-Sent Events (SSE)",
+                description: "One-way real-time event streaming from server to client with automatic reconnection",
               },
             };
 

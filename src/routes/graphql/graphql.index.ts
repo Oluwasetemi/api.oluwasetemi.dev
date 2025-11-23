@@ -115,7 +115,7 @@ async function getUserFromToken(authHeader: string) {
       return null;
     }
 
-    const payload = AuthService.verifyAccessToken(token);
+    const payload = await AuthService.verifyAccessToken(token);
 
     if (!payload.isActive) {
       return null;

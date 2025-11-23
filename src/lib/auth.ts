@@ -3,16 +3,13 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { openAPI } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { sign, verify } from "hono/jwt";
 
 import db from "@/db";
 import { account, session, users, verification } from "@/db/schema";
 import env from "@/env";
 
 import { sendEmail } from "./email";
-
-// Simple in-memory cache for JWT tokens (for performance optimization)
-const tokenCache = new Map<string, { payload: JWTPayload; exp: number }>();
 
 // Pre-compiled regex patterns for password validation (performance optimization)
 const passwordRegexes = {
@@ -90,86 +87,89 @@ export class AuthService {
     return bcrypt.compare(password, hashedPassword);
   }
 
-  static generateAccessToken(payload: Omit<JWTPayload, "type">): string {
-    const tokenPayload = { ...payload, type: "access" as const };
-    // Note: Using type assertion due to jsonwebtoken library typing issues
-    return (jwt.sign as any)(
-      tokenPayload,
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN },
-    );
+  static async generateAccessToken(payload: Omit<JWTPayload, "type">): Promise<string> {
+    const tokenPayload = {
+      ...payload,
+      type: "access" as const,
+      exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_EXPIRES_IN),
+    };
+    return sign(tokenPayload, env.JWT_SECRET);
   }
 
-  static generateRefreshToken(payload: Omit<JWTPayload, "type">): string {
-    const tokenPayload = { ...payload, type: "refresh" as const };
-    // Note: Using type assertion due to jsonwebtoken library typing issues
-    return (jwt.sign as any)(
-      tokenPayload,
-      env.JWT_REFRESH_SECRET,
-      { expiresIn: env.JWT_REFRESH_EXPIRES_IN },
-    );
+  static async generateRefreshToken(payload: Omit<JWTPayload, "type">): Promise<string> {
+    const tokenPayload = {
+      ...payload,
+      type: "refresh" as const,
+      exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_REFRESH_EXPIRES_IN),
+    };
+    return sign(tokenPayload, env.JWT_REFRESH_SECRET);
   }
 
-  static verifyAccessToken(token: string): JWTPayload {
-    // Check cache first for performance
-    const cached = tokenCache.get(token);
-    if (cached && cached.exp > Date.now() / 1000) {
-      return cached.payload;
+  // Helper to parse expiration strings like "24h", "7d" to seconds
+  private static parseExpiration(expiration: string): number {
+    const match = expiration.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      throw new Error(`Invalid expiration format: ${expiration}`);
     }
 
+    const value = Number.parseInt(match[1], 10);
+    const unit = match[2];
+
+    const multipliers: Record<string, number> = {
+      s: 1,
+      m: 60,
+      h: 3600,
+      d: 86400,
+    };
+
+    return value * multipliers[unit];
+  }
+
+  static async verifyAccessToken(token: string): Promise<JWTPayload> {
     try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
-      if (payload.type !== "access") {
+      const payload = await verify(token, env.JWT_SECRET);
+
+      // Validate payload structure
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid token payload");
+      }
+
+      const jwtPayload = payload as JWTPayload;
+
+      if (jwtPayload.type !== "access") {
         throw new Error("Invalid token type");
       }
 
-      // Cache the verified token for better performance
-      // Only cache in development/staging for memory management
-      if (env.NODE_ENV !== "production") {
-        const decoded = jwt.decode(token, { json: true });
-        if (decoded?.exp) {
-          tokenCache.set(token, { payload, exp: decoded.exp });
-
-          // Clean up cache periodically (keep only last 100 tokens)
-          if (tokenCache.size > 100) {
-            const entries = Array.from(tokenCache.entries());
-            const oldest = entries.slice(0, 50);
-            oldest.forEach(([key]) => tokenCache.delete(key));
-          }
-        }
-      }
-
-      return payload;
+      return jwtPayload;
     }
     catch (error) {
-      // If it's a signature error, it might be the wrong token type
-      if (error instanceof Error && error.message.includes("invalid signature")) {
-        // Try to decode without verification to check type
-        const decoded = jwt.decode(token, { json: true }) as JWTPayload | null;
-        if (decoded && decoded.type && decoded.type !== "access") {
-          throw new Error("Invalid token type");
-        }
+      if (error instanceof Error) {
+        throw new Error(`Access token verification failed: ${error.message}`);
       }
       throw error;
     }
   }
 
-  static verifyRefreshToken(token: string): JWTPayload {
+  static async verifyRefreshToken(token: string): Promise<JWTPayload> {
     try {
-      const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as JWTPayload;
-      if (payload.type !== "refresh") {
+      const payload = await verify(token, env.JWT_REFRESH_SECRET);
+
+      // Validate payload structure
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid token payload");
+      }
+
+      const jwtPayload = payload as JWTPayload;
+
+      if (jwtPayload.type !== "refresh") {
         throw new Error("Invalid token type");
       }
-      return payload;
+
+      return jwtPayload;
     }
     catch (error) {
-      // If it's a signature error, it might be the wrong token type
-      if (error instanceof Error && error.message.includes("invalid signature")) {
-        // Try to decode without verification to check type
-        const decoded = jwt.decode(token, { json: true }) as JWTPayload | null;
-        if (decoded && decoded.type && decoded.type !== "refresh") {
-          throw new Error("Invalid token type");
-        }
+      if (error instanceof Error) {
+        throw new Error(`Refresh token verification failed: ${error.message}`);
       }
       throw error;
     }

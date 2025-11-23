@@ -1,9 +1,9 @@
 {
   "name": "api.oluwasetemi.dev",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "packageManager": "pnpm@10.18.3",
+  "packageManager": "pnpm@10.23.0",
   "author": {
     "name": "Oluwasetemi Ojo",
     "email": "me@oluwasetemi.dev",
@@ -57,7 +57,6 @@
     "hono": "^4.9.12",
     "hono-pino": "^0.8.0",
     "hono-rate-limiter": "^0.4.2",
-    "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
     "pino": "^9.13.1",
     "pino-pretty": "^13.1.2",
@@ -72,7 +71,6 @@
     "@eslint-react/eslint-plugin": "^2.2.2",
     "@setemiojo/eslint-config": "^5.4.3",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.18.10",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19.2.2",
