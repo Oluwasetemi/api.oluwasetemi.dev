@@ -467,12 +467,31 @@ router.get("/sse/client", (c) => {
           const eventClass = 'event-' + (eventType.split('.')[1] || 'default');
           eventItem.className = 'event-item ' + eventClass;
 
-          eventItem.innerHTML =
-            '<div class="event-header">' +
-              '<span class="event-type">' + eventType + '</span>' +
-              '<span class="event-time">' + new Date().toLocaleTimeString() + '</span>' +
-            '</div>' +
-            '<div class="event-data"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+          // Safely construct DOM nodes to prevent XSS
+          const eventHeader = document.createElement('div');
+          eventHeader.className = 'event-header';
+
+          const eventTypeSpan = document.createElement('span');
+          eventTypeSpan.className = 'event-type';
+          eventTypeSpan.textContent = eventType;
+
+          const eventTimeSpan = document.createElement('span');
+          eventTimeSpan.className = 'event-time';
+          eventTimeSpan.textContent = new Date().toLocaleTimeString();
+
+          eventHeader.appendChild(eventTypeSpan);
+          eventHeader.appendChild(eventTimeSpan);
+
+          const eventDataDiv = document.createElement('div');
+          eventDataDiv.className = 'event-data';
+
+          const preElement = document.createElement('pre');
+          preElement.textContent = JSON.stringify(data, null, 2);
+
+          eventDataDiv.appendChild(preElement);
+
+          eventItem.appendChild(eventHeader);
+          eventItem.appendChild(eventDataDiv);
 
           eventsContainer.insertBefore(eventItem, eventsContainer.firstChild);
 
