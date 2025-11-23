@@ -135,19 +135,30 @@ export class AuthService {
         throw new Error("Invalid token payload");
       }
 
-      const jwtPayload = payload as JWTPayload;
-
-      if (jwtPayload.type !== "access") {
-        throw new Error("Invalid token type");
+      // Explicit field-level validation before casting
+      if (typeof payload.userId !== "string" || payload.userId.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid userId");
+      }
+      if (typeof payload.email !== "string" || payload.email.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid email");
+      }
+      if (typeof payload.name !== "string" || payload.name.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid name");
+      }
+      if (typeof payload.isActive !== "boolean") {
+        throw new TypeError("Invalid token payload: missing or invalid isActive");
+      }
+      if (payload.type !== "access") {
+        throw new Error("Invalid token payload: missing or invalid type");
       }
 
-      return jwtPayload;
+      return payload as JWTPayload;
     }
     catch (error) {
       if (error instanceof Error) {
-        // If it's already an "Invalid token type" error, rethrow it
-        if (error.message === "Invalid token type") {
-          throw error;
+        // If it's already a validation error, rethrow it
+        if (error.message.startsWith("Invalid token payload:")) {
+          throw new Error(`Access token verification failed: ${error.message}`);
         }
 
         // Check if it's a signature mismatch - might be a refresh token
