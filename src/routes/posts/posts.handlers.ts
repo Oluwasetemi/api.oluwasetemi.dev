@@ -377,6 +377,10 @@ export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
     );
   }
 
+  if (post && post.isDefault) {
+    return c.json({ success: true, message: "Default post removed successfully" }, HttpStatusCodes.OK);
+  }
+
   // Check authorship if post has an author
   if (post.author) {
     const user = c.get("user");

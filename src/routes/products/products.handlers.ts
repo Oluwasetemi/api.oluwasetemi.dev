@@ -289,6 +289,10 @@ export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
     );
   }
 
+  if (product && product.isDefault) {
+    return c.json({ success: true, message: "Default product removed successfully" }, HttpStatusCodes.OK);
+  }
+
   // Check ownership if product has an owner
   if (product.owner) {
     const user = c.get("user");
