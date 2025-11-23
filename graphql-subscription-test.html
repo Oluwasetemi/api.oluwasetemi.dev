@@ -485,8 +485,8 @@ subscription PostPublished {
 
       function connect() {
         return new Promise((resolve, reject) => {
-          // ws = new WebSocket("wss://api.oluwasetemi.dev/graphql", "graphql-transport-ws");
-          ws = new WebSocket("wss://api.local/graphql", "graphql-transport-ws");
+          ws = new WebSocket("wss://api.oluwasetemi.dev/graphql", "graphql-transport-ws");
+          // ws = new WebSocket("wss://api.local/graphql", "graphql-transport-ws");
 
           ws.onopen = () => {
             updateStatus("connecting", "🟡 Connecting...");
