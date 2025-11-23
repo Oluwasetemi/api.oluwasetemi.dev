@@ -1,4 +1,3 @@
-<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -196,7 +195,7 @@
 
   <body>
     <div class="container">
-      <h1>🔌 GraphQL Subscription Tester</h1>
+      <h1>GraphQL Subscription Tester</h1>
 
       <div id="status" class="status disconnected">⚫ Disconnected</div>
 
@@ -303,9 +302,33 @@ subscription PostPublished {
               <h3>Product Updated</h3>
               <p>Listen for product updates</p>
             </div>
+            <div class="quick-query" onclick="loadQuery('productDeleted')">
+              <h3>Product Deleted</h3>
+              <p>Listen for product deleted</p>
+            </div>
             <div class="quick-query" onclick="loadQuery('taskCreated')">
               <h3>Task Created</h3>
               <p>Listen for new tasks</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('taskUpdated')">
+              <h3>Task Updated</h3>
+              <p>Listen for updated tasks</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('taskDeleted')">
+              <h3>Task Deleted</h3>
+              <p>Listen for deleted tasks</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('postCreated')">
+              <h3>Post Created</h3>
+              <p>Listen for post created</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('postUpdated')">
+              <h3>Post Updated</h3>
+              <p>Listen for posts updated</p>
+            </div>
+            <div class="quick-query" onclick="loadQuery('postDeleted')">
+              <h3>Post Deleted</h3>
+              <p>Listen for posts deleted</p>
             </div>
             <div class="quick-query" onclick="loadQuery('postPublished')">
               <h3>Post Published</h3>
@@ -315,7 +338,7 @@ subscription PostPublished {
         </div>
 
         <div class="panel">
-          <h2>📨 Events (Real-time)</h2>
+          <h2>Events (Real-time)</h2>
           <div id="events" class="events">
             <div style="color: #5c6370; text-align: center; padding: 20px">
               No events yet. Subscribe to start receiving updates.
@@ -352,6 +375,11 @@ subscription PostPublished {
     updatedAt
   }
 }`,
+        productDeleted: `subscription {
+  productDeleted {
+    id
+  }
+}`,
         taskCreated: `subscription {
   taskCreated {
     id
@@ -360,6 +388,46 @@ subscription PostPublished {
     status
     priority
     createdAt
+  }
+}`,
+        taskUpdated: `subscription {
+  taskUpdated {
+    id
+    name
+    description
+    status
+    priority
+    createdAt
+  }
+}`,
+        taskDeleted: `subscription {
+  taskDeleted {
+    id
+  }
+}`,
+        postCreated: `subscription {
+  postCreated {
+    id
+    title
+    slug
+    content
+    status
+    createdAt
+  }
+}`,
+        postUpdated: `subscription {
+  postUpdated {
+    id
+    title
+    slug
+    content
+    status
+    createdAt
+  }
+}`,
+        postDeleted: `subscription {
+  postDeleted {
+    id
   }
 }`,
         postPublished: `subscription {
@@ -417,7 +485,8 @@ subscription PostPublished {
 
       function connect() {
         return new Promise((resolve, reject) => {
-          ws = new WebSocket("wss://api.oluwasetemi.dev/graphql", "graphql-transport-ws");
+          // ws = new WebSocket("wss://api.oluwasetemi.dev/graphql", "graphql-transport-ws");
+          ws = new WebSocket("wss://api.local/graphql", "graphql-transport-ws");
 
           ws.onopen = () => {
             updateStatus("connecting", "🟡 Connecting...");
