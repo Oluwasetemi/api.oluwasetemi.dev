@@ -512,8 +512,7 @@ router.get("/sse/client", (c) => {
           const filterId = filterIdInput.value.trim();
           const authToken = authTokenInput.value.trim();
 
-          // Build URL with query params
-          let url = 'https://api.oluwasetemi.dev' + endpoint;
+          // Build URL with query params (use relative URL to work with current origin)
           const params = new URLSearchParams();
 
           if (filterId) {
@@ -522,20 +521,16 @@ router.get("/sse/client", (c) => {
             params.append(paramName, filterId);
           }
 
-          if (params.toString()) {
-            url += '?' + params.toString();
+          // EventSource doesn't support custom headers, so pass auth token as query param
+          if (authToken) {
+            params.append('token', authToken);
           }
+
+          const url = endpoint + (params.toString() ? '?' + params.toString() : '');
 
           updateStatus('connecting', 'Connecting...');
 
-          const options = {};
-          if (authToken) {
-            options.headers = {
-              'Authorization': 'Bearer ' + authToken
-            };
-          }
-
-          eventSource = new EventSource(url, options);
+          eventSource = new EventSource(url);
           connectionStartTime = Date.now();
           eventsCount = 0;
 
