@@ -26,6 +26,7 @@ export type JWTPayload = {
   image: string | null;
   isActive: boolean;
   type: "access" | "refresh";
+  exp: number; // Unix timestamp (seconds since epoch)
 };
 
 export type AuthUser = {
@@ -87,22 +88,22 @@ export class AuthService {
     return bcrypt.compare(password, hashedPassword);
   }
 
-  static async generateAccessToken(payload: Omit<JWTPayload, "type">): Promise<string> {
+  static async generateAccessToken(payload: Omit<JWTPayload, "type" | "exp">): Promise<string> {
     const tokenPayload = {
       ...payload,
       type: "access" as const,
       exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_EXPIRES_IN),
     };
-    return sign(tokenPayload, env.JWT_SECRET);
+    return await sign(tokenPayload, env.JWT_SECRET);
   }
 
-  static async generateRefreshToken(payload: Omit<JWTPayload, "type">): Promise<string> {
+  static async generateRefreshToken(payload: Omit<JWTPayload, "type" | "exp">): Promise<string> {
     const tokenPayload = {
       ...payload,
       type: "refresh" as const,
       exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_REFRESH_EXPIRES_IN),
     };
-    return sign(tokenPayload, env.JWT_REFRESH_SECRET);
+    return await sign(tokenPayload, env.JWT_REFRESH_SECRET);
   }
 
   // Helper to parse expiration strings like "24h", "7d" to seconds

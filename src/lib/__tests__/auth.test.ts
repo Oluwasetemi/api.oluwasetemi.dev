@@ -116,7 +116,7 @@ describe("authService", () => {
   });
 
   describe("jWT Token Operations", () => {
-    const mockPayload: Omit<JWTPayload, "type"> = {
+    const mockPayload: Omit<JWTPayload, "type" | "exp"> = {
       userId: "test-user-id",
       email: "test@example.com",
       name: "Test User",

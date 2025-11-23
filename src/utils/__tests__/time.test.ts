@@ -173,6 +173,7 @@ describe("time Utilities", () => {
         image: "https://example.com/avatar.jpg",
         isActive: true,
         type: "access" as const,
+        exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
       };
 
       const result = await getUserWithTimestamps(mockPayload);
@@ -194,6 +195,7 @@ describe("time Utilities", () => {
         image: null,
         isActive: true,
         type: "access" as const,
+        exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
       };
 
       const result = await getUserWithTimestamps(mockPayload);
@@ -219,6 +221,7 @@ describe("time Utilities", () => {
         image: null,
         isActive: false,
         type: "access" as const,
+        exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
       };
 
       const result = await getUserWithTimestamps(mockPayload);
@@ -243,6 +246,7 @@ describe("time Utilities", () => {
         image: null,
         isActive: true,
         type: "access" as const,
+        exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
       };
 
       const result = await getUserWithTimestamps(mockPayload);
@@ -280,6 +284,7 @@ describe("time Utilities", () => {
         image: "https://example.com/integration.jpg",
         isActive: true,
         type: "access" as const,
+        exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
       };
 
       // Get user with timestamps
