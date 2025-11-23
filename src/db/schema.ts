@@ -210,6 +210,7 @@ export const products = sqliteTable("products", {
   images: text().notNull().default("[]"), // JSON array of image URLs
   featured: integer({ mode: "boolean" }).notNull().default(false),
   published: integer({ mode: "boolean" }).notNull().default(true),
+  isDefault: integer({ mode: "boolean" }).default(false),
   owner: text().references(() => users.id, { onDelete: "set null" }),
   createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer({ mode: "timestamp" })
@@ -260,6 +261,7 @@ export const posts = sqliteTable("posts", {
   tags: text(),
   viewCount: integer("view_count", { mode: "number" }).notNull().default(0),
   publishedAt: integer({ mode: "timestamp" }),
+  isDefault: integer({ mode: "boolean" }).default(false),
   author: text().references(() => users.id, { onDelete: "set null" }),
   createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer({ mode: "timestamp" })
