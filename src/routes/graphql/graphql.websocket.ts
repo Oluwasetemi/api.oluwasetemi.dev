@@ -26,6 +26,12 @@ type SubscriptionContext = {
   user: any;
 };
 
+/**
+ * Resolve the authenticated user represented by an access token, or return `null` when verification fails or the user is not available.
+ *
+ * @param token - Access token string (e.g., a bearer access token) used to verify identity
+ * @returns The user object formatted for GraphQL, or `null` if the token is invalid, the user is inactive, or the user cannot be found
+ */
 async function getUserFromToken(token: string) {
   try {
     const payload = await AuthService.verifyAccessToken(token);

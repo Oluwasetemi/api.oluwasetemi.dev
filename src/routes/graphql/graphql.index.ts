@@ -108,6 +108,12 @@ router.get("/subscription-tester", async (c) => {
   }
 });
 
+/**
+ * Resolve a user from an Authorization header's Bearer token for use in GraphQL context.
+ *
+ * @param authHeader - The value of the Authorization header which may contain a Bearer token
+ * @returns The user object formatted for GraphQL when the token is valid, active, and maps to a user; `null` otherwise
+ */
 async function getUserFromToken(authHeader: string) {
   try {
     const token = extractBearerToken(authHeader);
