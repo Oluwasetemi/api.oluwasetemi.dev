@@ -8,6 +8,7 @@ import { sign, verify } from "hono/jwt";
 import db from "@/db";
 import { account, session, users, verification } from "@/db/schema";
 import env from "@/env";
+import { logger } from "@/middlewares/pino-logger";
 
 import { sendEmail } from "./email";
 
@@ -328,7 +329,7 @@ export const auth = betterAuth({
       return AuthService.verifyPassword(password, hashedPassword);
     },
     sendVerificationEmail: async ({ user, url, token }: { user: { email: string }; url: string; token: string }) => {
-      console.log(user, url, token);
+      logger.debug(user, url, token);
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
@@ -336,7 +337,7 @@ export const auth = betterAuth({
       });
     },
     sendResetPassword: async ({ user, token, url }) => {
-      console.log({ user, token, url });
+      logger.debug({ user, token, url });
       await sendEmail({
         to: user.email,
         subject: "Reset your password",
