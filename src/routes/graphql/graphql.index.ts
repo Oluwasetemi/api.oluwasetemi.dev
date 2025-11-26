@@ -34,16 +34,7 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
       let user = null;
       const authHeader = req.header("authorization");
       if (authHeader) {
-        try {
-          user = await getUserFromToken(authHeader);
-        }
-        catch (error) {
-          console.error(
-            "Auth error (continuing):",
-            error instanceof Error ? error.message : String(error),
-          );
-          user = null;
-        }
+        user = await getUserFromToken(authHeader);
       }
 
       return {
