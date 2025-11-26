@@ -311,7 +311,13 @@ const apiRoutes = {
   ],
 };
 
-// Helper function to get route description
+/**
+ * Return a human-readable description for an API route.
+ *
+ * @param path - The route path (may include parameter placeholders such as `:id` or `:slug`)
+ * @param method - The HTTP method for the route (e.g., `GET`, `POST`, `PATCH`)
+ * @returns A short description of the route if known, otherwise the fallback string in the form `METHOD path` (for example, `GET /unknown`)
+ */
 function getRouteDescription(path: string, method: string): string {
   const descriptions: Record<string, string> = {
     "GET /tasks": "List all tasks with pagination",
