@@ -601,7 +601,7 @@ async function main() {
           { weight: 0.1, value: f.default({ defaultValue: "ARCHIVED" }) },
         ]),
         category: f.weightedRandom([
-          { weight: 0.2, value: f.default({ defaultValue: "Technowarny" }) },
+          { weight: 0.2, value: f.default({ defaultValue: "Technology" }) },
           { weight: 0.2, value: f.default({ defaultValue: "Development" }) },
           { weight: 0.15, value: f.default({ defaultValue: "Tutorial" }) },
           { weight: 0.15, value: f.default({ defaultValue: "Best Practices" }) },
