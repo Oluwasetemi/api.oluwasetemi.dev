@@ -1,4 +1,5 @@
 import { AuthService } from "@/lib/auth";
+import { logger } from "@/middlewares/pino-logger";
 import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
 
 /**
@@ -24,7 +25,27 @@ export async function resolveUserFromToken(token: string) {
     return formatUserForGraphQL(user);
   }
   catch (error) {
-    console.error("Error verifying auth token:", error);
+    // Expected auth failures (expired/invalid tokens) are common in normal operation
+    // Only log unexpected errors to avoid noisy logs in production
+    if (error instanceof Error) {
+      const isExpectedAuthFailure = error.message.includes("verification failed")
+        || error.message.includes("expired")
+        || error.message.includes("Invalid token");
+
+      if (isExpectedAuthFailure) {
+        // Log at debug level for expected auth failures
+        logger.debug({ error: error.message }, "Authentication failed");
+      }
+      else {
+        // Log unexpected errors at error level with full details
+        logger.error({ error: error.message, stack: error.stack }, "Unexpected error during token verification");
+      }
+    }
+    else {
+      // Non-Error objects are unexpected
+      logger.error({ error }, "Unexpected non-Error thrown during token verification");
+    }
+
     return null;
   }
 }

@@ -31,11 +31,8 @@ const server = new ApolloServer({
 const graphqlHandler = startServerAndCreateHonoHandler(server, {
   context: async ({ req, c }) => {
     try {
-      let user = null;
       const authHeader = req.header("authorization");
-      if (authHeader) {
-        user = await getUserFromToken(authHeader);
-      }
+      const user = await getUserFromToken(authHeader);
 
       return {
         db,
@@ -102,10 +99,10 @@ router.get("/subscription-tester", async (c) => {
 /**
  * Resolve a user from an Authorization header's Bearer token for use in GraphQL context.
  *
- * @param authHeader - The value of the Authorization header which may contain a Bearer token
+ * @param authHeader - The value of the Authorization header which may contain a Bearer token (or undefined if not provided)
  * @returns The user object formatted for GraphQL when the token is valid, active, and maps to a user; `null` otherwise
  */
-async function getUserFromToken(authHeader: string) {
+async function getUserFromToken(authHeader: string | undefined) {
   const token = extractBearerToken(authHeader);
   if (!token) {
     return null;
