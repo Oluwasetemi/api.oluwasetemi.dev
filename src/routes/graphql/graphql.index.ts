@@ -5,10 +5,10 @@ import { ApolloServerPluginLandingPageProductionDefault } from "@apollo/server/p
 import db from "@/db";
 import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
-import { AuthService, extractBearerToken } from "@/lib/auth";
+import { extractBearerToken } from "@/lib/auth";
 import { createRouter } from "@/lib/create-app";
 import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
-import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
+import { resolveUserFromToken } from "@/utils/auth-helpers";
 
 import { schema } from "./graphql.schema";
 
@@ -106,30 +106,12 @@ router.get("/subscription-tester", async (c) => {
  * @returns The user object formatted for GraphQL when the token is valid, active, and maps to a user; `null` otherwise
  */
 async function getUserFromToken(authHeader: string) {
-  try {
-    const token = extractBearerToken(authHeader);
-    if (!token) {
-      return null;
-    }
-
-    const payload = await AuthService.verifyAccessToken(token);
-
-    if (!payload.isActive) {
-      return null;
-    }
-
-    const user = await getUserWithTimestamps(payload);
-
-    if (!user) {
-      return null;
-    }
-
-    return formatUserForGraphQL(user);
-  }
-  catch (error) {
-    console.error("Error verifying auth token:", error);
+  const token = extractBearerToken(authHeader);
+  if (!token) {
     return null;
   }
+
+  return resolveUserFromToken(token);
 }
 
 export default router;
