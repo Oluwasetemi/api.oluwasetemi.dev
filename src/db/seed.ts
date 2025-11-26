@@ -34,12 +34,12 @@ async function main() {
   const shouldReset = args.includes("--reset");
 
   if (shouldReset) {
-    console.log("🗑️  Resetting database...");
+    console.warn("🗑️  Resetting database...");
     try {
       await db.delete(tasks);
       await db.delete(products);
       await db.delete(posts);
-      console.log("✅ Database reset successful!");
+      console.warn("✅ Database reset successful!");
     }
     catch (error) {
       console.error("❌ Error resetting database:", error);
@@ -47,13 +47,13 @@ async function main() {
     }
   }
 
-  console.log("🌱 Starting to seed 500 tasks, 500 products, and 500 posts...");
+  console.warn("🌱 Starting to seed 500 tasks, 500 products, and 500 posts...");
 
   await seed(db as any, { tasks, products, posts }).refine(f => ({
     tasks: {
       count: 500,
       columns: {
-        id: f.uuid(),
+        id: f.string({ isUnique: true }),
         name: f.weightedRandom([
           {
             weight: 0.3,
@@ -296,7 +296,7 @@ async function main() {
     products: {
       count: 500,
       columns: {
-        id: f.uuid(),
+        id: f.string({ isUnique: true }),
         name: f.weightedRandom([
           {
             weight: 0.3,
@@ -491,7 +491,7 @@ async function main() {
     posts: {
       count: 500,
       columns: {
-        id: f.uuid(),
+        id: f.string({ isUnique: true }),
         title: f.weightedRandom([
           {
             weight: 0.25,
@@ -601,7 +601,7 @@ async function main() {
           { weight: 0.1, value: f.default({ defaultValue: "ARCHIVED" }) },
         ]),
         category: f.weightedRandom([
-          { weight: 0.2, value: f.default({ defaultValue: "Technology" }) },
+          { weight: 0.2, value: f.default({ defaultValue: "Technowarny" }) },
           { weight: 0.2, value: f.default({ defaultValue: "Development" }) },
           { weight: 0.15, value: f.default({ defaultValue: "Tutorial" }) },
           { weight: 0.15, value: f.default({ defaultValue: "Best Practices" }) },
@@ -652,9 +652,9 @@ async function main() {
     },
   }));
 
-  console.log("✅ Successfully seeded 500 tasks, 500 products, and 500 posts!");
-  console.log("🔒 All tasks, products, and posts marked as default (protected from deletion)");
-  console.log("🖼️  All products and posts have Cloudinary images assigned");
+  console.warn("✅ Successfully seeded 500 tasks, 500 products, and 500 posts!");
+  console.warn("🔒 All tasks, products, and posts marked as default (protected from deletion)");
+  console.warn("🖼️  All products and posts have Cloudinary images assigned");
 }
 
 main().catch((error) => {
