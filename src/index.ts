@@ -34,3 +34,37 @@ if (env.NODE_ENV === "development") {
     verbose: true,
   });
 }
+
+// Graceful shutdown handlers
+async function shutdown(signal: string) {
+  // eslint-disable-next-line no-console
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  // Close server first
+  server.close(() => {
+    // eslint-disable-next-line no-console
+    console.log("Server closed");
+    process.exit(0);
+  });
+
+  // Force exit after timeout
+  setTimeout(() => {
+    console.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000); // 10 second timeout
+}
+
+// Handle termination signals
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
+});
