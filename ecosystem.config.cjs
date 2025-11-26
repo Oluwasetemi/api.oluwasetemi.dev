@@ -4,7 +4,7 @@ module.exports = {
     name: "api.oluwasetemi.dev",
     script: "src/index.ts",
     interpreter: "bun",
-    instances: 1,
+    instances: 4,
     exec_mode: "fork",
     env_file: ".env",
     env: {
