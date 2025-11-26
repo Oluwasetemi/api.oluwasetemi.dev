@@ -116,6 +116,10 @@ export class AuthService {
     const value = Number.parseInt(match[1], 10);
     const unit = match[2];
 
+    if (value <= 0) {
+      throw new Error(`Expiration value must be positive: ${expiration}`);
+    }
+
     const multipliers: Record<string, number> = {
       s: 1,
       m: 60,
@@ -123,7 +127,13 @@ export class AuthService {
       d: 86400,
     };
 
-    return value * multipliers[unit];
+    const seconds = value * multipliers[unit];
+    const MAX_EXPIRATION = 365 * 86400; // 1 year in seconds
+
+    if (seconds > MAX_EXPIRATION) {
+      throw new Error(`Expiration too large (max 1 year): ${expiration}`);
+    }
+    return seconds;
   }
 
   static async verifyAccessToken(token: string): Promise<JWTPayload> {
