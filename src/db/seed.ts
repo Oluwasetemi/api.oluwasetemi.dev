@@ -49,11 +49,16 @@ async function main() {
 
   console.warn("🌱 Starting to seed 500 tasks, 500 products, and 500 posts...");
 
+  // Generate unique UUIDs for each table
+  const taskIds = Array.from({ length: 500 }, () => crypto.randomUUID());
+  const productIds = Array.from({ length: 500 }, () => crypto.randomUUID());
+  const postIds = Array.from({ length: 500 }, () => crypto.randomUUID());
+
   await seed(db as any, { tasks, products, posts }).refine(f => ({
     tasks: {
       count: 500,
       columns: {
-        id: f.string({ isUnique: true }),
+        id: f.valuesFromArray({ values: taskIds, isUnique: true }),
         name: f.weightedRandom([
           {
             weight: 0.3,
@@ -296,7 +301,7 @@ async function main() {
     products: {
       count: 500,
       columns: {
-        id: f.string({ isUnique: true }),
+        id: f.valuesFromArray({ values: productIds, isUnique: true }),
         name: f.weightedRandom([
           {
             weight: 0.3,
@@ -491,7 +496,7 @@ async function main() {
     posts: {
       count: 500,
       columns: {
-        id: f.string({ isUnique: true }),
+        id: f.valuesFromArray({ values: postIds, isUnique: true }),
         title: f.weightedRandom([
           {
             weight: 0.25,
