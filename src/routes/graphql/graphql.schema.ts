@@ -174,8 +174,8 @@ const resolvers = {
         image: newUser.image,
         isActive: newUser.isActive,
       };
-      const accessToken = AuthService.generateAccessToken(tokenPayload);
-      const refreshToken = AuthService.generateRefreshToken(tokenPayload);
+      const accessToken = await AuthService.generateAccessToken(tokenPayload);
+      const refreshToken = await AuthService.generateRefreshToken(tokenPayload);
 
       await AuthService.updateLastLogin(newUser.id);
 
@@ -217,8 +217,8 @@ const resolvers = {
         image: updatedUser.image,
         isActive: updatedUser.isActive,
       };
-      const accessToken = AuthService.generateAccessToken(tokenPayload);
-      const refreshToken = AuthService.generateRefreshToken(tokenPayload);
+      const accessToken = await AuthService.generateAccessToken(tokenPayload);
+      const refreshToken = await AuthService.generateRefreshToken(tokenPayload);
 
       return {
         user: formatUserForGraphQL(updatedUser),
@@ -228,7 +228,7 @@ const resolvers = {
     },
     refreshToken: async (_: any, { refreshToken }: { refreshToken: string }) => {
       try {
-        const payload = AuthService.verifyRefreshToken(refreshToken);
+        const payload = await AuthService.verifyRefreshToken(refreshToken);
 
         const user = await AuthService.findUserById(payload.userId);
         if (!user || !user.isActive) {
@@ -242,8 +242,8 @@ const resolvers = {
           image: user.image,
           isActive: user.isActive,
         };
-        const newAccessToken = AuthService.generateAccessToken(tokenPayload);
-        const newRefreshToken = AuthService.generateRefreshToken(tokenPayload);
+        const newAccessToken = await AuthService.generateAccessToken(tokenPayload);
+        const newRefreshToken = await AuthService.generateRefreshToken(tokenPayload);
 
         return {
           accessToken: newAccessToken,

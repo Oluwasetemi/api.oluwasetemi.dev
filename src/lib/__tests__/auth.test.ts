@@ -1,11 +1,9 @@
-import jwt from "jsonwebtoken";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { JWTPayload } from "@/lib/auth";
 
 import db from "@/db";
 import { users } from "@/db/schema";
-import env from "@/env";
 import { AuthService, extractBearerToken } from "@/lib/auth";
 import { clearDatabase } from "@/lib/test-setup";
 
@@ -118,7 +116,7 @@ describe("authService", () => {
   });
 
   describe("jWT Token Operations", () => {
-    const mockPayload: Omit<JWTPayload, "type"> = {
+    const mockPayload: Omit<JWTPayload, "type" | "exp"> = {
       userId: "test-user-id",
       email: "test@example.com",
       name: "Test User",
@@ -127,13 +125,13 @@ describe("authService", () => {
     };
 
     describe("generateAccessToken", () => {
-      it("should generate valid access token", () => {
-        const token = AuthService.generateAccessToken(mockPayload);
+      it("should generate valid access token", async () => {
+        const token = await AuthService.generateAccessToken(mockPayload);
 
         expect(typeof token).toBe("string");
         expect(token.split(".")).toHaveLength(3); // JWT has 3 parts
 
-        const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+        const decoded = await AuthService.verifyAccessToken(token);
         expect(decoded.type).toBe("access");
         expect(decoded.userId).toBe(mockPayload.userId);
         expect(decoded.email).toBe(mockPayload.email);
@@ -141,70 +139,70 @@ describe("authService", () => {
     });
 
     describe("generateRefreshToken", () => {
-      it("should generate valid refresh token", () => {
-        const token = AuthService.generateRefreshToken(mockPayload);
+      it("should generate valid refresh token", async () => {
+        const token = await AuthService.generateRefreshToken(mockPayload);
 
         expect(typeof token).toBe("string");
         expect(token.split(".")).toHaveLength(3);
 
-        const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as JWTPayload;
+        const decoded = await AuthService.verifyRefreshToken(token);
         expect(decoded.type).toBe("refresh");
         expect(decoded.userId).toBe(mockPayload.userId);
       });
     });
 
     describe("verifyAccessToken", () => {
-      it("should verify valid access token", () => {
-        const token = AuthService.generateAccessToken(mockPayload);
-        const decoded = AuthService.verifyAccessToken(token);
+      it("should verify valid access token", async () => {
+        const token = await AuthService.generateAccessToken(mockPayload);
+        const decoded = await AuthService.verifyAccessToken(token);
 
         expect(decoded.type).toBe("access");
         expect(decoded.userId).toBe(mockPayload.userId);
         expect(decoded.email).toBe(mockPayload.email);
       });
 
-      it("should reject invalid access token", () => {
-        expect(() => {
-          AuthService.verifyAccessToken("invalid-token");
-        }).toThrow();
+      it("should reject invalid access token", async () => {
+        await expect(async () => {
+          await AuthService.verifyAccessToken("invalid-token");
+        }).rejects.toThrow();
       });
 
-      it("should reject refresh token when expecting access token", () => {
-        const refreshToken = AuthService.generateRefreshToken(mockPayload);
+      it("should reject refresh token when expecting access token", async () => {
+        const refreshToken = await AuthService.generateRefreshToken(mockPayload);
 
-        expect(() => {
-          AuthService.verifyAccessToken(refreshToken);
-        }).toThrow("Invalid token type");
+        await expect(async () => {
+          await AuthService.verifyAccessToken(refreshToken);
+        }).rejects.toThrow("Invalid token type");
       });
 
-      it("should handle token cache in non-production environment", () => {
-        const token = AuthService.generateAccessToken(mockPayload);
+      it("should handle token cache in non-production environment", async () => {
+        const token = await AuthService.generateAccessToken(mockPayload);
 
         // First verification should cache the token
-        const decoded1 = AuthService.verifyAccessToken(token);
+        const decoded1 = await AuthService.verifyAccessToken(token);
         expect(decoded1.userId).toBe(mockPayload.userId);
 
         // Second verification should use cache
-        const decoded2 = AuthService.verifyAccessToken(token);
+        const decoded2 = await AuthService.verifyAccessToken(token);
         expect(decoded2.userId).toBe(mockPayload.userId);
       });
     });
 
     describe("verifyRefreshToken", () => {
-      it("should verify valid refresh token", () => {
-        const token = AuthService.generateRefreshToken(mockPayload);
-        const decoded = AuthService.verifyRefreshToken(token);
+      it("should verify valid refresh token", async () => {
+        const token = await AuthService.generateRefreshToken(mockPayload);
+        const decoded = await AuthService.verifyRefreshToken(token);
 
         expect(decoded.type).toBe("refresh");
         expect(decoded.userId).toBe(mockPayload.userId);
       });
 
-      it("should reject access token when expecting refresh token", () => {
-        const accessToken = AuthService.generateAccessToken(mockPayload);
+      it("should reject access token when expecting refresh token", async () => {
+        const accessToken = await AuthService.generateAccessToken(mockPayload);
 
-        expect(() => {
-          AuthService.verifyRefreshToken(accessToken);
-        }).toThrow("Invalid token type");
+        await expect(async () => {
+          await AuthService.verifyRefreshToken(accessToken);
+        }).rejects.toThrow("Invalid token type");
       });
     });
   });
@@ -310,8 +308,8 @@ describe("authService", () => {
   });
 
   describe("extractBearerToken", () => {
-    it("should extract token from valid Bearer header", () => {
-      const token = AuthService.generateAccessToken({
+    it("should extract token from valid Bearer header", async () => {
+      const token = await AuthService.generateAccessToken({
         userId: "test-id",
         email: "test@example.com",
         name: "Test User",

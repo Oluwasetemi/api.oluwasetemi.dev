@@ -1,6 +1,11 @@
-import type { JWTPayload } from "@/lib/auth";
+import type { z } from "zod";
+
+import type { selectUsersSchema } from "@/db/schema";
+import type { AuthUser, JWTPayload } from "@/lib/auth";
 
 import { AuthService } from "@/lib/auth";
+
+export type User = z.infer<typeof selectUsersSchema>;
 
 export function timestampToISOString(timestamp: Date | number | null): string | null {
   if (timestamp === null || timestamp === undefined)
@@ -12,7 +17,7 @@ export function timestampToISOString(timestamp: Date | number | null): string | 
   return new Date(timestamp).toISOString();
 }
 
-export function formatUserForGraphQL(user: any) {
+export function formatUserForGraphQL(user: AuthUser) {
   return {
     ...user,
     lastLoginAt: timestampToISOString(user.lastLoginAt),

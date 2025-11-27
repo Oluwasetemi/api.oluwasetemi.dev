@@ -34,3 +34,38 @@ if (env.NODE_ENV === "development") {
     verbose: true,
   });
 }
+
+// Graceful shutdown handlers
+function shutdown(signal: string) {
+  // eslint-disable-next-line no-console
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  // Force exit after timeout
+  const timeoutId = setTimeout(() => {
+    console.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+
+  // Close server first
+  server.close(() => {
+    clearTimeout(timeoutId);
+    // eslint-disable-next-line no-console
+    console.log("Server closed");
+    process.exit(0);
+  });
+}
+
+// Handle termination signals
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  shutdown("UNCAUGHT_EXCEPTION");
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  shutdown("UNCAUGHT_REJECTION");
+});

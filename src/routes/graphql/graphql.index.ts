@@ -3,12 +3,11 @@ import { ApolloServer } from "@apollo/server";
 import { ApolloServerPluginLandingPageProductionDefault } from "@apollo/server/plugin/landingPage/default";
 
 import db from "@/db";
-import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
-import { AuthService, extractBearerToken } from "@/lib/auth";
 import { createRouter } from "@/lib/create-app";
+import { logger } from "@/middlewares/pino-logger";
 import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
-import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
+import { getUserFromToken } from "@/utils/auth-helpers";
 
 import { schema } from "./graphql.schema";
 
@@ -31,25 +30,14 @@ const server = new ApolloServer({
 const graphqlHandler = startServerAndCreateHonoHandler(server, {
   context: async ({ req, c }) => {
     try {
-      let user = null;
       const authHeader = req.header("authorization");
-      if (authHeader) {
-        try {
-          user = await getUserFromToken(authHeader);
-        }
-        catch (error) {
-          console.error(
-            "Auth error (continuing):",
-            error instanceof Error ? error.message : String(error),
-          );
-          user = null;
-        }
-      }
+      const user = await getUserFromToken(authHeader);
 
       return {
         db,
         user,
         honoContext: c,
+        logger,
       };
     }
     catch (error) {
@@ -61,33 +49,30 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
 
 router.all("/graphql", graphqlRateLimiter, graphqlHandler);
 
-// Optional: Serve GraphQL Playground in development
-if (env.NODE_ENV === "development") {
-  router.get("/playground", async (c) => {
-    const playgroundHTML = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>GraphQL Playground</title>
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
-          <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
-          <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
-        </head>
-        <body>
-          <div id="root"></div>
-          <script>
-            window.addEventListener('load', function (event) {
-              GraphQLPlayground.init(document.getElementById('root'), {
-                endpoint: '/graphql'
-              })
+router.get("/playground", async (c) => {
+  const playgroundHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>GraphQL Playground</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
+        <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
+        <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
+      </head>
+      <body>
+        <div id="root"></div>
+        <script>
+          window.addEventListener('load', function (event) {
+            GraphQLPlayground.init(document.getElementById('root'), {
+              endpoint: '/graphql'
             })
-          </script>
-        </body>
-      </html>
-    `;
-    return c.html(playgroundHTML);
-  });
-}
+          })
+        </script>
+      </body>
+    </html>
+  `;
+  return c.html(playgroundHTML);
+});
 
 // Serve GraphQL Subscription Tester
 router.get("/subscription-tester", async (c) => {
@@ -107,32 +92,5 @@ router.get("/subscription-tester", async (c) => {
     );
   }
 });
-
-async function getUserFromToken(authHeader: string) {
-  try {
-    const token = extractBearerToken(authHeader);
-    if (!token) {
-      return null;
-    }
-
-    const payload = AuthService.verifyAccessToken(token);
-
-    if (!payload.isActive) {
-      return null;
-    }
-
-    const user = await getUserWithTimestamps(payload);
-
-    if (!user) {
-      return null;
-    }
-
-    return formatUserForGraphQL(user);
-  }
-  catch (error) {
-    console.error("Error verifying auth token:", error);
-    return null;
-  }
-}
 
 export default router;

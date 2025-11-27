@@ -41,9 +41,9 @@ const EnvSchema = z
     RATE_LIMIT_TRUSTED_PROXIES: z.string().default(""),
     // Authentication JWT configuration
     JWT_SECRET: z.string().min(32),
-    JWT_EXPIRES_IN: z.string().default("24h"),
+    JWT_EXPIRES_IN: z.string().regex(/^\d+[dhms]$/, "Must be in format: <number><unit> (e.g., 24h, 7d)").default("24h"),
     JWT_REFRESH_SECRET: z.string().min(32),
-    JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+    JWT_REFRESH_EXPIRES_IN: z.string().regex(/^\d+[dhms]$/, "Must be in format: <number><unit> (e.g., 24h, 7d)").default("7d"),
     // Better Auth configuration
     BETTER_AUTH_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32),

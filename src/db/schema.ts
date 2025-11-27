@@ -133,7 +133,7 @@ export const selectUsersSchema = createSelectSchema(users);
 export const insertUsersSchema = createInsertSchema(users, {
   email: schema => schema.email.email().min(1).max(255),
   name: schema => schema.name.min(1).max(255),
-  image: schema => schema.image.optional().nullable().refine(val => !val || z.string().url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
+  image: schema => schema.image.optional().nullable().refine(val => !val || z.url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
 })
   .required({
     email: true,

@@ -22,7 +22,7 @@ const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 // WebSocket route for tasks with optional authentication
 app.get(
   "/ws/tasks",
-  upgradeWebSocket((c) => {
+  upgradeWebSocket(async (c) => {
     // Generate unique connection ID
     const connectionId = crypto.randomUUID();
 
@@ -33,14 +33,14 @@ app.get(
       const authHeader = c.req.header("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.substring(7);
-        const payload = AuthService.verifyAccessToken(token);
+        const payload = await AuthService.verifyAccessToken(token);
         userId = payload.userId;
       }
       // Check cookie as fallback
       else {
         const cookieToken = getCookie(c, "token");
         if (cookieToken) {
-          const payload = AuthService.verifyAccessToken(cookieToken);
+          const payload = await AuthService.verifyAccessToken(cookieToken);
           userId = payload.userId;
         }
       }
@@ -57,7 +57,7 @@ app.get(
 // WebSocket route for products with optional authentication
 app.get(
   "/ws/products",
-  upgradeWebSocket((c) => {
+  upgradeWebSocket(async (c) => {
     const connectionId = crypto.randomUUID();
     let userId: string | undefined;
 
@@ -65,13 +65,13 @@ app.get(
       const authHeader = c.req.header("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.substring(7);
-        const payload = AuthService.verifyAccessToken(token);
+        const payload = await AuthService.verifyAccessToken(token);
         userId = payload.userId;
       }
       else {
         const cookieToken = getCookie(c, "token");
         if (cookieToken) {
-          const payload = AuthService.verifyAccessToken(cookieToken);
+          const payload = await AuthService.verifyAccessToken(cookieToken);
           userId = payload.userId;
         }
       }
@@ -87,7 +87,7 @@ app.get(
 // WebSocket route for posts with optional authentication
 app.get(
   "/ws/posts",
-  upgradeWebSocket((c) => {
+  upgradeWebSocket(async (c) => {
     const connectionId = crypto.randomUUID();
     let userId: string | undefined;
 
@@ -95,13 +95,13 @@ app.get(
       const authHeader = c.req.header("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.substring(7);
-        const payload = AuthService.verifyAccessToken(token);
+        const payload = await AuthService.verifyAccessToken(token);
         userId = payload.userId;
       }
       else {
         const cookieToken = getCookie(c, "token");
         if (cookieToken) {
-          const payload = AuthService.verifyAccessToken(cookieToken);
+          const payload = await AuthService.verifyAccessToken(cookieToken);
           userId = payload.userId;
         }
       }

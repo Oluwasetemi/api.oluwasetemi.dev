@@ -20,6 +20,18 @@ export type AuthVariables = {
   };
 };
 
+/**
+ * Authenticates the incoming request by verifying a bearer access token and attaching the resolved user to the context.
+ *
+ * If authentication succeeds the middleware sets the authenticated user on the context under the `user` key and invokes `next`.
+ *
+ * @param c - Hono request context; the authenticated user will be attached as `c.get('user')` / `c.set('user', ...)`.
+ * @param next - Next middleware or route handler to call after successful authentication.
+ * @throws HTTPException with HTTP 401 and message "Authorization token required" when no bearer token is provided.
+ * @throws HTTPException with HTTP 401 and message "Invalid or inactive user" when the token payload indicates the user is inactive.
+ * @throws HTTPException with HTTP 401 and message "User not found or inactive" when the user lookup fails or the user is inactive.
+ * @throws HTTPException with HTTP 401 and message "Invalid token" for other token verification errors.
+ */
 export async function authMiddleware(c: Context, next: Next) {
   try {
     const authHeader = c.req.header("Authorization");
@@ -31,7 +43,7 @@ export async function authMiddleware(c: Context, next: Next) {
       });
     }
 
-    const payload = AuthService.verifyAccessToken(token);
+    const payload = await AuthService.verifyAccessToken(token);
 
     // Check if user is active (cached from JWT)
     if (!payload.isActive) {

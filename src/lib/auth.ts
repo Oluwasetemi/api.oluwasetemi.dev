@@ -3,16 +3,14 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { openAPI } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { sign, verify } from "hono/jwt";
 
 import db from "@/db";
 import { account, session, users, verification } from "@/db/schema";
 import env from "@/env";
+import { logger } from "@/middlewares/pino-logger";
 
 import { sendEmail } from "./email";
-
-// Simple in-memory cache for JWT tokens (for performance optimization)
-const tokenCache = new Map<string, { payload: JWTPayload; exp: number }>();
 
 // Pre-compiled regex patterns for password validation (performance optimization)
 const passwordRegexes = {
@@ -29,6 +27,7 @@ export type JWTPayload = {
   image: string | null;
   isActive: boolean;
   type: "access" | "refresh";
+  exp: number; // Unix timestamp (seconds since epoch)
 };
 
 export type AuthUser = {
@@ -90,86 +89,154 @@ export class AuthService {
     return bcrypt.compare(password, hashedPassword);
   }
 
-  static generateAccessToken(payload: Omit<JWTPayload, "type">): string {
-    const tokenPayload = { ...payload, type: "access" as const };
-    // Note: Using type assertion due to jsonwebtoken library typing issues
-    return (jwt.sign as any)(
-      tokenPayload,
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN },
-    );
+  static async generateAccessToken(payload: Omit<JWTPayload, "type" | "exp">): Promise<string> {
+    const tokenPayload = {
+      ...payload,
+      type: "access" as const,
+      exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_EXPIRES_IN),
+    };
+    return await sign(tokenPayload, env.JWT_SECRET);
   }
 
-  static generateRefreshToken(payload: Omit<JWTPayload, "type">): string {
-    const tokenPayload = { ...payload, type: "refresh" as const };
-    // Note: Using type assertion due to jsonwebtoken library typing issues
-    return (jwt.sign as any)(
-      tokenPayload,
-      env.JWT_REFRESH_SECRET,
-      { expiresIn: env.JWT_REFRESH_EXPIRES_IN },
-    );
+  static async generateRefreshToken(payload: Omit<JWTPayload, "type" | "exp">): Promise<string> {
+    const tokenPayload = {
+      ...payload,
+      type: "refresh" as const,
+      exp: Math.floor(Date.now() / 1000) + AuthService.parseExpiration(env.JWT_REFRESH_EXPIRES_IN),
+    };
+    return await sign(tokenPayload, env.JWT_REFRESH_SECRET);
   }
 
-  static verifyAccessToken(token: string): JWTPayload {
-    // Check cache first for performance
-    const cached = tokenCache.get(token);
-    if (cached && cached.exp > Date.now() / 1000) {
-      return cached.payload;
+  // Helper to parse expiration strings like "24h", "7d" to seconds
+  private static parseExpiration(expiration: string): number {
+    const match = expiration.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      throw new Error(`Invalid expiration format: ${expiration}`);
     }
 
+    const value = Number.parseInt(match[1], 10);
+    const unit = match[2];
+
+    if (value <= 0) {
+      throw new Error(`Expiration value must be positive: ${expiration}`);
+    }
+
+    const multipliers: Record<string, number> = {
+      s: 1,
+      m: 60,
+      h: 3600,
+      d: 86400,
+    };
+
+    const seconds = value * multipliers[unit];
+    const MAX_EXPIRATION = 365 * 86400; // 1 year in seconds
+
+    if (seconds > MAX_EXPIRATION) {
+      throw new Error(`Expiration too large (max 1 year): ${expiration}`);
+    }
+    return seconds;
+  }
+
+  static async verifyAccessToken(token: string): Promise<JWTPayload> {
     try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+      // First try to verify with access token secret
+      const payload = await verify(token, env.JWT_SECRET);
+
+      // Validate payload structure
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid token payload");
+      }
+
+      // Explicit field-level validation before casting
+      if (typeof payload.userId !== "string" || payload.userId.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid userId");
+      }
+      if (typeof payload.email !== "string" || payload.email.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid email");
+      }
+      if (typeof payload.name !== "string" || payload.name.trim() === "") {
+        throw new Error("Invalid token payload: missing or invalid name");
+      }
+      if (typeof payload.isActive !== "boolean") {
+        throw new TypeError("Invalid token payload: missing or invalid isActive");
+      }
       if (payload.type !== "access") {
-        throw new Error("Invalid token type");
+        throw new Error("Invalid token payload: missing or invalid type");
       }
 
-      // Cache the verified token for better performance
-      // Only cache in development/staging for memory management
-      if (env.NODE_ENV !== "production") {
-        const decoded = jwt.decode(token, { json: true });
-        if (decoded?.exp) {
-          tokenCache.set(token, { payload, exp: decoded.exp });
-
-          // Clean up cache periodically (keep only last 100 tokens)
-          if (tokenCache.size > 100) {
-            const entries = Array.from(tokenCache.entries());
-            const oldest = entries.slice(0, 50);
-            oldest.forEach(([key]) => tokenCache.delete(key));
-          }
-        }
-      }
-
-      return payload;
+      return payload as JWTPayload;
     }
     catch (error) {
-      // If it's a signature error, it might be the wrong token type
-      if (error instanceof Error && error.message.includes("invalid signature")) {
-        // Try to decode without verification to check type
-        const decoded = jwt.decode(token, { json: true }) as JWTPayload | null;
-        if (decoded && decoded.type && decoded.type !== "access") {
-          throw new Error("Invalid token type");
+      if (error instanceof Error) {
+        // If it's already a validation error, rethrow it
+        if (error.message.startsWith("Invalid token payload:")) {
+          throw new Error(`Access token verification failed: ${error.message}`);
         }
+
+        // Check if it's a signature mismatch - might be a refresh token
+        if (error.message.includes("signature")) {
+          try {
+            const payload = await verify(token, env.JWT_REFRESH_SECRET);
+            if (payload && typeof payload === "object" && (payload as JWTPayload).type === "refresh") {
+              throw new Error("Invalid token type");
+            }
+          }
+          catch (verifyError) {
+            // If verification with refresh secret succeeds and shows it's a refresh token, throw Invalid token type
+            if (verifyError instanceof Error && verifyError.message === "Invalid token type") {
+              throw verifyError;
+            }
+            // Otherwise, fall through to throw the original error
+          }
+        }
+        throw new Error(`Access token verification failed: ${error.message}`);
       }
       throw error;
     }
   }
 
-  static verifyRefreshToken(token: string): JWTPayload {
+  static async verifyRefreshToken(token: string): Promise<JWTPayload> {
     try {
-      const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as JWTPayload;
-      if (payload.type !== "refresh") {
+      // First try to verify with refresh token secret
+      const payload = await verify(token, env.JWT_REFRESH_SECRET);
+
+      // Validate payload structure
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid token payload");
+      }
+
+      const jwtPayload = payload as JWTPayload;
+
+      if (jwtPayload.type !== "refresh") {
         throw new Error("Invalid token type");
       }
-      return payload;
+
+      return jwtPayload;
     }
     catch (error) {
-      // If it's a signature error, it might be the wrong token type
-      if (error instanceof Error && error.message.includes("invalid signature")) {
-        // Try to decode without verification to check type
-        const decoded = jwt.decode(token, { json: true }) as JWTPayload | null;
-        if (decoded && decoded.type && decoded.type !== "refresh") {
-          throw new Error("Invalid token type");
+      if (error instanceof Error) {
+        // If it's already an "Invalid token type" error, rethrow it
+        if (error.message === "Invalid token type") {
+          throw error;
         }
+
+        // Check if it's a signature mismatch - might be an access token
+        if (error.message.includes("signature")) {
+          try {
+            const payload = await verify(token, env.JWT_SECRET);
+            if (payload && typeof payload === "object" && (payload as JWTPayload).type === "access") {
+              throw new Error("Invalid token type");
+            }
+          }
+          catch (verifyError) {
+            // If verification with access secret succeeds and shows it's an access token, throw Invalid token type
+            if (verifyError instanceof Error && verifyError.message === "Invalid token type") {
+              throw verifyError;
+            }
+            // Otherwise, fall through to throw the original error
+          }
+        }
+        throw new Error(`Refresh token verification failed: ${error.message}`);
       }
       throw error;
     }
@@ -262,7 +329,7 @@ export const auth = betterAuth({
       return AuthService.verifyPassword(password, hashedPassword);
     },
     sendVerificationEmail: async ({ user, url, token }: { user: { email: string }; url: string; token: string }) => {
-      console.log(user, url, token);
+      logger.debug({ user, url, token }, "Sending verification email");
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
@@ -270,7 +337,7 @@ export const auth = betterAuth({
       });
     },
     sendResetPassword: async ({ user, token, url }) => {
-      console.log({ user, token, url });
+      logger.debug({ user, token, url }, "Sending reset password email");
       await sendEmail({
         to: user.email,
         subject: "Reset your password",

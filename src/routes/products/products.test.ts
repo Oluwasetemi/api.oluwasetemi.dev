@@ -39,7 +39,7 @@ describe("products API with webhooks", () => {
       isActive: true,
     }).returning().get();
 
-    userAccessToken = AuthService.generateAccessToken({
+    userAccessToken = await AuthService.generateAccessToken({
       userId: user.id,
       email: user.email,
       name: user.name,
@@ -235,7 +235,7 @@ describe("products API with webhooks", () => {
         isActive: true,
       }).returning().get();
 
-      const otherUserToken = AuthService.generateAccessToken({
+      const otherUserToken = await AuthService.generateAccessToken({
         userId: user.id,
         email: user.email,
         name: user.name,
@@ -378,7 +378,7 @@ describe("products API with webhooks", () => {
         isActive: true,
       }).returning().get();
 
-      const otherUserToken = AuthService.generateAccessToken({
+      const otherUserToken = await AuthService.generateAccessToken({
         userId: user.id,
         email: user.email,
         name: user.name,
