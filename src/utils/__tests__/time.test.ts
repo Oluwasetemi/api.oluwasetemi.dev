@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import type { AuthUser } from "@/lib/auth";
+
 import db from "@/db";
 import { users } from "@/db/schema";
 import { AuthService } from "@/lib/auth";
@@ -57,7 +59,7 @@ describe("time Utilities", () => {
 
   describe("formatUserForGraphQL", () => {
     it("should format user object with timestamp conversion", () => {
-      const mockUser = {
+      const mockUser: AuthUser = {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
@@ -66,6 +68,7 @@ describe("time Utilities", () => {
         lastLoginAt: new Date("2024-01-15T10:30:00.000Z"),
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
         updatedAt: new Date("2024-01-15T12:00:00.000Z"),
+        // @ts-expect-error otherField is not declared as part of the Auth type
         otherField: "should-remain-unchanged",
       };
 
@@ -85,7 +88,8 @@ describe("time Utilities", () => {
     });
 
     it("should handle null timestamp values", () => {
-      const mockUser = {
+      // @ts-expect-error error
+      const mockUser: AuthUser = {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
@@ -107,12 +111,14 @@ describe("time Utilities", () => {
     });
 
     it("should handle numeric timestamps", () => {
-      const mockUser = {
+      const mockUser: AuthUser = {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
+        // @ts-expect-error expecting Date
         lastLoginAt: 1705312200000, // Numeric timestamp
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
+        // @ts-expect-error expecting Date
         updatedAt: 1705313200000,
       };
 
@@ -124,10 +130,11 @@ describe("time Utilities", () => {
     });
 
     it("should preserve all other fields unchanged", () => {
-      const mockUser = {
+      const mockUser: AuthUser = {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
+        // @ts-expect-error unknown field
         customField: { nested: "object" },
         arrayField: [1, 2, 3],
         booleanField: false,
@@ -139,9 +146,13 @@ describe("time Utilities", () => {
 
       const result = formatUserForGraphQL(mockUser);
 
+      // @ts-expect-error some custom field
       expect(result.customField).toEqual({ nested: "object" });
+      // @ts-expect-error some custom field
       expect(result.arrayField).toEqual([1, 2, 3]);
+      // @ts-expect-error some custom field
       expect(result.booleanField).toBe(false);
+      // @ts-expect-error some custom field
       expect(result.numberField).toBe(42);
     });
   });

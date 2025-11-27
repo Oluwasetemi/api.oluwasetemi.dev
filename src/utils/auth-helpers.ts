@@ -1,4 +1,4 @@
-import { AuthService } from "@/lib/auth";
+import { AuthService, extractBearerToken } from "@/lib/auth";
 import { logger } from "@/middlewares/pino-logger";
 import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
 
@@ -48,4 +48,20 @@ export async function resolveUserFromToken(token: string) {
 
     return null;
   }
+}
+
+/**
+ * Resolve a user from an Authorization header's Bearer token.
+ * Extracts the Bearer token from the header and resolves the user.
+ *
+ * @param authHeader - The value of the Authorization header which may contain a Bearer token (or undefined if not provided)
+ * @returns The user object formatted for GraphQL when the token is valid, active, and maps to a user; `null` otherwise
+ */
+export async function getUserFromToken(authHeader: string | undefined) {
+  const token = extractBearerToken(authHeader);
+  if (!token) {
+    return null;
+  }
+
+  return resolveUserFromToken(token);
 }
