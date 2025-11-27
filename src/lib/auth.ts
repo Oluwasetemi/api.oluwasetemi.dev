@@ -329,7 +329,7 @@ export const auth = betterAuth({
       return AuthService.verifyPassword(password, hashedPassword);
     },
     sendVerificationEmail: async ({ user, url, token }: { user: { email: string }; url: string; token: string }) => {
-      logger.debug(user, url, token);
+      logger.debug({ user, url, token }, "Sending verification email");
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
@@ -337,7 +337,7 @@ export const auth = betterAuth({
       });
     },
     sendResetPassword: async ({ user, token, url }) => {
-      logger.debug({ user, token, url });
+      logger.debug({ user, token, url }, "Sending reset password email");
       await sendEmail({
         to: user.email,
         subject: "Reset your password",

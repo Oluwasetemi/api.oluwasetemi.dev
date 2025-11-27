@@ -36,22 +36,23 @@ if (env.NODE_ENV === "development") {
 }
 
 // Graceful shutdown handlers
-async function shutdown(signal: string) {
+function shutdown(signal: string) {
   // eslint-disable-next-line no-console
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
+  // Force exit after timeout
+  const timeoutId = setTimeout(() => {
+    console.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+
   // Close server first
   server.close(() => {
+    clearTimeout(timeoutId);
     // eslint-disable-next-line no-console
     console.log("Server closed");
     process.exit(0);
   });
-
-  // Force exit after timeout
-  setTimeout(() => {
-    console.error("Forced shutdown after timeout");
-    process.exit(1);
-  }, 10000); // 10 second timeout
 }
 
 // Handle termination signals
@@ -61,10 +62,10 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 // Handle uncaught errors
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
-  process.exit(1);
+  shutdown("UNCAUGHT_EXCEPTION");
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  process.exit(1);
+  shutdown("UNCAUGHT_REJECTION");
 });
