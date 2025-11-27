@@ -3,12 +3,11 @@ import { ApolloServer } from "@apollo/server";
 import { ApolloServerPluginLandingPageProductionDefault } from "@apollo/server/plugin/landingPage/default";
 
 import db from "@/db";
-import env from "@/env";
 import { startServerAndCreateHonoHandler } from "@/lib/apollo-server-hono-integration";
-import { extractBearerToken } from "@/lib/auth";
 import { createRouter } from "@/lib/create-app";
+import { logger } from "@/middlewares/pino-logger";
 import { graphqlRateLimiter } from "@/middlewares/rate-limiter";
-import { resolveUserFromToken } from "@/utils/auth-helpers";
+import { getUserFromToken } from "@/utils/auth-helpers";
 
 import { schema } from "./graphql.schema";
 
@@ -38,6 +37,7 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
         db,
         user,
         honoContext: c,
+        logger,
       };
     }
     catch (error) {
@@ -49,33 +49,30 @@ const graphqlHandler = startServerAndCreateHonoHandler(server, {
 
 router.all("/graphql", graphqlRateLimiter, graphqlHandler);
 
-// Optional: Serve GraphQL Playground in development
-if (env.NODE_ENV === "development") {
-  router.get("/playground", async (c) => {
-    const playgroundHTML = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>GraphQL Playground</title>
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
-          <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
-          <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
-        </head>
-        <body>
-          <div id="root"></div>
-          <script>
-            window.addEventListener('load', function (event) {
-              GraphQLPlayground.init(document.getElementById('root'), {
-                endpoint: '/graphql'
-              })
+router.get("/playground", async (c) => {
+  const playgroundHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>GraphQL Playground</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
+        <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
+        <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
+      </head>
+      <body>
+        <div id="root"></div>
+        <script>
+          window.addEventListener('load', function (event) {
+            GraphQLPlayground.init(document.getElementById('root'), {
+              endpoint: '/graphql'
             })
-          </script>
-        </body>
-      </html>
-    `;
-    return c.html(playgroundHTML);
-  });
-}
+          })
+        </script>
+      </body>
+    </html>
+  `;
+  return c.html(playgroundHTML);
+});
 
 // Serve GraphQL Subscription Tester
 router.get("/subscription-tester", async (c) => {
@@ -95,20 +92,5 @@ router.get("/subscription-tester", async (c) => {
     );
   }
 });
-
-/**
- * Resolve a user from an Authorization header's Bearer token for use in GraphQL context.
- *
- * @param authHeader - The value of the Authorization header which may contain a Bearer token (or undefined if not provided)
- * @returns The user object formatted for GraphQL when the token is valid, active, and maps to a user; `null` otherwise
- */
-async function getUserFromToken(authHeader: string | undefined) {
-  const token = extractBearerToken(authHeader);
-  if (!token) {
-    return null;
-  }
-
-  return resolveUserFromToken(token);
-}
 
 export default router;

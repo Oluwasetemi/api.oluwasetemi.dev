@@ -4,8 +4,8 @@ import type { WSContext } from "hono/ws";
 import { parse, subscribe } from "graphql";
 
 import db from "@/db";
-import { AuthService, extractBearerToken } from "@/lib/auth";
-import { formatUserForGraphQL, getUserWithTimestamps } from "@/utils/time";
+import { extractBearerToken } from "@/lib/auth";
+import { resolveUserFromToken } from "@/utils/auth-helpers";
 
 import { schema } from "./graphql.schema";
 
@@ -25,34 +25,6 @@ type SubscriptionContext = {
   subscriptions: Map<string, AsyncIterator<any>>;
   user: any;
 };
-
-/**
- * Resolve the authenticated user represented by an access token, or return `null` when verification fails or the user is not available.
- *
- * @param token - Access token string (e.g., a bearer access token) used to verify identity
- * @returns The user object formatted for GraphQL, or `null` if the token is invalid, the user is inactive, or the user cannot be found
- */
-async function getUserFromToken(token: string) {
-  try {
-    const payload = await AuthService.verifyAccessToken(token);
-
-    if (!payload.isActive) {
-      return null;
-    }
-
-    const user = await getUserWithTimestamps(payload);
-
-    if (!user) {
-      return null;
-    }
-
-    return formatUserForGraphQL(user);
-  }
-  catch (error) {
-    console.error("Error verifying auth token:", error);
-    return null;
-  }
-}
 
 export function createGraphQLWebSocketHandler() {
   return {
@@ -82,7 +54,7 @@ export function createGraphQLWebSocketHandler() {
             if (authToken) {
               try {
                 const token = extractBearerToken(authToken) || authToken;
-                context.user = await getUserFromToken(token);
+                context.user = await resolveUserFromToken(token);
               }
               catch (error) {
                 console.error("[GraphQL WS] Auth error:", error);
