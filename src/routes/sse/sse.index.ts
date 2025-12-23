@@ -14,7 +14,8 @@ router.use("*", optionalAuth());
 router
   .openapi(routes.tasksStream, handlers.tasksStream)
   .openapi(routes.productsStream, handlers.productsStream)
-  .openapi(routes.postsStream, handlers.postsStream);
+  .openapi(routes.postsStream, handlers.postsStream)
+  .openapi(routes.commentsStream, handlers.commentsStream);
 
 // Mount SSE test client
 router.route("/", sseClient);

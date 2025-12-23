@@ -40,6 +40,9 @@ const typeDefs = `
     postUpdated: PostSubscriptionPayload!
     postDeleted: PostDeletedPayload!
     postPublished: PostSubscriptionPayload!
+    commentCreated: CommentSubscriptionPayload!
+    commentUpdated: CommentSubscriptionPayload!
+    commentDeleted: CommentDeletedPayload!
   }
   type User {
     id: ID!
@@ -104,6 +107,22 @@ const typeDefs = `
   }
   type PostDeletedPayload {
     id: ID!
+  }
+  type CommentSubscriptionPayload {
+    id: ID!
+    postId: ID!
+    content: String!
+    authorName: String!
+    authorEmail: String
+    authorId: ID
+    isEdited: Boolean!
+    editedAt: String
+    createdAt: String!
+    updatedAt: String!
+  }
+  type CommentDeletedPayload {
+    id: ID!
+    postId: ID!
   }
 `;
 
@@ -288,6 +307,16 @@ const resolvers = {
     },
     postPublished: {
       subscribe: () => pubsub.asyncIterableIterator([SUBSCRIPTION_EVENTS.POST_PUBLISHED]),
+    },
+    // Comment subscriptions
+    commentCreated: {
+      subscribe: () => pubsub.asyncIterableIterator([SUBSCRIPTION_EVENTS.COMMENT_CREATED]),
+    },
+    commentUpdated: {
+      subscribe: () => pubsub.asyncIterableIterator([SUBSCRIPTION_EVENTS.COMMENT_UPDATED]),
+    },
+    commentDeleted: {
+      subscribe: () => pubsub.asyncIterableIterator([SUBSCRIPTION_EVENTS.COMMENT_DELETED]),
     },
   },
 };

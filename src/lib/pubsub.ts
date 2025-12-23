@@ -1,6 +1,7 @@
 // src/lib/pubsub.ts
 import { PubSub } from "graphql-subscriptions";
 
+import type { Comment } from "@/routes/comments/comments.handlers";
 import type { Post } from "@/routes/posts/posts.handlers";
 import type { Product } from "@/routes/products/products.handlers";
 import type { Task } from "@/routes/tasks/tasks.handlers";
@@ -30,6 +31,11 @@ export const SUBSCRIPTION_EVENTS = {
   POST_UPDATED: "POST_UPDATED",
   POST_DELETED: "POST_DELETED",
   POST_PUBLISHED: "POST_PUBLISHED",
+
+  // Comment events
+  COMMENT_CREATED: "COMMENT_CREATED",
+  COMMENT_UPDATED: "COMMENT_UPDATED",
+  COMMENT_DELETED: "COMMENT_DELETED",
 } as const;
 
 /**
@@ -39,3 +45,4 @@ export const SUBSCRIPTION_EVENTS = {
 export type TaskPayload = Task;
 export type ProductPayload = Product;
 export type PostPayload = Post;
+export type CommentPayload = Comment;

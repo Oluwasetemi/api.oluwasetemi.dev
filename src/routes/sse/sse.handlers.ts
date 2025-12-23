@@ -5,7 +5,7 @@ import type { AppRouteHandler } from "@/lib/types";
 import { AuthService } from "@/lib/auth";
 import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 
-import type { PostsStreamRoute, ProductsStreamRoute, TasksStreamRoute } from "./sse.routes";
+import type { CommentsStreamRoute, PostsStreamRoute, ProductsStreamRoute, TasksStreamRoute } from "./sse.routes";
 
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
@@ -411,5 +411,138 @@ export const postsStream: AppRouteHandler<PostsStreamRoute> = async (c) => {
     });
 
     await Promise.race([handleCreated, handleUpdated, handleDeleted, handlePublished]);
+  });
+};
+
+/**
+ * SSE handler for comment events
+ */
+export const commentsStream: AppRouteHandler<CommentsStreamRoute> = async (c) => {
+  const { postId, commentId } = c.req.valid("query");
+
+  let userId: string | undefined;
+  try {
+    const authHeader = c.req.header("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      const payload = await AuthService.verifyAccessToken(token);
+      userId = payload.userId;
+    }
+  }
+  catch {
+    // Allow anonymous connections
+  }
+
+  return streamSSE(c, async (stream) => {
+    const connectionId = crypto.randomUUID();
+
+    await stream.writeSSE({
+      event: "connected",
+      data: JSON.stringify({
+        connectionId,
+        channel: "comments",
+        postId: postId || null,
+        commentId: commentId || null,
+        userId: userId || null,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        await stream.writeSSE({
+          event: "heartbeat",
+          data: JSON.stringify({ timestamp: new Date().toISOString() }),
+        });
+      }
+      catch {
+        clearInterval(heartbeatInterval);
+      }
+    }, HEARTBEAT_INTERVAL);
+
+    const commentCreatedSubscription = pubsub.asyncIterableIterator(SUBSCRIPTION_EVENTS.COMMENT_CREATED) as AsyncIterableIterator<any>;
+    const commentUpdatedSubscription = pubsub.asyncIterableIterator(SUBSCRIPTION_EVENTS.COMMENT_UPDATED) as AsyncIterableIterator<any>;
+    const commentDeletedSubscription = pubsub.asyncIterableIterator(SUBSCRIPTION_EVENTS.COMMENT_DELETED) as AsyncIterableIterator<any>;
+
+    const handleCreated = (async () => {
+      for await (const payload of commentCreatedSubscription) {
+        try {
+          // Filter by commentId if specified
+          if (commentId && payload.commentCreated.id !== commentId)
+            continue;
+          // Filter by postId if specified
+          if (postId && payload.commentCreated.postId !== postId)
+            continue;
+          // Filter by userId if authenticated (author check)
+          if (userId && payload.commentCreated.authorId !== userId)
+            continue;
+
+          await stream.writeSSE({
+            event: "comment.created",
+            data: JSON.stringify({
+              comment: payload.commentCreated,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        }
+        catch {
+          break;
+        }
+      }
+    })();
+
+    const handleUpdated = (async () => {
+      for await (const payload of commentUpdatedSubscription) {
+        try {
+          if (commentId && payload.commentUpdated.id !== commentId)
+            continue;
+          if (postId && payload.commentUpdated.postId !== postId)
+            continue;
+          if (userId && payload.commentUpdated.authorId !== userId)
+            continue;
+
+          await stream.writeSSE({
+            event: "comment.updated",
+            data: JSON.stringify({
+              comment: payload.commentUpdated,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        }
+        catch {
+          break;
+        }
+      }
+    })();
+
+    const handleDeleted = (async () => {
+      for await (const payload of commentDeletedSubscription) {
+        try {
+          if (commentId && payload.commentDeleted.id !== commentId)
+            continue;
+          if (postId && payload.commentDeleted.postId !== postId)
+            continue;
+          // No userId filter for deleted events as we only have id/postId
+
+          await stream.writeSSE({
+            event: "comment.deleted",
+            data: JSON.stringify({
+              id: payload.commentDeleted.id,
+              postId: payload.commentDeleted.postId,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        }
+        catch {
+          break;
+        }
+      }
+    })();
+
+    await stream.onAbort(() => {
+      clearInterval(heartbeatInterval);
+    });
+
+    await Promise.race([handleCreated, handleUpdated, handleDeleted]);
   });
 };
