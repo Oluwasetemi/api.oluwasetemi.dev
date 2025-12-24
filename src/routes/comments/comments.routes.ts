@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
-import { createErrorSchema } from "stoker/openapi/schemas";
+import { createErrorSchema, createMessageObjectSchema } from "stoker/openapi/schemas";
 import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 
-import { insertCommentBodySchema, insertCommentsSchema, patchCommentsSchema, selectCommentsSchema } from "@/db/schema";
+import { insertCommentBodySchema, patchCommentsSchema, selectCommentsSchema } from "@/db/schema";
 import { notFoundSchema } from "@/lib/constants";
 
 const tags = ["Comments"];
@@ -69,7 +69,7 @@ export const create = createRoute({
     [HttpStatusCodes.OK]: jsonContent(selectCommentsSchema, "The created comment"),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Post not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      createErrorSchema(insertCommentsSchema),
+      createErrorSchema(insertCommentBodySchema),
       "The validation error(s)",
     ),
   },
@@ -108,16 +108,16 @@ export const patch = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(selectCommentsSchema, "The updated comment"),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      notFoundSchema,
+      createMessageObjectSchema("Unauthorized"),
       "Authentication required to update comments",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      notFoundSchema,
+      createMessageObjectSchema("Forbidden"),
       "Forbidden - You can only update your own comments",
     ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Comment not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      createErrorSchema(patchCommentsSchema),
+      createErrorSchema(patchCommentsSchema.pick({ content: true })),
       "The validation error(s)",
     ),
   },
@@ -136,11 +136,11 @@ export const remove = createRoute({
   responses: {
     [HttpStatusCodes.NO_CONTENT]: { description: "Comment deleted successfully" },
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      notFoundSchema,
+      createMessageObjectSchema("Unauthorized"),
       "Authentication required to delete comments",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      notFoundSchema,
+      createMessageObjectSchema("Forbidden"),
       "Forbidden - You can only delete your own comments",
     ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Comment not found"),
