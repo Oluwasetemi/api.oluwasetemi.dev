@@ -6,6 +6,7 @@ import env from "@/env";
 import { logger } from "@/middlewares/pino-logger";
 import { injectWebSocket } from "@/routes/websockets/websocket.index";
 import { setupAnalyticsCleanup } from "@/services/cleanup.service";
+import { handleUncaughtException, handleUnhandledRejection } from "@/utils/process-handlers";
 
 const server = serve(
   {
@@ -91,14 +92,12 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
-  logger.error({ error: error.message, stack: error.stack }, "Uncaught Exception");
+  handleUncaughtException(error);
   shutdown("UNCAUGHT_EXCEPTION");
 });
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
-  const message = reason instanceof Error ? reason.message : String(reason);
-  const stack = reason instanceof Error ? reason.stack : undefined;
-  logger.error({ error: message, stack, promise }, "Unhandled Promise Rejection");
+  handleUnhandledRejection(reason, promise);
   shutdown("UNHANDLED_REJECTION");
 });
