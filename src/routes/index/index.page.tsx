@@ -815,7 +815,7 @@ const ApiLandingPage: FC = () => {
                         <a href={route.docsUrl} target="_blank" rel="noopener noreferrer">
                           <span class="link-icon">→</span>
                           {description}
-                          <span class={`badge ${badgeClass}`}>{route.method}</span>
+                          <span class={`badge ${badgeClass}`}>{route.method.toUpperCase()}</span>
                         </a>
                       </li>
                     );
