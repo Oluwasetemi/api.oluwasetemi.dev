@@ -5,8 +5,24 @@ import { webhookEvents } from "@/db/schema";
 
 // Check if URL is a Discord webhook
 function isDiscordWebhook(url: string): boolean {
-  return url.includes("discord.com/api/webhooks") || url.includes("discordapp.com/api/webhooks");
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    return (hostname === "discord.com" || hostname === "discordapp.com")
+      && parsedUrl.pathname.startsWith("/api/webhooks");
+  }
+  catch {
+    return false;
+  }
 }
+
+const DISCORD_EMBED_COLORS = {
+  DEFAULT: 5814783, // Blue
+  CREATED: 3066993, // Green
+  UPDATED: 15844367, // Yellow/Gold
+  DELETED: 15158332, // Red
+  PUBLISHED: 10181046, // Purple
+} as const;
 
 // Transform generic webhook payload to Discord format
 function transformToDiscordPayload(payload: string): string {
@@ -21,18 +37,18 @@ function transformToDiscordPayload(payload: string): string {
       .join(" ");
 
     // Determine embed color based on event type
-    let color = 5814783; // Default blue
+    let color: number = DISCORD_EMBED_COLORS.DEFAULT;
     if (event.includes("created")) {
-      color = 3066993; // Green
+      color = DISCORD_EMBED_COLORS.CREATED;
     }
     else if (event.includes("updated")) {
-      color = 15844367; // Yellow/Gold
+      color = DISCORD_EMBED_COLORS.UPDATED;
     }
     else if (event.includes("deleted")) {
-      color = 15158332; // Red
+      color = DISCORD_EMBED_COLORS.DELETED;
     }
     else if (event.includes("published")) {
-      color = 10181046; // Purple
+      color = DISCORD_EMBED_COLORS.PUBLISHED;
     }
 
     // Build fields from event data
@@ -181,7 +197,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
   }
 
   if (!subscription.active) {
-    console.log(`[Webhook] Subscription ${subscription.id} is inactive, skipping delivery`);
+    console.warn(`[Webhook] Subscription ${subscription.id} is inactive, skipping delivery`);
     return;
   }
 
@@ -194,8 +210,8 @@ export async function deliverWebhook(eventId: string): Promise<void> {
     payload = transformToDiscordPayload(payload);
   }
 
-  // Generate signature (not used for Discord)
-  const signature = await generateWebhookSignature(payload, subscription.secret);
+  // Generate signature for non-Discord webhooks
+  const signature = isDiscord ? "" : await generateWebhookSignature(payload, subscription.secret);
 
   try {
     const startTime = Date.now();
@@ -237,7 +253,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
         .where(eq(webhookEvents.id, eventId));
 
       const webhookType = isDiscord ? "Discord webhook" : "webhook";
-      console.log(`[Webhook] Delivered event ${eventId} to ${webhookType} ${subscription.url} (${responseTime}ms, ${response.status})`);
+      console.warn(`[Webhook] Delivered event ${eventId} to ${webhookType} ${subscription.url} (${responseTime}ms, ${response.status})`);
     }
     else {
       // Failed, schedule retry
@@ -259,7 +275,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
           })
           .where(eq(webhookEvents.id, eventId));
 
-        console.log(`[Webhook] Failed to deliver event ${eventId}, will retry at ${nextRetry.toISOString()} (attempt ${newAttempts}/${subscription.maxRetries})`);
+        console.warn(`[Webhook] Failed to deliver event ${eventId}, will retry at ${nextRetry.toISOString()} (attempt ${newAttempts}/${subscription.maxRetries})`);
 
         // Schedule retry
         const delay = nextRetry.getTime() - Date.now();
@@ -304,7 +320,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
         })
         .where(eq(webhookEvents.id, eventId));
 
-      console.log(`[Webhook] Network error for event ${eventId}, will retry at ${nextRetry.toISOString()}`);
+      console.warn(`[Webhook] Network error for event ${eventId}, will retry at ${nextRetry.toISOString()}`);
 
       // Schedule retry
       const delay = nextRetry.getTime() - Date.now();
@@ -381,7 +397,7 @@ export async function processPendingRetries(): Promise<void> {
     limit: 100,
   });
 
-  console.log(`[Webhook] Processing ${pendingEvents.length} pending retries`);
+  console.warn(`[Webhook] Processing ${pendingEvents.length} pending retries`);
 
   for (const event of pendingEvents) {
     deliverWebhook(event.id).catch(console.error);
