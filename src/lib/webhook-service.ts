@@ -55,7 +55,7 @@ function transformToDiscordPayload(payload: string): string {
     const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
 
     // Extract key information from the event data
-    const extractFields = (obj: any, prefix = ""): void => {
+    const extractFields = (obj: Record<string, unknown>, prefix = ""): void => {
       for (const [key, value] of Object.entries(obj)) {
         if (value === null || value === undefined)
           continue;
@@ -64,7 +64,7 @@ function transformToDiscordPayload(payload: string): string {
         if (typeof value === "object" && !Array.isArray(value)) {
           // Only go one level deep for the first object
           if (prefix === "") {
-            extractFields(value, key);
+            extractFields(value as Record<string, unknown>, key);
           }
           continue;
         }
@@ -80,7 +80,9 @@ function transformToDiscordPayload(payload: string): string {
         // Format timestamps
         if (key.includes("At") || key === "timestamp") {
           try {
-            fieldValue = new Date(value as string).toLocaleString();
+            if (typeof value === "string" || typeof value === "number") {
+              fieldValue = new Date(value).toLocaleString();
+            }
           }
           catch {
             // Keep original value if not a valid date
@@ -122,8 +124,10 @@ function transformToDiscordPayload(payload: string): string {
   catch (error) {
     console.error("[Webhook] Failed to transform payload to Discord format:", error);
     // Fallback to simple text message
+    const truncatedPayload = payload.substring(0, 100);
+    const content = `Webhook event received: ${truncatedPayload}...`;
     return JSON.stringify({
-      content: `Webhook event received: ${payload.substring(0, 100)}...`,
+      content: content.substring(0, 2000), // Discord content limit
     });
   }
 }
