@@ -51,11 +51,21 @@ describe("comments routes", () => {
         title: "Test Post for Comments",
         slug: `test-post-${Date.now()}`,
         content: "This is a test post for testing comments",
-        status: "published",
+        status: "PUBLISHED",
       }),
     });
+
+    if (postResponse.status !== 200) {
+      const errorData = await postResponse.json();
+      throw new Error(`Failed to create test post: ${JSON.stringify(errorData)}`);
+    }
+
     const postData = await postResponse.json();
     testPostId = postData.id;
+
+    if (!testPostId) {
+      throw new Error("Test post ID is undefined");
+    }
   });
 
   afterAll(async () => {

@@ -506,7 +506,10 @@ export const insertCommentsSchema = createInsertSchema(comments, {
 export const insertCommentBodySchema = z.object({
   content: z.string().min(1, "Content is required").max(10000),
   authorName: z.string().min(1, "Author name is required").max(255),
-  authorEmail: z.string().email("Must be a valid email").optional().or(z.literal("")).nullable().transform(val => val || null),
+  authorEmail: z.union([
+    z.email("Must be a valid email"),
+    z.literal(""),
+  ]).optional().nullable().transform(val => val || null),
 });
 
 export const patchCommentsSchema = insertCommentsSchema.partial().refine(

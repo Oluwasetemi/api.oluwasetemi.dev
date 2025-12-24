@@ -18,7 +18,7 @@ export const list = createRoute({
   description: "Get all comments for a specific post with pagination and sorting support",
   request: {
     params: z.object({
-      postId: z.string().uuid(),
+      postId: z.uuid(),
     }),
     query: z.object({
       all: z.coerce.boolean().optional().default(false).openapi({ description: "Return all comments without pagination" }),
