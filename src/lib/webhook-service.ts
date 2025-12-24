@@ -3,6 +3,135 @@ import { eq } from "drizzle-orm";
 import db from "@/db";
 import { webhookEvents } from "@/db/schema";
 
+// Check if URL is a Discord webhook
+function isDiscordWebhook(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    return (hostname === "discord.com" || hostname === "discordapp.com")
+      && parsedUrl.pathname.startsWith("/api/webhooks");
+  }
+  catch {
+    return false;
+  }
+}
+
+const DISCORD_EMBED_COLORS = {
+  DEFAULT: 5814783, // Blue
+  CREATED: 3066993, // Green
+  UPDATED: 15844367, // Yellow/Gold
+  DELETED: 15158332, // Red
+  PUBLISHED: 10181046, // Purple
+} as const;
+
+// Transform generic webhook payload to Discord format
+function transformToDiscordPayload(payload: string): string {
+  try {
+    const data = JSON.parse(payload);
+    const { event, timestamp, data: eventData } = data;
+
+    // Create a human-readable event title
+    const eventTitle = event
+      .split(".")
+      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    // Determine embed color based on event type
+    let color: number = DISCORD_EMBED_COLORS.DEFAULT;
+    if (event.includes("created")) {
+      color = DISCORD_EMBED_COLORS.CREATED;
+    }
+    else if (event.includes("updated")) {
+      color = DISCORD_EMBED_COLORS.UPDATED;
+    }
+    else if (event.includes("deleted")) {
+      color = DISCORD_EMBED_COLORS.DELETED;
+    }
+    else if (event.includes("published")) {
+      color = DISCORD_EMBED_COLORS.PUBLISHED;
+    }
+
+    // Build fields from event data
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
+
+    // Extract key information from the event data
+    const extractFields = (obj: Record<string, unknown>, prefix = ""): void => {
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null || value === undefined)
+          continue;
+
+        // Skip deeply nested objects and arrays for clarity
+        if (typeof value === "object" && !Array.isArray(value)) {
+          // Only go one level deep for the first object
+          if (prefix === "") {
+            extractFields(value as Record<string, unknown>, key);
+          }
+          continue;
+        }
+
+        const fieldName = prefix ? `${prefix}.${key}` : key;
+        let fieldValue = String(value);
+
+        // Limit field value length
+        if (fieldValue.length > 100) {
+          fieldValue = `${fieldValue.substring(0, 97)}...`;
+        }
+
+        // Format timestamps
+        if (key.includes("At") || key === "timestamp") {
+          try {
+            if (typeof value === "string" || typeof value === "number") {
+              fieldValue = new Date(value).toLocaleString();
+            }
+          }
+          catch {
+            // Keep original value if not a valid date
+          }
+        }
+
+        fields.push({
+          name: fieldName.charAt(0).toUpperCase() + fieldName.slice(1),
+          value: fieldValue,
+          inline: true,
+        });
+
+        // Limit to 10 fields (Discord limit is 25, but we keep it reasonable)
+        if (fields.length >= 10)
+          return;
+      }
+    };
+
+    extractFields(eventData);
+
+    // Create Discord embed payload
+    const discordPayload = {
+      embeds: [
+        {
+          title: eventTitle,
+          description: `Event: \`${event}\``,
+          color,
+          fields,
+          timestamp,
+          footer: {
+            text: "Webhook Event",
+          },
+        },
+      ],
+    };
+
+    return JSON.stringify(discordPayload);
+  }
+  catch (error) {
+    console.error("[Webhook] Failed to transform payload to Discord format:", error);
+    // Fallback to simple text message
+    const truncatedPayload = payload.substring(0, 100);
+    const content = `Webhook event received: ${truncatedPayload}...`;
+    return JSON.stringify({
+      content: content.substring(0, 2000), // Discord content limit
+    });
+  }
+}
+
 // Generate HMAC signature for webhook payload
 export async function generateWebhookSignature(payload: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -72,28 +201,41 @@ export async function deliverWebhook(eventId: string): Promise<void> {
   }
 
   if (!subscription.active) {
-    console.log(`[Webhook] Subscription ${subscription.id} is inactive, skipping delivery`);
+    console.warn(`[Webhook] Subscription ${subscription.id} is inactive, skipping delivery`);
     return;
   }
 
-  const payload = event.payload;
+  let payload = event.payload;
   const timestamp = new Date().toISOString();
+  const isDiscord = isDiscordWebhook(subscription.url);
 
-  // Generate signature
-  const signature = await generateWebhookSignature(payload, subscription.secret);
+  // Transform payload for Discord webhooks
+  if (isDiscord) {
+    payload = transformToDiscordPayload(payload);
+  }
+
+  // Generate signature for non-Discord webhooks
+  const signature = isDiscord ? "" : await generateWebhookSignature(payload, subscription.secret);
 
   try {
     const startTime = Date.now();
 
+    // Build headers based on webhook type
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    // Discord doesn't need/want custom webhook headers
+    if (!isDiscord) {
+      headers["X-Webhook-Event"] = event.eventType;
+      headers["X-Webhook-Signature"] = signature;
+      headers["X-Webhook-Timestamp"] = timestamp;
+      headers["X-Webhook-ID"] = event.id;
+    }
+
     const response = await fetch(subscription.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Webhook-Event": event.eventType,
-        "X-Webhook-Signature": signature,
-        "X-Webhook-Timestamp": timestamp,
-        "X-Webhook-ID": event.id,
-      },
+      headers,
       body: payload,
       signal: AbortSignal.timeout(30000), // 30 second timeout
     });
@@ -114,7 +256,8 @@ export async function deliverWebhook(eventId: string): Promise<void> {
         })
         .where(eq(webhookEvents.id, eventId));
 
-      console.log(`[Webhook] Delivered event ${eventId} to ${subscription.url} (${responseTime}ms, ${response.status})`);
+      const webhookType = isDiscord ? "Discord webhook" : "webhook";
+      console.warn(`[Webhook] Delivered event ${eventId} to ${webhookType} ${subscription.url} (${responseTime}ms, ${response.status})`);
     }
     else {
       // Failed, schedule retry
@@ -136,7 +279,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
           })
           .where(eq(webhookEvents.id, eventId));
 
-        console.log(`[Webhook] Failed to deliver event ${eventId}, will retry at ${nextRetry.toISOString()} (attempt ${newAttempts}/${subscription.maxRetries})`);
+        console.warn(`[Webhook] Failed to deliver event ${eventId}, will retry at ${nextRetry.toISOString()} (attempt ${newAttempts}/${subscription.maxRetries})`);
 
         // Schedule retry
         const delay = nextRetry.getTime() - Date.now();
@@ -181,7 +324,7 @@ export async function deliverWebhook(eventId: string): Promise<void> {
         })
         .where(eq(webhookEvents.id, eventId));
 
-      console.log(`[Webhook] Network error for event ${eventId}, will retry at ${nextRetry.toISOString()}`);
+      console.warn(`[Webhook] Network error for event ${eventId}, will retry at ${nextRetry.toISOString()}`);
 
       // Schedule retry
       const delay = nextRetry.getTime() - Date.now();
@@ -258,7 +401,7 @@ export async function processPendingRetries(): Promise<void> {
     limit: 100,
   });
 
-  console.log(`[Webhook] Processing ${pendingEvents.length} pending retries`);
+  console.warn(`[Webhook] Processing ${pendingEvents.length} pending retries`);
 
   for (const event of pendingEvents) {
     deliverWebhook(event.id).catch(console.error);
