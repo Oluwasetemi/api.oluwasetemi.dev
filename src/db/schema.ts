@@ -457,3 +457,62 @@ export const insertWebhookIncomingLogsSchema = createInsertSchema(webhookIncomin
   });
 
 export const patchWebhookIncomingLogsSchema = insertWebhookIncomingLogsSchema.partial();
+
+// Comments table
+export const comments = sqliteTable("comments", {
+  id: text("id").primaryKey().$defaultFn(() => generateUUID()),
+  postId: text("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  content: text().notNull(),
+  authorName: text("author_name").notNull(),
+  authorEmail: text("author_email"),
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+  isEdited: integer({ mode: "boolean" }).notNull().default(false),
+  editedAt: integer("edited_at", { mode: "timestamp" }),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => [
+  index("idx_comments_post_id").on(table.postId),
+  index("idx_comments_author_id").on(table.authorId),
+  index("idx_comments_created_at").on(table.createdAt),
+]);
+
+export const selectCommentsSchema = createSelectSchema(comments);
+
+export const insertCommentsSchema = createInsertSchema(comments, {
+  postId: schema => schema.postId.uuid({ message: "Post ID must be a valid UUID" }),
+  content: schema => schema.content.min(1).max(10000),
+  authorName: schema => schema.authorName.min(1).max(255),
+  authorEmail: schema => schema.authorEmail.optional().nullable().refine(
+    val => !val || z.email().safeParse(val).success,
+    { message: "Must be a valid email" },
+  ).transform(val => val || null),
+})
+  .required({
+    postId: true,
+    content: true,
+    authorName: true,
+  })
+  .omit({
+    id: true,
+    isEdited: true,
+    editedAt: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+// Schema for creating a comment without postId (comes from URL parameter)
+export const insertCommentBodySchema = z.object({
+  content: z.string().min(1, "Content is required").max(10000),
+  authorName: z.string().min(1, "Author name is required").max(255),
+  authorEmail: z.union([
+    z.email("Must be a valid email"),
+    z.literal(""),
+  ]).optional().nullable().transform(val => val || null),
+});
+
+export const patchCommentsSchema = insertCommentsSchema.partial().refine(
+  data => Object.keys(data).length > 0,
+  { message: "No updates provided", path: [] },
+);

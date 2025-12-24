@@ -1,6 +1,7 @@
 /**
  * Generate a new UUID using crypto.randomUUID()
  * This is used for pre-computing UUIDs for database records
+ * @returns {string} the randomUUIDv4
  */
 export function generateUUID(): string {
   return crypto.randomUUID();

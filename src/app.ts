@@ -3,6 +3,7 @@ import createApp from "@/lib/create-app";
 import analytics from "@/routes/analytics/analytics.index";
 import auth from "@/routes/auth/auth.index";
 import betterAuth from "@/routes/better-auth/better-auth.index";
+import comments from "@/routes/comments/comments.index";
 import graphql from "@/routes/graphql/graphql.index";
 import index from "@/routes/index.route";
 import posts from "@/routes/posts/posts.index";
@@ -44,7 +45,7 @@ app.post("/email", async (c) => {
   return c.json(data);
 });
 
-const routes = [index, tasks, products, posts, graphql, analytics, auth, betterAuth, webhooks, webhookReceiver, websockets, sse] as const;
+const routes = [index, tasks, products, posts, comments, graphql, analytics, auth, betterAuth, webhooks, webhookReceiver, websockets, sse] as const;
 
 routes.forEach((route) => {
   app.route("/", route);
