@@ -10,7 +10,7 @@ export default setemiojo(
       semi: true,
       quotes: "double",
     },
-    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", ".claude", "coverage/**"],
+    ignores: ["dist/**", "node_modules/**", "src/db/migrations/**", ".github/**", ".claude", "coverage/**", "docs/**"],
   },
   {
     rules: {

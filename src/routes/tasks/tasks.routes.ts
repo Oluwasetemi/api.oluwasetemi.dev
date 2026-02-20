@@ -46,6 +46,44 @@ export const list = createRoute({
   },
 });
 
+export const listMy = createRoute({
+  path: "/tasks/me",
+  method: "get",
+  tags,
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      all: z.coerce.boolean().optional().default(false),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).default(10),
+      status: z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]).optional(),
+      priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
+      search: z.string().optional(),
+      sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({
+        data: z.array(selectTasksSchema),
+        meta: z.object({
+          total: z.number(),
+          page: z.number(),
+          limit: z.number(),
+          totalPages: z.number(),
+          hasNextPage: z.boolean(),
+          hasPreviousPage: z.boolean(),
+        }),
+      }).or(z.array(selectTasksSchema)),
+      "List of authenticated user's tasks",
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      z.object({ message: z.string() }),
+      "Authentication required",
+    ),
+  },
+});
+
 export const listChildren = createRoute({
   path: "/tasks/{id}/children",
   method: "get",
@@ -167,6 +205,7 @@ export const remove = createRoute({
 });
 
 export type ListRoute = typeof list;
+export type ListMyRoute = typeof listMy;
 export type CreateRoute = typeof create;
 export type GetOneRoute = typeof getOne;
 export type PatchRoute = typeof patch;

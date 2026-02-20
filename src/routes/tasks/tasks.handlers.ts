@@ -14,7 +14,7 @@ import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 import { emitWebhookEvent } from "@/lib/webhook-service";
 import { wsManager } from "@/routes/websockets/websocket.manager";
 
-import type { CreateRoute, GetOneRoute, ListChildrenRoute, ListRoute, PatchRoute, RemoveRoute } from "./tasks.routes";
+import type { CreateRoute, GetOneRoute, ListChildrenRoute, ListMyRoute, ListRoute, PatchRoute, RemoveRoute } from "./tasks.routes";
 
 export type Task = z.infer<typeof selectTasksSchema>;
 
@@ -89,6 +89,89 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
       },
     }, HttpStatusCodes.OK);
   }
+};
+
+export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
+  const user = c.get("user");
+
+  // This route requires authentication
+  if (!user) {
+    return c.json(
+      { message: "Authentication required" },
+      HttpStatusCodes.UNAUTHORIZED,
+    );
+  }
+
+  const { all, page, limit, status, priority, search, sort = "DESC" } = c.req.valid("query");
+
+  // Build where conditions - always filter by owner
+  const whereConditions = [eq(tasks.owner, user.id)];
+
+  if (status)
+    whereConditions.push(eq(tasks.status, status));
+  if (priority)
+    whereConditions.push(eq(tasks.priority, priority));
+  if (search) {
+    const searchPattern = `%${search}%`;
+    whereConditions.push(
+      sql`(${tasks.name} LIKE ${searchPattern} OR ${tasks.description} LIKE ${searchPattern})`,
+    );
+  }
+
+  const orderBy = sort === "ASC" ? [asc(tasks.createdAt)] : [desc(tasks.createdAt)];
+
+  if (all) {
+    const tasksList = await db.query.tasks.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit: 200,
+      orderBy,
+    });
+    return c.json(tasksList as Task[], HttpStatusCodes.OK);
+  }
+
+  const offset = (page - 1) * limit;
+
+  const [tasksList, totalResult] = await Promise.all([
+    db.query.tasks.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit,
+      offset,
+      orderBy,
+    }),
+    db.select({ count: sql<number>`count(*)` })
+      .from(tasks)
+      .where(sql`${sql.join(whereConditions, sql` AND `)}`)
+      .get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Task[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: tasksList as Task[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
 };
 
 // TODO: list all the children of a task
