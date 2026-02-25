@@ -142,6 +142,20 @@ export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
       .get(),
   ]);
 
+  if (!totalResult) {
+    return c.json({
+      data: [] as Product[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
   const totalCount = totalResult?.count ?? 0;
   const totalPages = Math.ceil(totalCount / limit);
 

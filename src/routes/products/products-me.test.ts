@@ -144,6 +144,19 @@ describe("get /products/me", () => {
       expect(data.data.length).toBe(2);
       expect(data.meta.hasNextPage).toBe(true);
       expect(data.meta.totalPages).toBe(2);
+      expect(data.meta.hasPreviousPage).toBe(false);
+    });
+
+    it("returns correct meta for second page", async () => {
+      const response = await fullApp.request("/products/me?page=2&limit=2", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.data.length).toBe(1);
+      expect(data.meta.hasNextPage).toBe(false);
+      expect(data.meta.hasPreviousPage).toBe(true);
     });
   });
 });
