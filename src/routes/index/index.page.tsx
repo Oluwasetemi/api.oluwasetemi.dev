@@ -16,6 +16,12 @@ const apiRoutes = {
     },
     {
       method: "GET",
+      path: "/tasks/me",
+      actions: ["requireAuth", "listMy"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/GET/tasks/me",
+    },
+    {
+      method: "GET",
       path: "/tasks/:id/children",
       actions: ["middleware", "middleware", "listChildren"],
       docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/tasks/GET/tasks/{id}/children",
@@ -53,6 +59,12 @@ const apiRoutes = {
       docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/GET/products",
     },
     {
+      method: "GET",
+      path: "/products/me",
+      actions: ["requireAuth", "listMy"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/products/GET/products/me",
+    },
+    {
       method: "POST",
       path: "/products",
       actions: ["middleware", "create"],
@@ -83,6 +95,12 @@ const apiRoutes = {
       path: "/posts",
       actions: ["middleware", "list"],
       docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/GET/posts",
+    },
+    {
+      method: "GET",
+      path: "/posts/me",
+      actions: ["requireAuth", "listMy"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/posts/GET/posts/me",
     },
     {
       method: "POST",
@@ -121,6 +139,12 @@ const apiRoutes = {
       path: "/posts/:postId/comments",
       actions: ["middleware", "list"],
       docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/comments/GET/posts/{postId}/comments",
+    },
+    {
+      method: "GET",
+      path: "/posts/:postId/comments/me",
+      actions: ["requireAuth", "listMy"],
+      docsUrl: "https://api.oluwasetemi.dev/reference#main-api/tag/comments/GET/posts/{postId}/comments/me",
     },
     {
       method: "POST",
@@ -359,6 +383,7 @@ const apiRoutes = {
 function getRouteDescription(path: string, method: string): string {
   const descriptions: Record<string, string> = {
     "GET /tasks": "List all tasks with pagination",
+    "GET /tasks/me": "List authenticated user's tasks (JWT required)",
     "POST /tasks": "Create a new task",
     "GET /tasks/:id": "Get task by ID",
     "PATCH /tasks/:id": "Update a task",
@@ -366,12 +391,14 @@ function getRouteDescription(path: string, method: string): string {
     "GET /tasks/:id/children": "Get child tasks",
 
     "GET /products": "List all products",
+    "GET /products/me": "List authenticated user's products (JWT required)",
     "POST /products": "Create a new product",
     "GET /products/:id": "Get product by ID",
     "PATCH /products/:id": "Update a product",
     "DELETE /products/:id": "Delete a product",
 
     "GET /posts": "List all posts with filtering",
+    "GET /posts/me": "List authenticated user's posts (JWT required)",
     "POST /posts": "Create a new post (slug auto-generated)",
     "GET /posts/:id": "Get post by ID or slug",
     "GET /posts/slug/:slug": "Get post by slug",
@@ -379,6 +406,7 @@ function getRouteDescription(path: string, method: string): string {
     "DELETE /posts/:id": "Delete a post",
 
     "GET /posts/:postId/comments": "List comments for a post",
+    "GET /posts/:postId/comments/me": "List authenticated user's comments on a post (JWT required)",
     "POST /posts/:postId/comments": "Create comment (anonymous or authenticated)",
     "GET /comments/:id": "Get comment by ID",
     "PATCH /comments/:id": "Update comment (owner only)",
