@@ -110,7 +110,7 @@ describe("get /posts/me", () => {
       });
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.data.length).toBeGreaterThan(0);
+      expect(data.data.length).toBe(2);
       expect(data.data.every((p: any) => p.status === "DRAFT")).toBe(true);
     });
 

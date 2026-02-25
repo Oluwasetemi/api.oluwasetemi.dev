@@ -114,7 +114,7 @@ export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
     );
   }
 
-  const orderBy = sort === "ASC" ? [asc(posts.publishedAt)] : [desc(posts.publishedAt)];
+  const orderBy = sort === "ASC" ? [asc(posts.createdAt)] : [desc(posts.createdAt)];
 
   if (all) {
     const postsList = await db.query.posts.findMany({
