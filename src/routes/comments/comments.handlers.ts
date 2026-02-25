@@ -140,7 +140,7 @@ export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
     }, HttpStatusCodes.OK);
   }
 
-  const totalCount = totalResult?.count ?? 0;
+  const totalCount = totalResult.count;
   const totalPages = Math.ceil(totalCount / limit);
 
   return c.json({
