@@ -6,12 +6,13 @@ import * as routes from "./products.routes";
 
 const router = createRouter();
 
+// Apply optional authentication to ALL routes in this router
+router.use("*", optionalAuth());
+
 // /products/me must be registered before /products/:id to avoid UUID validation on "me"
+// requireAuth will be applied on top of optionalAuth
 router.use("/products/me", requireAuth());
 router.openapi(routes.listMy, handlers.listMy);
-
-// Apply optional authentication to general product routes
-router.use("/products", optionalAuth());
 
 router
   .openapi(routes.list, handlers.list)

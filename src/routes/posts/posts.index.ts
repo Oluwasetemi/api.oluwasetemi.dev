@@ -6,12 +6,13 @@ import * as routes from "./posts.routes";
 
 const router = createRouter();
 
+// Apply optional authentication to ALL routes in this router
+router.use("*", optionalAuth());
+
 // /posts/me must be registered before /posts/:id to avoid UUID validation on "me"
+// requireAuth will be applied on top of optionalAuth
 router.use("/posts/me", requireAuth());
 router.openapi(routes.listMy, handlers.listMy);
-
-// Apply optional authentication to general posts routes
-router.use("/posts", optionalAuth());
 
 router
   .openapi(routes.list, handlers.list)
