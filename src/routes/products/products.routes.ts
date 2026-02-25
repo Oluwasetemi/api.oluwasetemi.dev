@@ -47,6 +47,45 @@ export const list = createRoute({
   },
 });
 
+export const listMy = createRoute({
+  path: "/products/me",
+  method: "get",
+  tags,
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      all: z.coerce.boolean().optional().default(false),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(10),
+      category: z.string().optional(),
+      featured: z.coerce.boolean().optional(),
+      published: z.coerce.boolean().optional(),
+      search: z.string().optional(),
+      sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({
+        data: z.array(selectProductsSchema),
+        meta: z.object({
+          total: z.number(),
+          page: z.number(),
+          limit: z.number(),
+          totalPages: z.number(),
+          hasNextPage: z.boolean(),
+          hasPreviousPage: z.boolean(),
+        }),
+      }).or(z.array(selectProductsSchema)),
+      "List of authenticated user's products",
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      z.object({ message: z.string() }),
+      "Authentication required",
+    ),
+  },
+});
+
 export const create = createRoute({
   path: "/products",
   method: "post",
@@ -132,6 +171,7 @@ export const remove = createRoute({
 });
 
 export type ListRoute = typeof list;
+export type ListMyRoute = typeof listMy;
 export type CreateRoute = typeof create;
 export type GetOneRoute = typeof getOne;
 export type PatchRoute = typeof patch;
