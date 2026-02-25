@@ -15,7 +15,7 @@ import { emitWebhookEvent } from "@/lib/webhook-service";
 import { wsManager } from "@/routes/websockets/websocket.manager";
 import { ensureUniqueSlug, generateSlugFromTitle } from "@/utils/slug";
 
-import type { CreateRoute, GetBySlugRoute, GetOneRoute, ListRoute, PatchRoute, RemoveRoute } from "./posts.routes";
+import type { CreateRoute, GetBySlugRoute, GetOneRoute, ListMyRoute, ListRoute, PatchRoute, RemoveRoute } from "./posts.routes";
 
 export type Post = z.infer<typeof selectPostsSchema>;
 
@@ -90,6 +90,83 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
       },
     }, HttpStatusCodes.OK);
   }
+};
+
+export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
+  const user = c.get("user");
+
+  if (!user) {
+    return c.json({ message: "Authentication required" }, HttpStatusCodes.UNAUTHORIZED);
+  }
+
+  const { all, page, limit, category, status, search, sort = "DESC" } = c.req.valid("query");
+
+  const whereConditions = [eq(posts.author, user.id)];
+
+  if (category)
+    whereConditions.push(eq(posts.category, category));
+  if (status)
+    whereConditions.push(eq(posts.status, status));
+  if (search) {
+    const searchPattern = `%${search}%`;
+    whereConditions.push(
+      sql`(${posts.title} LIKE ${searchPattern} OR ${posts.content} LIKE ${searchPattern} OR ${posts.excerpt} LIKE ${searchPattern})`,
+    );
+  }
+
+  const orderBy = sort === "ASC" ? [asc(posts.publishedAt)] : [desc(posts.publishedAt)];
+
+  if (all) {
+    const postsList = await db.query.posts.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit: 200,
+      orderBy,
+    });
+    return c.json(postsList as Post[], HttpStatusCodes.OK);
+  }
+
+  const offset = (page - 1) * limit;
+  const [postsList, totalResult] = await Promise.all([
+    db.query.posts.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit,
+      offset,
+      orderBy,
+    }),
+    db.select({ count: sql<number>`count(*)` })
+      .from(posts)
+      .where(sql`${sql.join(whereConditions, sql` AND `)}`)
+      .get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Post[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: postsList as Post[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
