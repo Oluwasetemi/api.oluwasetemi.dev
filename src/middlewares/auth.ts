@@ -88,6 +88,7 @@ export async function optionalAuthMiddleware(c: Context, next: Next) {
   // If token provided, try to authenticate
   try {
     await authMiddleware(c, next);
+    // Important: return after successful auth to prevent calling next() again
   }
   catch {
     // If authentication fails, continue without user (don't throw)

@@ -14,7 +14,7 @@ import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 import { emitWebhookEvent } from "@/lib/webhook-service";
 import { wsManager } from "@/routes/websockets/websocket.manager";
 
-import type { CreateRoute, GetOneRoute, ListRoute, PatchRoute, RemoveRoute } from "./products.routes";
+import type { CreateRoute, GetOneRoute, ListMyRoute, ListRoute, PatchRoute, RemoveRoute } from "./products.routes";
 
 export type Product = z.infer<typeof selectProductsSchema>;
 
@@ -91,6 +91,85 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
       },
     }, HttpStatusCodes.OK);
   }
+};
+
+export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
+  const user = c.get("user");
+
+  if (!user) {
+    return c.json({ message: "Authentication required" }, HttpStatusCodes.UNAUTHORIZED);
+  }
+
+  const { all, page, limit, category, search, featured, published, sort = "DESC" } = c.req.valid("query");
+
+  const whereConditions = [eq(products.owner, user.id)];
+
+  if (category)
+    whereConditions.push(eq(products.category, category));
+  if (featured !== undefined)
+    whereConditions.push(eq(products.featured, featured));
+  if (published !== undefined)
+    whereConditions.push(eq(products.published, published));
+  if (search) {
+    const searchPattern = `%${search}%`;
+    whereConditions.push(
+      sql`(${products.name} LIKE ${searchPattern} OR ${products.description} LIKE ${searchPattern})`,
+    );
+  }
+
+  const orderBy = sort === "ASC" ? [asc(products.createdAt)] : [desc(products.createdAt)];
+
+  if (all) {
+    const productsList = await db.query.products.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit: 200,
+      orderBy,
+    });
+    return c.json(productsList as Product[], HttpStatusCodes.OK);
+  }
+
+  const offset = (page - 1) * limit;
+  const [productsList, totalResult] = await Promise.all([
+    db.query.products.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit,
+      offset,
+      orderBy,
+    }),
+    db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(sql`${sql.join(whereConditions, sql` AND `)}`)
+      .get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Product[],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: productsList as Product[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {

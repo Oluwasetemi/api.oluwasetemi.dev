@@ -14,7 +14,7 @@ import { pubsub, SUBSCRIPTION_EVENTS } from "@/lib/pubsub";
 import { emitWebhookEvent } from "@/lib/webhook-service";
 import { wsManager } from "@/routes/websockets/websocket.manager";
 
-import type { CreateRoute, GetOneRoute, ListRoute, PatchRoute, RemoveRoute } from "./comments.routes";
+import type { CreateRoute, GetOneRoute, ListMyRoute, ListRoute, PatchRoute, RemoveRoute } from "./comments.routes";
 
 export type Comment = z.infer<typeof selectCommentsSchema>;
 
@@ -78,6 +78,82 @@ export const list: AppRouteHandler<ListRoute> = async (c) => {
       },
     }, HttpStatusCodes.OK);
   }
+};
+
+export const listMy: AppRouteHandler<ListMyRoute> = async (c) => {
+  const user = c.get("user");
+
+  if (!user) {
+    return c.json({ message: "Authentication required" }, HttpStatusCodes.UNAUTHORIZED);
+  }
+
+  const { postId } = c.req.valid("param");
+  const { all, page, limit, sort = "ASC" } = c.req.valid("query");
+
+  // Verify post exists
+  const post = await db.query.posts.findFirst({
+    where(fields, operators) {
+      return operators.eq(fields.id, postId);
+    },
+  });
+
+  if (!post) {
+    return c.json(
+      notFoundSchema.parse({ message: "Post not found" }),
+      HttpStatusCodes.NOT_FOUND,
+    );
+  }
+
+  const whereConditions = [
+    eq(comments.postId, postId),
+    eq(comments.authorId, user.id),
+  ];
+  const orderBy = sort === "ASC" ? [asc(comments.createdAt)] : [desc(comments.createdAt)];
+
+  if (all) {
+    const commentsList = await db.query.comments.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit: 1000,
+      orderBy,
+    });
+    return c.json(commentsList as Comment[], HttpStatusCodes.OK);
+  }
+
+  const offset = (page - 1) * limit;
+  const [commentsList, totalResult] = await Promise.all([
+    db.query.comments.findMany({
+      where: sql`${sql.join(whereConditions, sql` AND `)}`,
+      limit,
+      offset,
+      orderBy,
+    }),
+    db.select({ count: sql<number>`count(*)` })
+      .from(comments)
+      .where(sql`${sql.join(whereConditions, sql` AND `)}`)
+      .get(),
+  ]);
+
+  if (!totalResult) {
+    return c.json({
+      data: [] as Comment[],
+      meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPreviousPage: false },
+    }, HttpStatusCodes.OK);
+  }
+
+  const totalCount = totalResult.count;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return c.json({
+    data: commentsList as Comment[],
+    meta: {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  }, HttpStatusCodes.OK);
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {

@@ -1,12 +1,16 @@
 import { createRouter } from "@/lib/create-app";
-import { optionalAuth } from "@/middlewares/auth";
+import { optionalAuth, requireAuth } from "@/middlewares/auth";
 
 import * as handlers from "./comments.handlers";
 import * as routes from "./comments.routes";
 
 const router = createRouter();
 
-// Apply optional authentication - authenticated users get priority, anonymous allowed
+// /posts/:postId/comments/me registered before list to ensure explicit match
+router.use("/posts/:postId/comments/me", requireAuth());
+router.openapi(routes.listMy, handlers.listMy);
+
+// Apply optional authentication — authenticated users get priority, anonymous allowed
 router.use("*", optionalAuth());
 
 router

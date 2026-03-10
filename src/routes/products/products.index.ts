@@ -1,13 +1,18 @@
 import { createRouter } from "@/lib/create-app";
-import { optionalAuth } from "@/middlewares/auth";
+import { optionalAuth, requireAuth } from "@/middlewares/auth";
 
-import * as handlers from "./products.handlers"; // controllers
-import * as routes from "./products.routes"; // routes
+import * as handlers from "./products.handlers";
+import * as routes from "./products.routes";
 
 const router = createRouter();
 
-// Apply optional authentication to all products routes
+// Apply optional authentication to ALL routes in this router
 router.use("*", optionalAuth());
+
+// /products/me must be registered before /products/:id to avoid UUID validation on "me"
+// requireAuth will be applied on top of optionalAuth
+router.use("/products/me", requireAuth());
+router.openapi(routes.listMy, handlers.listMy);
 
 router
   .openapi(routes.list, handlers.list)

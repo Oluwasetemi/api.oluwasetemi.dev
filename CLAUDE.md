@@ -30,6 +30,27 @@ Use `pnpm test` with file patterns:
 
 ## Recent Updates & New Features
 
+### ✅ Authenticated /me Endpoints (Latest)
+
+All four resources now expose a `/me` endpoint returning only the authenticated user's own records.
+
+| Endpoint                          | Owner field         | Filter           |
+| --------------------------------- | ------------------- | ---------------- |
+| `GET /tasks/me`                   | `tasks.owner`       | user.id          |
+| `GET /products/me`                | `products.owner`    | user.id          |
+| `GET /posts/me`                   | `posts.author`      | user.id          |
+| `GET /posts/{postId}/comments/me` | `comments.authorId` | user.id + postId |
+
+All endpoints:
+
+- Require `Authorization: Bearer <token>` (enforced by `requireAuth()` middleware)
+- Return `401 Unauthorized` with `{ message: "Authorization token required" }` when unauthenticated
+- Return paginated `{ data[], meta{ total, page, limit, totalPages, hasNextPage, hasPreviousPage } }` by default
+- Return flat array when `all=true`
+- **Route ordering**: `/me` registered before `/{id}` in each `.index.ts` to prevent Hono matching "me" as a UUID param (→ 422)
+
+Tests: `src/routes/{resource}/{resource}-me.test.ts` for each resource
+
 ### 🔌 Real-time WebSocket System (Latest)
 
 - **WebSocket Infrastructure**: Complete real-time communication system with Hono WebSocket support

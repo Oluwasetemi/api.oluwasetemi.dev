@@ -46,6 +46,44 @@ export const list = createRoute({
   },
 });
 
+export const listMy = createRoute({
+  path: "/posts/me",
+  method: "get",
+  tags,
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      all: z.coerce.boolean().optional().default(false),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(10),
+      category: z.string().optional(),
+      status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+      search: z.string().optional(),
+      sort: z.enum(["ASC", "DESC"]).optional().default("DESC"),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.object({
+        data: z.array(selectPostsSchema),
+        meta: z.object({
+          total: z.number(),
+          page: z.number(),
+          limit: z.number(),
+          totalPages: z.number(),
+          hasNextPage: z.boolean(),
+          hasPreviousPage: z.boolean(),
+        }),
+      }).or(z.array(selectPostsSchema)),
+      "List of authenticated user's posts",
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      z.object({ message: z.string() }),
+      "Authentication required",
+    ),
+  },
+});
+
 export const create = createRoute({
   path: "/posts",
   method: "post",
@@ -159,6 +197,7 @@ export const remove = createRoute({
 });
 
 export type ListRoute = typeof list;
+export type ListMyRoute = typeof listMy;
 export type CreateRoute = typeof create;
 export type GetOneRoute = typeof getOne;
 export type GetBySlugRoute = typeof getBySlug;

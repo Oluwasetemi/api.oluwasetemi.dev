@@ -123,6 +123,51 @@ export const patch = createRoute({
   },
 });
 
+// GET /posts/{postId}/comments/me - List authenticated user's comments on a post
+export const listMy = createRoute({
+  path: "/posts/{postId}/comments/me",
+  method: "get",
+  tags,
+  security: [{ bearerAuth: [] }],
+  summary: "List my comments on a post",
+  description: "Get all comments made by the authenticated user on a specific post",
+  request: {
+    params: z.object({
+      postId: z.uuid(),
+    }),
+    query: z.object({
+      all: z.coerce.boolean().optional().default(false),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+      sort: z.enum(["ASC", "DESC"]).optional().default("ASC"),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      z.union([
+        z.object({
+          data: z.array(selectCommentsSchema),
+          meta: z.object({
+            total: z.number(),
+            page: z.number(),
+            limit: z.number(),
+            totalPages: z.number(),
+            hasNextPage: z.boolean(),
+            hasPreviousPage: z.boolean(),
+          }),
+        }),
+        z.array(selectCommentsSchema),
+      ]),
+      "List of authenticated user's comments on this post",
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      createMessageObjectSchema("Unauthorized"),
+      "Authentication required",
+    ),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Post not found"),
+  },
+});
+
 // DELETE /comments/{id} - Delete comment (ownership check)
 export const remove = createRoute({
   path: "/comments/{id}",
@@ -148,6 +193,7 @@ export const remove = createRoute({
 });
 
 export type ListRoute = typeof list;
+export type ListMyRoute = typeof listMy;
 export type CreateRoute = typeof create;
 export type GetOneRoute = typeof getOne;
 export type PatchRoute = typeof patch;

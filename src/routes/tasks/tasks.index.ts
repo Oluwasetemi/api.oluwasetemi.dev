@@ -6,12 +6,13 @@ import * as routes from "./tasks.routes"; // routes
 
 const router = createRouter();
 
+// Apply optional authentication to ALL routes in this router
+router.use("*", optionalAuth());
+
 // /tasks/me must be registered before /tasks/:id to avoid UUID validation on "me"
+// requireAuth will be applied on top of optionalAuth
 router.use("/tasks/me", requireAuth());
 router.openapi(routes.listMy, handlers.listMy);
-
-// Apply optional authentication to general tasks routes
-router.use("/tasks", optionalAuth());
 
 router
   .openapi(routes.list, handlers.list)
