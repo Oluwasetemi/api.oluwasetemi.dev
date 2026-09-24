@@ -140,7 +140,7 @@ export class AuthService {
   static async verifyAccessToken(token: string): Promise<JWTPayload> {
     try {
       // First try to verify with access token secret
-      const payload = await verify(token, env.JWT_SECRET);
+      const payload = await verify(token, env.JWT_SECRET, "HS256");
 
       // Validate payload structure
       if (!payload || typeof payload !== "object") {
@@ -176,7 +176,7 @@ export class AuthService {
         // Check if it's a signature mismatch - might be a refresh token
         if (error.message.includes("signature")) {
           try {
-            const payload = await verify(token, env.JWT_REFRESH_SECRET);
+            const payload = await verify(token, env.JWT_REFRESH_SECRET, "HS256");
             if (payload && typeof payload === "object" && (payload as JWTPayload).type === "refresh") {
               throw new Error("Invalid token type");
             }
@@ -198,7 +198,7 @@ export class AuthService {
   static async verifyRefreshToken(token: string): Promise<JWTPayload> {
     try {
       // First try to verify with refresh token secret
-      const payload = await verify(token, env.JWT_REFRESH_SECRET);
+      const payload = await verify(token, env.JWT_REFRESH_SECRET, "HS256");
 
       // Validate payload structure
       if (!payload || typeof payload !== "object") {
@@ -223,7 +223,7 @@ export class AuthService {
         // Check if it's a signature mismatch - might be an access token
         if (error.message.includes("signature")) {
           try {
-            const payload = await verify(token, env.JWT_SECRET);
+            const payload = await verify(token, env.JWT_SECRET, "HS256");
             if (payload && typeof payload === "object" && (payload as JWTPayload).type === "access") {
               throw new Error("Invalid token type");
             }

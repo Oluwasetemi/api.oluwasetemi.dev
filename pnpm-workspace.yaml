@@ -1,6 +1,15 @@
-onlyBuiltDependencies:
-  - "@apollo/protobufjs"
-  - better-sqlite3
-  - esbuild
-  - simple-git-hooks
-  - sqlite3
+allowBuilds:
+  '@apollo/protobufjs': true
+  better-sqlite3: true
+  esbuild: true
+  simple-git-hooks: true
+overrides:
+  drizzle-orm: 0.44.6
+minimumReleaseAgeExclude:
+  - '@scalar/client-side-rendering@0.4.4'
+  - '@scalar/helpers@0.14.0'
+  - '@scalar/hono-api-reference@0.12.5'
+  - '@scalar/schemas@0.12.0'
+  - '@scalar/types@0.22.0'
+  - '@scalar/validation@0.6.5'
+  - hono@4.13.9
