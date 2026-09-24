@@ -9,7 +9,7 @@ This directory contains reusable composite actions that standardize common workf
 **Purpose**: Provides a standardized environment setup with Node.js, pnpm, and optimized caching.
 
 **Key Features**:
-- Configures pnpm with specified version
+- Configures pnpm from the `packageManager` field in `package.json`
 - Sets up Node.js with built-in caching
 - Implements multi-level cache strategy:
   - Primary cache: OS + pnpm + cache prefix + Node version + lockfile hash
@@ -22,7 +22,6 @@ This directory contains reusable composite actions that standardize common workf
 - uses: ./.github/actions/setup
   with:
     node-version: '22'        # Default: '22'
-    pnpm-version: '10.26.2'   # Default: '10.26.2'
     cache-key-prefix: 'lint'  # Default: 'default'
 ```
 
@@ -46,7 +45,6 @@ This directory contains reusable composite actions that standardize common workf
 - uses: ./.github/actions/build
   with:
     node-version: '22'              # Default: '22'
-    pnpm-version: '10.26.2'          # Default: '10.26.2'
     build-command: 'pnpm run build'  # Default: 'pnpm run build'
     cache-build-artifacts: 'true'    # Default: 'true'
 ```
@@ -97,7 +95,7 @@ When a exact cache key miss occurs, the system falls back in this order:
 1. **Use specific cache prefixes**: Different job types should use different prefixes to avoid cache pollution
 2. **Monitor cache size**: GitHub Actions has a 10GB cache limit per repository
 3. **Regular cache cleanup**: Old cache entries are automatically evicted after 7 days of inactivity
-4. **Version pinning**: Always pin pnpm and Node.js versions for reproducible builds
+4. **Version pinning**: Pin Node.js in workflows and pnpm once via `packageManager` in `package.json` for reproducible builds
 
 ## Troubleshooting
 

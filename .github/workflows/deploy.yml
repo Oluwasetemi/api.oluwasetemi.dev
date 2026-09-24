@@ -9,7 +9,6 @@ on:
 # Global environment variables available to all jobs
 env:
   NODE_VERSION: '22'  # Align with ci.yml minimum supported version
-  PNPM_VERSION: '10.26.2'
 
 # Concurrency settings to prevent multiple deployments
 concurrency:
@@ -58,7 +57,6 @@ jobs:
         uses: ./.github/actions/build
         with:
           node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
           build-command: 'pnpm run build'
 
       - name: Setup SSH directory

@@ -37,12 +37,12 @@ export const tasks = sqliteTable("tasks", {
 export const selectTasksSchema = createSelectSchema(tasks);
 
 export const insertTasksSchema = createInsertSchema(tasks, {
-  name: schema => schema.name.min(1).max(500),
-  description: schema => schema.description.max(1000),
-  priority: schema => schema.priority.refine(val => PriorityEnum.safeParse(val).success),
-  status: schema => schema.status.refine(val => StatusEnum.safeParse(val).success),
-  archived: schema => schema.archived.optional(),
-  children: schema => schema.children.refine((val) => {
+  name: schema => schema.min(1).max(500),
+  description: schema => schema.max(1000),
+  priority: schema => schema.refine(val => PriorityEnum.safeParse(val).success),
+  status: schema => schema.refine(val => StatusEnum.safeParse(val).success),
+  archived: schema => schema.optional(),
+  children: schema => schema.refine((val) => {
     if (!val || val === "")
       return true;
     try {
@@ -53,9 +53,9 @@ export const insertTasksSchema = createInsertSchema(tasks, {
       return false;
     }
   }, { message: "Children must be a valid JSON array of strings" }),
-  start: schema => schema.start.optional().nullable().transform(val => val ? new Date(val) : null),
-  end: schema => schema.end.optional().nullable().transform(val => val ? new Date(val) : null),
-  completedAt: schema => schema.completedAt.optional().nullable().transform(val => val ? new Date(val) : null),
+  start: schema => schema.optional().nullable().transform(val => val ? new Date(val) : null),
+  end: schema => schema.optional().nullable().transform(val => val ? new Date(val) : null),
+  completedAt: schema => schema.optional().nullable().transform(val => val ? new Date(val) : null),
 })
   .required({
     name: true,
@@ -94,13 +94,13 @@ export const requests = sqliteTable("requests", {
 export const selectRequestsSchema = createSelectSchema(requests);
 
 export const insertRequestsSchema = createInsertSchema(requests, {
-  method: schema => schema.method.min(1).max(10),
-  path: schema => schema.path.min(1).max(2048),
-  status: schema => schema.status.min(100).max(599),
-  durationMs: schema => schema.durationMs.min(0),
-  ip: schema => schema.ip.optional().nullable(),
-  userAgent: schema => schema.userAgent.optional().nullable(),
-  referer: schema => schema.referer.optional().nullable(),
+  method: schema => schema.min(1).max(10),
+  path: schema => schema.min(1).max(2048),
+  status: schema => schema.min(100).max(599),
+  durationMs: schema => schema.min(0),
+  ip: schema => schema.optional().nullable(),
+  userAgent: schema => schema.optional().nullable(),
+  referer: schema => schema.optional().nullable(),
 })
   .omit({
     id: true,
@@ -131,9 +131,9 @@ export const users = sqliteTable("users", {
 export const selectUsersSchema = createSelectSchema(users);
 
 export const insertUsersSchema = createInsertSchema(users, {
-  email: schema => schema.email.email().min(1).max(255),
-  name: schema => schema.name.min(1).max(255),
-  image: schema => schema.image.optional().nullable().refine(val => !val || z.url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
+  email: schema => schema.email().min(1).max(255),
+  name: schema => schema.min(1).max(255),
+  image: schema => schema.optional().nullable().refine(val => !val || z.url().safeParse(val).success, { message: "Must be a valid URL" }).transform(val => val || null),
 })
   .required({
     email: true,
@@ -225,16 +225,16 @@ export const products = sqliteTable("products", {
 export const selectProductsSchema = createSelectSchema(products);
 
 export const insertProductsSchema = createInsertSchema(products, {
-  name: schema => schema.name.min(1).max(500),
-  description: schema => schema.description.optional().nullable(),
-  price: schema => schema.price.min(0),
-  compareAtPrice: schema => schema.compareAtPrice.optional().nullable(),
-  sku: schema => schema.sku.optional().nullable(),
-  barcode: schema => schema.barcode.optional().nullable(),
-  quantity: schema => schema.quantity.min(0),
-  category: schema => schema.category.optional().nullable(),
-  tags: schema => schema.tags.optional().nullable(),
-  images: schema => schema.images.optional(),
+  name: schema => schema.min(1).max(500),
+  description: schema => schema.optional().nullable(),
+  price: () => z.number().min(0),
+  compareAtPrice: () => z.number().min(0).optional().nullable(),
+  sku: schema => schema.optional().nullable(),
+  barcode: schema => schema.optional().nullable(),
+  quantity: schema => schema.min(0),
+  category: schema => schema.optional().nullable(),
+  tags: schema => schema.optional().nullable(),
+  images: schema => schema.optional(),
 })
   .required({
     name: true,
@@ -277,17 +277,17 @@ export const posts = sqliteTable("posts", {
 export const selectPostsSchema = createSelectSchema(posts);
 
 export const insertPostsSchema = createInsertSchema(posts, {
-  title: schema => schema.title.min(1).max(500),
-  slug: schema => schema.slug.optional().refine(
+  title: schema => schema.min(1).max(500),
+  slug: schema => schema.optional().refine(
     val => !val || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val),
     { message: "Slug must be lowercase alphanumeric with hyphens" },
   ),
-  content: schema => schema.content.min(1),
-  excerpt: schema => schema.excerpt.optional().nullable(),
-  featuredImage: schema => schema.featuredImage.optional().nullable(),
-  category: schema => schema.category.optional().nullable(),
-  tags: schema => schema.tags.optional().nullable(),
-  publishedAt: schema => schema.publishedAt.optional().nullable(),
+  content: schema => schema.min(1),
+  excerpt: schema => schema.optional().nullable(),
+  featuredImage: schema => schema.optional().nullable(),
+  category: schema => schema.optional().nullable(),
+  tags: schema => schema.optional().nullable(),
+  publishedAt: schema => schema.optional().nullable(),
 })
   .required({
     title: true,
@@ -324,8 +324,8 @@ export const webhookSubscriptions = sqliteTable("webhook_subscriptions", {
 export const selectWebhookSubscriptionsSchema = createSelectSchema(webhookSubscriptions);
 
 export const insertWebhookSubscriptionsSchema = createInsertSchema(webhookSubscriptions, {
-  url: schema => schema.url.url().min(1).max(2048),
-  events: schema => schema.events.refine((val) => {
+  url: schema => schema.url().min(1).max(2048),
+  events: schema => schema.refine((val) => {
     try {
       const parsed = JSON.parse(val);
       return Array.isArray(parsed) && parsed.every(e => typeof e === "string");
@@ -334,9 +334,9 @@ export const insertWebhookSubscriptionsSchema = createInsertSchema(webhookSubscr
       return false;
     }
   }, { message: "Events must be a valid JSON array of strings" }),
-  secret: schema => schema.secret.min(32).max(256),
-  maxRetries: schema => schema.maxRetries.min(0).max(10),
-  retryBackoff: schema => schema.retryBackoff.refine(val => ["exponential", "linear"].includes(val), {
+  secret: schema => schema.min(32).max(256),
+  maxRetries: schema => schema.min(0).max(10),
+  retryBackoff: schema => schema.refine(val => ["exponential", "linear"].includes(val), {
     message: "Retry backoff must be 'exponential' or 'linear'",
   }),
 })
@@ -380,8 +380,8 @@ export const webhookEvents = sqliteTable("webhook_events", {
 export const selectWebhookEventsSchema = createSelectSchema(webhookEvents);
 
 export const insertWebhookEventsSchema = createInsertSchema(webhookEvents, {
-  eventType: schema => schema.eventType.min(1).max(100),
-  payload: schema => schema.payload.refine((val) => {
+  eventType: schema => schema.min(1).max(100),
+  payload: schema => schema.refine((val) => {
     try {
       JSON.parse(val);
       return true;
@@ -390,8 +390,8 @@ export const insertWebhookEventsSchema = createInsertSchema(webhookEvents, {
       return false;
     }
   }, { message: "Payload must be valid JSON" }),
-  attempts: schema => schema.attempts.min(0),
-  responseCode: schema => schema.responseCode.optional().nullable().refine(val => !val || (val >= 100 && val <= 599), {
+  attempts: schema => schema.min(0),
+  responseCode: schema => schema.optional().nullable().refine(val => !val || (val >= 100 && val <= 599), {
     message: "Response code must be between 100 and 599",
   }),
 })
@@ -431,10 +431,10 @@ export const webhookIncomingLogs = sqliteTable("webhook_incoming_logs", {
 export const selectWebhookIncomingLogsSchema = createSelectSchema(webhookIncomingLogs);
 
 export const insertWebhookIncomingLogsSchema = createInsertSchema(webhookIncomingLogs, {
-  provider: schema => schema.provider.min(1).max(100),
-  eventId: schema => schema.eventId.min(1).max(255),
-  eventType: schema => schema.eventType.min(1).max(100),
-  payload: schema => schema.payload.refine((val) => {
+  provider: schema => schema.min(1).max(100),
+  eventId: schema => schema.min(1).max(255),
+  eventType: schema => schema.min(1).max(100),
+  payload: schema => schema.refine((val) => {
     try {
       JSON.parse(val);
       return true;
@@ -443,7 +443,7 @@ export const insertWebhookIncomingLogsSchema = createInsertSchema(webhookIncomin
       return false;
     }
   }, { message: "Payload must be valid JSON" }),
-  signature: schema => schema.signature.optional().nullable(),
+  signature: schema => schema.optional().nullable(),
 })
   .required({
     provider: true,
@@ -481,10 +481,10 @@ export const comments = sqliteTable("comments", {
 export const selectCommentsSchema = createSelectSchema(comments);
 
 export const insertCommentsSchema = createInsertSchema(comments, {
-  postId: schema => schema.postId.uuid({ message: "Post ID must be a valid UUID" }),
-  content: schema => schema.content.min(1).max(10000),
-  authorName: schema => schema.authorName.min(1).max(255),
-  authorEmail: schema => schema.authorEmail.optional().nullable().refine(
+  postId: schema => schema.uuid({ message: "Post ID must be a valid UUID" }),
+  content: schema => schema.min(1).max(10000),
+  authorName: schema => schema.min(1).max(255),
+  authorEmail: schema => schema.optional().nullable().refine(
     val => !val || z.email().safeParse(val).success,
     { message: "Must be a valid email" },
   ).transform(val => val || null),
@@ -510,6 +510,10 @@ export const insertCommentBodySchema = z.object({
     z.email("Must be a valid email"),
     z.literal(""),
   ]).optional().nullable().transform(val => val || null),
+});
+
+export const patchCommentBodySchema = z.object({
+  content: z.string().min(1, "Content is required").max(10000),
 });
 
 export const patchCommentsSchema = insertCommentsSchema.partial().refine(

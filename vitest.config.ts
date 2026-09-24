@@ -5,18 +5,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   test: {
     // Run tests sequentially to avoid database conflicts
     pool: "forks",
+    fileParallelism: false,
     root: path.resolve(fileURLToPath(import.meta.url), "../src"),
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     // Clean up test files after each test
     teardownTimeout: 10000,
     testTimeout: 60000,

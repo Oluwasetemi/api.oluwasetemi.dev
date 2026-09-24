@@ -446,7 +446,7 @@ describe("graphQL subscriptions", () => {
       // Verify that the iterator is done and won't receive the event
       // We use a timeout to ensure the event doesn't arrive
       const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve("timeout"), 100);
+        setTimeout(resolve, 100, "timeout");
       });
 
       const nextPromise = iterator.next().then(result => result.done).catch(() => true);

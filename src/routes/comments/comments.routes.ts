@@ -4,7 +4,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import { createErrorSchema, createMessageObjectSchema } from "stoker/openapi/schemas";
 import IdUUIDParamsSchema from "stoker/openapi/schemas/id-uuid-params";
 
-import { insertCommentBodySchema, patchCommentsSchema, selectCommentsSchema } from "@/db/schema";
+import { insertCommentBodySchema, patchCommentBodySchema, selectCommentsSchema } from "@/db/schema";
 import { notFoundSchema } from "@/lib/constants";
 
 const tags = ["Comments"];
@@ -101,7 +101,7 @@ export const patch = createRoute({
   request: {
     params: IdUUIDParamsSchema,
     body: jsonContentRequired(
-      patchCommentsSchema.pick({ content: true }),
+      patchCommentBodySchema,
       "The comment updates (content only)",
     ),
   },
@@ -117,7 +117,7 @@ export const patch = createRoute({
     ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(notFoundSchema, "Comment not found"),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      createErrorSchema(patchCommentsSchema.pick({ content: true })),
+      createErrorSchema(patchCommentBodySchema),
       "The validation error(s)",
     ),
   },
