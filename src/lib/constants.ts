@@ -9,7 +9,7 @@ export const ZOD_ERROR_MESSAGES = {
 };
 
 export const ZOD_ERROR_CODES = {
-  INVALID_UPDATES: "invalid_updates",
+  INVALID_UPDATES: "custom",
 };
 
 export const notFoundSchema = createMessageObjectSchema(

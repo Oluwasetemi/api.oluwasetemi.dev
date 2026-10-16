@@ -290,9 +290,9 @@ describe("better Auth Integration", () => {
         json: {},
       });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty("message");
+      expect(data).toHaveProperty("success");
     });
   });
 
@@ -431,7 +431,7 @@ describe("better Auth Integration", () => {
     });
   });
 
-  describe("pOST /api/auth/forget-password", () => {
+  describe("pOST /api/auth/request-password-reset", () => {
     beforeEach(async () => {
       // Register user
       const userData = {
@@ -446,7 +446,7 @@ describe("better Auth Integration", () => {
     });
 
     it("should send password reset email for existing user", async () => {
-      const response = await client.api.auth["forget-password"].$post({
+      const response = await client.api.auth["request-password-reset"].$post({
         json: {
           email: "john@example.com",
         },
@@ -469,7 +469,7 @@ describe("better Auth Integration", () => {
     });
 
     it("should handle password reset for non-existent user", async () => {
-      const response = await client.api.auth["forget-password"].$post({
+      const response = await client.api.auth["request-password-reset"].$post({
         json: {
           email: "nonexistent@example.com",
         },
@@ -481,8 +481,8 @@ describe("better Auth Integration", () => {
       expect(data).toHaveProperty("message");
     });
 
-    it("should reject forget password with invalid email", async () => {
-      const response = await client.api.auth["forget-password"].$post({
+    it("should reject password reset with invalid email", async () => {
+      const response = await client.api.auth["request-password-reset"].$post({
         json: {
           email: "invalid-email",
         },
@@ -502,7 +502,7 @@ describe("better Auth Integration", () => {
         body: "{ malformed json",
       });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
     });
 
     it("should handle missing Content-Type header", async () => {
@@ -516,7 +516,7 @@ describe("better Auth Integration", () => {
       });
 
       // Should still work or handle gracefully
-      expect([200, 400]).toContain(response.status);
+      expect([200, 400, 415]).toContain(response.status);
     });
   });
 

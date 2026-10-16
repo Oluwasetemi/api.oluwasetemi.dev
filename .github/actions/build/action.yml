@@ -5,10 +5,6 @@ inputs:
     description: 'Node.js version to use'
     required: false
     default: '22'
-  pnpm-version:
-    description: 'pnpm version to use'
-    required: false
-    default: '10.26.2'
   build-command:
     description: 'Build command to run'
     required: false
@@ -32,7 +28,6 @@ runs:
       uses: ./.github/actions/setup
       with:
         node-version: ${{ inputs.node-version }}
-        pnpm-version: ${{ inputs.pnpm-version }}
         cache-key-prefix: 'build'
 
     - name: Cache build artifacts

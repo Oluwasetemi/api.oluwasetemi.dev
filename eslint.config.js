@@ -24,14 +24,14 @@ export default setemiojo(
       "perfectionist/sort-imports": [
         "error",
         {
-          tsconfigRootDir: ".",
+          tsconfig: { rootDir: "." },
         },
       ],
       "unicorn/filename-case": [
         "error",
         {
           case: "kebabCase",
-          ignore: ["README.md", "CLAUDE.md"],
+          ignore: ["README.md", "CLAUDE.md", "__tests__"],
         },
       ],
     },

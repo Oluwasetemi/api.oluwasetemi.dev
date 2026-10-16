@@ -2,7 +2,7 @@
 
 Think of this as a personal api repository.
 
-- [OLUWASETEMI API](#api.oluwasetemi.dev)
+- [OLUWASETEMI API](#oluwasetemi-api)
   - [Included](#included)
   - [Security & Reliability](#security--reliability)
   - [Setup](#setup)
